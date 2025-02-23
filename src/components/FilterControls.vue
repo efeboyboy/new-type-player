@@ -4,7 +4,7 @@
       <!-- Dual Bandpass Filters -->
       <div v-for="n in 2" :key="n" class="flex flex-col gap-2">
         <div class="text-center">
-          <div class="module-label">Filter {{ n }}</div>
+          <div class="module-title">Tone {{ n }}</div>
         </div>
 
         <!-- Frequency -->
@@ -13,12 +13,12 @@
             v-model="filters[n - 1].freq"
             :min="20"
             :max="20000"
-            :step="1"
+            :step="100"
             class="w-10 h-10"
             @update:modelValue="updateFilters"
           />
           <div class="module-value">{{ formatFreq(filters[n - 1].freq) }}</div>
-          <label class="module-label">Freq</label>
+          <label class="module-label">Color</label>
         </div>
 
         <!-- Resonance -->
@@ -27,19 +27,19 @@
             v-model="filters[n - 1].q"
             :min="0.1"
             :max="10"
-            :step="0.1"
+            :step="0.5"
             class="w-10 h-10"
             @update:modelValue="updateFilters"
           />
           <div class="module-value">{{ filters[n - 1].q.toFixed(1) }}</div>
-          <label class="module-label">Res</label>
+          <label class="module-label">Focus</label>
         </div>
       </div>
 
       <!-- Tone Shaper -->
       <div v-for="n in 2" :key="n + 2" class="flex flex-col gap-2">
         <div class="text-center">
-          <div class="module-label">EQ {{ n }}</div>
+          <div class="module-title">Mix {{ n }}</div>
         </div>
 
         <!-- Low/High -->
@@ -48,14 +48,14 @@
             v-model="toneShape[n === 1 ? 'low' : 'high']"
             :min="-12"
             :max="12"
-            :step="0.1"
+            :step="1"
             class="w-10 h-10"
             @update:modelValue="updateToneShape"
           />
           <div class="module-value">
             {{ formatDb(toneShape[n === 1 ? "low" : "high"]) }}
           </div>
-          <label class="module-label">{{ n === 1 ? "Low" : "High" }}</label>
+          <label class="module-label">{{ n === 1 ? "Bass" : "Treble" }}</label>
         </div>
 
         <!-- Mid -->
@@ -64,12 +64,12 @@
             v-model="toneShape.mid"
             :min="-12"
             :max="12"
-            :step="0.1"
+            :step="1"
             class="w-10 h-10"
             @update:modelValue="updateToneShape"
           />
           <div class="module-value">{{ formatDb(toneShape.mid) }}</div>
-          <label class="module-label">Mid</label>
+          <label class="module-label">Middle</label>
         </div>
       </div>
     </div>
@@ -165,10 +165,14 @@
   }
 
   .module-value {
-    @apply text-[10px] font-medium text-zinc-500 text-center mt-0.5;
+    @apply text-[11px] font-mono text-zinc-500 text-center mt-1;
   }
 
   .module-label {
-    @apply text-[10px] font-medium text-zinc-400 text-center;
+    @apply text-xs font-medium text-zinc-400 text-center;
+  }
+
+  .module-title {
+    @apply text-sm font-medium text-zinc-300 mb-2;
   }
 </style>

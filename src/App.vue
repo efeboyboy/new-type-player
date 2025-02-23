@@ -3,6 +3,7 @@
   import TextInput from "./components/TextInput.vue";
   import Sequencer from "./components/Sequencer.vue";
   import OscillatorControls from "./components/OscillatorControls.vue";
+  import NoiseControls from "./components/NoiseControls.vue";
   import MatrixMixer from "./components/MatrixMixer.vue";
   import EnvelopeControls from "./components/EnvelopeControls.vue";
   import LPGControls from "./components/LPGControls.vue";
@@ -28,13 +29,18 @@
   const osc1 = ref(null);
   const osc2 = ref(null);
   const osc3 = ref(null);
+  const noiseControls = ref(null);
 
   const resetAllOscillators = () => {
-    [osc1.value, osc2.value, osc3.value].forEach((osc) => osc?.reset());
+    [osc1.value, osc2.value, osc3.value, noiseControls.value].forEach(
+      (control) => control?.reset()
+    );
   };
 
   const randomizeAllOscillators = () => {
-    [osc1.value, osc2.value, osc3.value].forEach((osc) => osc?.randomize());
+    [osc1.value, osc2.value, osc3.value, noiseControls.value].forEach(
+      (control) => control?.randomize()
+    );
   };
 
   const matrixMixer = ref(null);
@@ -74,7 +80,7 @@
           <div class="bento-title flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-              <span>Complex Oscillators 258</span>
+              <span>Sound Sources</span>
             </div>
             <div class="flex items-center gap-2">
               <!-- Reset Button -->
@@ -103,10 +109,11 @@
               </button>
             </div>
           </div>
-          <div class="grid grid-cols-3 gap-4">
+          <div class="grid grid-cols-4 gap-4">
             <OscillatorControls ref="osc1" :number="1" />
             <OscillatorControls ref="osc2" :number="2" />
             <OscillatorControls ref="osc3" :number="3" />
+            <NoiseControls ref="noiseControls" />
           </div>
         </div>
 
@@ -115,7 +122,7 @@
           <div class="bento-title flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-              <span>Envelope Generator 284</span>
+              <span>Shape Controls</span>
             </div>
             <div class="flex items-center gap-2">
               <!-- Reset Button -->
@@ -154,7 +161,7 @@
           <div class="bento-title flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-              <span>Matrix Mixer 292</span>
+              <span>Routing</span>
             </div>
             <div class="flex items-center gap-2">
               <!-- Reset Button -->
@@ -196,7 +203,7 @@
           <div class="bento-title flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-              <span>Low Pass Gate 292</span>
+              <span>Gate Controls</span>
             </div>
             <div class="flex items-center gap-2">
               <!-- Reset Button -->
@@ -235,7 +242,7 @@
           <div class="bento-title flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-              <span>Dual Filter 291</span>
+              <span>Tone Controls</span>
             </div>
             <div class="flex items-center gap-2">
               <!-- Reset Button -->
@@ -274,7 +281,7 @@
           <div class="bento-title flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-              <span>Spatial Director 227</span>
+              <span>Space Controls</span>
             </div>
             <div class="flex items-center gap-2">
               <!-- Reset Button -->
@@ -336,7 +343,24 @@
   }
 
   .bento-title {
-    @apply text-sm font-medium text-zinc-400 mb-2 pb-2 border-b border-zinc-800/50;
+    @apply text-base font-medium text-zinc-300 mb-3 pb-2 border-b border-zinc-800/50;
+  }
+
+  .module-content {
+    @apply mt-2;
+  }
+
+  /* Module text hierarchy */
+  .module-title {
+    @apply text-sm font-medium text-zinc-300;
+  }
+
+  .module-label {
+    @apply text-xs font-medium text-zinc-400;
+  }
+
+  .module-value {
+    @apply text-[11px] font-mono text-zinc-500;
   }
 
   /* Tooltip */

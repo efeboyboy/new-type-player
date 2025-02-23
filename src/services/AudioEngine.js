@@ -163,11 +163,20 @@ class AudioEngine {
       frequency: 440,
     });
 
-    // Noise source
+    // Noise source (Buchla 265-style)
     this.noise = new Tone.Noise({
       type: "white",
-      volume: -10,
+      volume: -20,
     });
+
+    // Add noise filtering and shaping
+    this.noiseFilter = new Tone.Filter({
+      type: "bandpass",
+      frequency: 1000,
+      Q: 1,
+    });
+
+    this.noiseVCA = new Tone.Gain(0.5);
 
     // Create Low Pass Gates (LPGs) - Buchla style
     this.lpgs = Array(4)
@@ -256,8 +265,10 @@ class AudioEngine {
       this.matrixMixer.inputs[2]
     );
 
-    // Connect noise chain
+    // Connect noise chain with proper gain staging
     this.noise.chain(
+      this.noiseFilter,
+      this.noiseVCA,
       this.toneShaper,
       this.lpgs[3].input,
       this.lpgs[3].output,
@@ -1020,6 +1031,19 @@ class AudioEngine {
       }
 
       console.log(`Updated oscillator ${oscNumber} params:`, params);
+    }
+  }
+
+  // Add method for noise control
+  setNoiseParams(params) {
+    if (params.volume !== undefined) {
+      this.noiseVCA.gain.value = Math.max(0, Math.min(1, params.volume));
+    }
+    if (params.filterFreq !== undefined) {
+      this.noiseFilter.frequency.value = params.filterFreq;
+    }
+    if (params.filterQ !== undefined) {
+      this.noiseFilter.Q.value = params.filterQ;
     }
   }
 }

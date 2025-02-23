@@ -76,8 +76,9 @@
   import MagentaService from "../services/MagentaService.js";
   import audioEngine from "../services/AudioEngine.js";
   import { debounce } from "lodash-es";
-  import { Play, Pause, Shuffle } from "lucide-vue-next";
+  import { Play, Pause, Shuffle, Leaf } from "lucide-vue-next";
   import IconHolder from "./IconHolder.vue";
+  import { PlantPhraseGenerator } from "../services/PlantPhraseGenerator";
 
   const magentaService = new MagentaService();
   const text = ref("");
@@ -302,6 +303,12 @@
       console.error("Failed to randomize parameters:", err);
       error.value = "Failed to randomize parameters";
     }
+  };
+
+  const generatePlantPhrase = () => {
+    if (!store.audioInitialized) return;
+    text.value = PlantPhraseGenerator.generatePhrase();
+    handleInput({ target: { value: text.value } });
   };
 </script>
 

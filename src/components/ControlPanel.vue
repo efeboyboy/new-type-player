@@ -1,18 +1,20 @@
 <template>
-  <div class="flex flex-col space-y-4">
-    <!-- Start/Stop button to control playback -->
+  <div
+    class="flex flex-col items-center justify-center space-y-6 p-4 bg-gray-50 rounded shadow"
+  >
+    <!-- Start/Stop Button -->
     <button
       @click="togglePlay"
-      class="px-4 py-2 border rounded bg-blue-500 text-white"
+      class="w-full max-w-xs px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded"
     >
       {{ playing ? "Stop" : "Start" }}
     </button>
 
-    <!-- Placeholder for knob components -->
-    <div class="flex space-x-4">
-      <div class="bg-gray-200 p-4 rounded">Knob 1</div>
-      <div class="bg-gray-200 p-4 rounded">Knob 2</div>
-      <div class="bg-gray-200 p-4 rounded">Knob 3</div>
+    <!-- Tempo Knob Section using custom Knob component -->
+    <div class="flex flex-col items-center">
+      <div class="text-lg font-medium mb-2">Tempo</div>
+      <Knob v-model="tempo" :min="40" :max="200" :step="1" />
+      <div class="mt-2 text-sm">{{ tempo }} BPM</div>
     </div>
   </div>
 </template>
@@ -20,16 +22,22 @@
 <script setup>
   import { computed } from "vue";
   import { store } from "../store.js";
+  import Knob from "./Knob.vue";
 
-  // Computed property for playback state
   const playing = computed(() => store.playing);
 
-  // Method to toggle playback state
   const togglePlay = () => {
     store.togglePlaying();
   };
+
+  const tempo = computed({
+    get: () => store.tempo,
+    set: (val) => {
+      store.tempo = val;
+    },
+  });
 </script>
 
 <style scoped>
-  /* Additional styles can be added here */
+  /* Additional styling if needed */
 </style>

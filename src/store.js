@@ -5,6 +5,7 @@ export const store = reactive({
   inputText: "",
   sequence: [],
   playing: false,
+  tempo: 120,
   updateInput(newInput) {
     this.inputText = newInput;
     // Generate sequence based on new input

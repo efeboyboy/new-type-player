@@ -54,15 +54,43 @@ export const store = reactive({
     this.inputText = newInput;
     // Generate sequence based on new input
     if (newInput) {
-      this.sequence = generateSequence(newInput);
+      const generatedSequence = generateSequence(newInput);
+      // Convert to the format expected by AudioEngine
+      const formattedSequence = {
+        notes: [],
+        totalTime: 4.0,
+        tempos: [{ time: 0, qpm: this.tempo }],
+      };
+
+      // Convert the 2D array format to notes
+      generatedSequence.forEach((channel, channelIndex) => {
+        channel.forEach((value, stepIndex) => {
+          if (value !== null && value !== undefined) {
+            formattedSequence.notes.push({
+              pitch: value,
+              startTime: stepIndex * 0.25, // Each step is a 16th note
+              endTime: (stepIndex + 1) * 0.25,
+              velocity: 100, // Default velocity
+              channel: channelIndex,
+            });
+          }
+        });
+      });
+
+      this.sequence = formattedSequence;
       console.log("Generated sequence:", this.sequence);
+
       // If we're playing, restart with new sequence
       if (this.playing) {
         audioEngine.stopPlayback();
         audioEngine.startPlayback(this.sequence);
       }
     } else {
-      this.sequence = [];
+      this.sequence = {
+        notes: [],
+        totalTime: 4.0,
+        tempos: [{ time: 0, qpm: this.tempo }],
+      };
       if (this.playing) {
         this.togglePlaying(); // Stop if no input
       }

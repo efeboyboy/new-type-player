@@ -21,9 +21,12 @@
     SwitchCameraIcon,
     SlidersIcon,
     CompassIcon,
+    HelpCircle,
   } from "lucide-vue-next";
   import AIControls from "./components/AIControls.vue";
   import IconHolder from "./components/IconHolder.vue";
+  import HelpModal from "./components/HelpModal.vue";
+  import { Teleport } from "vue";
 
   const handleUpdateText = (newText) => {
     store.updateInput(newText);
@@ -62,6 +65,8 @@
 
   const isPlaying = ref(false);
   const currentSequence = ref(null);
+
+  const showHelp = ref(false);
 
   // Handle text changes
   const handleTextChange = (text) => {
@@ -126,6 +131,18 @@
         <div class="flex-1">
           <TextInput @update:text="handleUpdateText" />
         </div>
+
+        <button
+          @click="showHelp = true"
+          class="w-8 h-8 rounded-full bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
+          title="How to use"
+        >
+          <IconHolder
+            class="w-4 h-4 text-zinc-400 group-hover:text-emerald-400"
+          >
+            <HelpCircle />
+          </IconHolder>
+        </button>
       </div>
     </div>
 
@@ -382,6 +399,11 @@
         </div>
       </div>
     </div>
+
+    <!-- Help Modal (moved to root level) -->
+    <Teleport to="body">
+      <HelpModal v-if="showHelp" @close="showHelp = false" />
+    </Teleport>
   </div>
 </template>
 

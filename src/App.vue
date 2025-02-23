@@ -39,10 +39,11 @@
   // Add volume state management
   const previousVolume = ref(0.75); // Default volume
   const volume = computed({
-    get: () => store.volume,
+    get: () => store.volume ?? 0.75, // Default to 0.75 if undefined
     set: (val) => {
-      // Clamp value between 0 and 1
-      const clampedValue = Math.max(0, Math.min(1, val));
+      // Ensure val is a number and clamp between 0 and 1
+      const numVal = Number(val);
+      const clampedValue = isNaN(numVal) ? 0 : Math.max(0, Math.min(1, numVal));
       store.volume = clampedValue;
       audioEngine.setMasterVolume(clampedValue);
     },
@@ -174,7 +175,7 @@
                 <Knob v-model="volume" :min="0" :max="1" :step="0.01" />
               </div>
               <span class="text-[10px] font-mono text-zinc-300"
-                >{{ Math.round(volume * 100) }}%</span
+                >{{ Math.round((volume || 0) * 100) }}%</span
               >
             </div>
 

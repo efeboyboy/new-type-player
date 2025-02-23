@@ -81,41 +81,23 @@
   const spatialControls = ref(null);
 
   const resetAllOscillators = () => {
-    [
-      osc1.value,
-      osc2.value,
-      osc3.value,
-      noiseControls.value,
-      envelopeShapeControls.value,
-      envelopeBehaviorControls.value,
-      lpgControls.value,
-      matrixMixer.value,
-      filterControls.value,
-      spatialControls.value,
-    ].forEach((control) => {
-      if (control?.reset) {
-        control.reset();
+    [osc1.value, osc2.value, osc3.value, noiseControls.value].forEach(
+      (control) => {
+        if (control?.reset) {
+          control.reset();
+        }
       }
-    });
+    );
   };
 
   const randomizeAllOscillators = () => {
-    [
-      osc1.value,
-      osc2.value,
-      osc3.value,
-      noiseControls.value,
-      envelopeShapeControls.value,
-      envelopeBehaviorControls.value,
-      lpgControls.value,
-      matrixMixer.value,
-      filterControls.value,
-      spatialControls.value,
-    ].forEach((control) => {
-      if (control?.randomize) {
-        control.randomize();
+    [osc1.value, osc2.value, osc3.value, noiseControls.value].forEach(
+      (control) => {
+        if (control?.randomize) {
+          control.randomize();
+        }
       }
-    });
+    );
   };
 
   const isPlaying = ref(false);

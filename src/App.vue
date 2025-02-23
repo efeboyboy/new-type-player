@@ -56,8 +56,10 @@
             <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
             Complex Oscillators 258
           </div>
-          <div class="grid grid-cols-3 gap-4 h-full">
-            <OscillatorControls v-for="n in 3" :key="n" :number="n" />
+          <div class="grid grid-cols-3 gap-4">
+            <OscillatorControls :number="1" />
+            <OscillatorControls :number="2" />
+            <OscillatorControls :number="3" />
           </div>
         </div>
 

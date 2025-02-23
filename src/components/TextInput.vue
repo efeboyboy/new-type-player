@@ -76,8 +76,9 @@
   import MagentaService from "../services/MagentaService.js";
   import audioEngine from "../services/AudioEngine.js";
   import { debounce } from "lodash-es";
-  import { Play, Pause, Shuffle } from "lucide-vue-next";
+  import { Play, Pause, Shuffle, Leaf } from "lucide-vue-next";
   import IconHolder from "./IconHolder.vue";
+  import { PlantPhraseGenerator } from "../services/PlantPhraseGenerator";
 
   const magentaService = new MagentaService();
   const text = ref("");
@@ -96,37 +97,43 @@
   // Initialize audio system
   onMounted(async () => {
     try {
-      // Start audio context
-      await Tone.start();
-      await audioEngine.initialize();
+      isInitializing.value = true;
+      error.value = null;
+
+      // Initialize store first
+      const success = await store.initializeAudio();
+      if (!success) {
+        throw new Error("Failed to initialize audio system");
+      }
 
       // Initialize Magenta
       await magentaService.initialize();
 
       // Set initial seed but keep text input empty
-      currentSeed.value = "a3Wnb2pn"; // Default patch
-
-      // Apply the default patch parameters
-      await store.applySeed(currentSeed.value);
+      currentSeed.value = store.currentSeed || "a3Wnb2pn"; // Use store's seed or default
 
       // Mark as initialized
       isInitialized.value = true;
     } catch (err) {
       console.error("Failed to initialize:", err);
       error.value = "Failed to initialize audio system";
+      isInitialized.value = false;
+    } finally {
+      isInitializing.value = false;
     }
   });
 
   const initializeAudio = async () => {
     if (isInitializing.value) return;
 
-    isInitializing.value = true;
-    error.value = null;
-
     try {
-      // Start audio context
-      await Tone.start();
-      await audioEngine.initialize();
+      isInitializing.value = true;
+      error.value = null;
+
+      const success = await store.initializeAudio();
+      if (!success) {
+        throw new Error("Failed to initialize audio system");
+      }
 
       // Initialize Magenta
       await magentaService.initialize();
@@ -136,6 +143,7 @@
     } catch (err) {
       console.error("Failed to initialize:", err);
       error.value = "Failed to initialize audio system";
+      isInitialized.value = false;
     } finally {
       isInitializing.value = false;
     }
@@ -283,25 +291,39 @@
 
   // Handle randomization of all parameters
   const handleRandomize = async () => {
-    if (!isInitialized.value) return;
+    if (!isInitialized.value || isProcessing.value) return;
 
     try {
+      isProcessing.value = true;
+      error.value = null;
+
       // Generate new seed
       const newSeed = generateSeed();
+
+      // Apply new seed
+      const success = await store.applySeed(newSeed, true);
+      if (!success) {
+        throw new Error("Failed to apply seed");
+      }
+
+      // Update local state
       currentSeed.value = newSeed;
-
-      // Apply new seed with text update
-      await store.applySeed(newSeed, true);
-
-      // Update local text value with a random plant joke phrase
       text.value = generateRandomPhrase();
 
-      // Generate pattern
+      // Generate new pattern
       await generatePattern(text.value);
     } catch (err) {
       console.error("Failed to randomize parameters:", err);
       error.value = "Failed to randomize parameters";
+    } finally {
+      isProcessing.value = false;
     }
+  };
+
+  const generatePlantPhrase = () => {
+    if (!store.audioInitialized) return;
+    text.value = PlantPhraseGenerator.generatePhrase();
+    handleInput({ target: { value: text.value } });
   };
 </script>
 

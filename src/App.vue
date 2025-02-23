@@ -26,6 +26,7 @@
   import AIControls from "./components/AIControls.vue";
   import IconHolder from "./components/IconHolder.vue";
   import HelpModal from "./components/HelpModal.vue";
+  import InitModal from "./components/InitModal.vue";
   import { Teleport } from "vue";
 
   const tempo = computed({
@@ -72,29 +73,56 @@
   const osc2 = ref(null);
   const osc3 = ref(null);
   const noiseControls = ref(null);
-
-  const resetAllOscillators = () => {
-    [osc1.value, osc2.value, osc3.value, noiseControls.value].forEach(
-      (control) => control?.reset()
-    );
-  };
-
-  const randomizeAllOscillators = () => {
-    [osc1.value, osc2.value, osc3.value, noiseControls.value].forEach(
-      (control) => control?.randomize()
-    );
-  };
-
   const matrixMixer = ref(null);
-  const envelopeControls = ref(null);
+  const envelopeShapeControls = ref(null);
+  const envelopeBehaviorControls = ref(null);
   const lpgControls = ref(null);
   const filterControls = ref(null);
   const spatialControls = ref(null);
+
+  const resetAllOscillators = () => {
+    [
+      osc1.value,
+      osc2.value,
+      osc3.value,
+      noiseControls.value,
+      envelopeShapeControls.value,
+      envelopeBehaviorControls.value,
+      lpgControls.value,
+      matrixMixer.value,
+      filterControls.value,
+      spatialControls.value,
+    ].forEach((control) => {
+      if (control?.reset) {
+        control.reset();
+      }
+    });
+  };
+
+  const randomizeAllOscillators = () => {
+    [
+      osc1.value,
+      osc2.value,
+      osc3.value,
+      noiseControls.value,
+      envelopeShapeControls.value,
+      envelopeBehaviorControls.value,
+      lpgControls.value,
+      matrixMixer.value,
+      filterControls.value,
+      spatialControls.value,
+    ].forEach((control) => {
+      if (control?.randomize) {
+        control.randomize();
+      }
+    });
+  };
 
   const isPlaying = ref(false);
   const currentSequence = ref(null);
 
   const showHelp = ref(false);
+  const showInitModal = ref(true);
 
   // Handle text changes
   const handleTextChange = (text) => {
@@ -133,7 +161,8 @@
     store.osc2 = osc2.value;
     store.osc3 = osc3.value;
     store.noiseControls = noiseControls.value;
-    store.envelopeControls = envelopeControls.value;
+    store.envelopeShapeControls = envelopeShapeControls.value;
+    store.envelopeBehaviorControls = envelopeBehaviorControls.value;
     store.lpgControls = lpgControls.value;
     store.matrixMixer = matrixMixer.value;
     store.filterControls = filterControls.value;
@@ -149,7 +178,8 @@
     store.osc2 = null;
     store.osc3 = null;
     store.noiseControls = null;
-    store.envelopeControls = null;
+    store.envelopeShapeControls = null;
+    store.envelopeBehaviorControls = null;
     store.lpgControls = null;
     store.matrixMixer = null;
     store.filterControls = null;
@@ -270,11 +300,51 @@
                   </button>
                 </div>
               </div>
-              <div class="grid grid-cols-4 gap-4">
-                <OscillatorControls ref="osc1" :number="1" />
-                <OscillatorControls ref="osc2" :number="2" />
-                <OscillatorControls ref="osc3" :number="3" />
-                <NoiseControls ref="noiseControls" />
+              <div class="grid grid-rows-2 gap-4 h-full">
+                <div class="grid grid-cols-2 gap-4 h-full">
+                  <div class="bento-box">
+                    <div class="bento-title flex items-center justify-between">
+                      <div class="module-title">Sound 1</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <OscillatorControls ref="osc1" :number="1" />
+                    </div>
+                  </div>
+                  <div class="bento-box">
+                    <div class="bento-title flex items-center justify-between">
+                      <div class="module-title">Sound 2</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <OscillatorControls ref="osc2" :number="2" />
+                    </div>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 h-full">
+                  <div class="bento-box">
+                    <div class="bento-title flex items-center justify-between">
+                      <div class="module-title">Sound 3</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <OscillatorControls ref="osc3" :number="3" />
+                    </div>
+                  </div>
+                  <div class="bento-box">
+                    <div class="bento-title flex items-center justify-between">
+                      <div class="module-title">Noise</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <NoiseControls ref="noiseControls" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -289,8 +359,13 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <button
-                    @click="envelopeControls?.reset()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                    @click="
+                      () => {
+                        envelopeShapeControls?.reset();
+                        envelopeBehaviorControls?.reset();
+                      }
+                    "
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
                       <RotateCcw
@@ -300,8 +375,13 @@
                     </IconHolder>
                   </button>
                   <button
-                    @click="envelopeControls?.randomize()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                    @click="
+                      () => {
+                        envelopeShapeControls?.randomize();
+                        envelopeBehaviorControls?.randomize();
+                      }
+                    "
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
                       <Shuffle
@@ -312,8 +392,29 @@
                   </button>
                 </div>
               </div>
-              <div class="module-content">
-                <EnvelopeControls ref="envelopeControls" />
+              <div class="grid grid-rows-2 gap-4 h-full">
+                <div class="bento-box">
+                  <div class="bento-title flex items-center justify-between">
+                    <div class="module-title">Shape</div>
+                  </div>
+                  <div class="module-content flex items-center justify-center">
+                    <EnvelopeControls
+                      ref="envelopeShapeControls"
+                      mode="shape"
+                    />
+                  </div>
+                </div>
+                <div class="bento-box">
+                  <div class="bento-title flex items-center justify-between">
+                    <div class="module-title">Behavior</div>
+                  </div>
+                  <div class="module-content flex items-center justify-center">
+                    <EnvelopeControls
+                      ref="envelopeBehaviorControls"
+                      mode="behavior"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -489,6 +590,13 @@
     <Teleport to="body">
       <HelpModal v-if="showHelp" @close="showHelp = false" />
     </Teleport>
+
+    <!-- Init Modal (moved to root level) -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <InitModal v-if="showInitModal" @close="showInitModal = false" />
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -508,7 +616,7 @@
   }
 
   .bento-box {
-    @apply bg-zinc-900/50 rounded-xl p-4 border border-zinc-800;
+    @apply bg-zinc-900/50 rounded-xl p-4 border border-zinc-800 h-full;
     backdrop-filter: blur(12px);
     position: relative;
     overflow: visible !important;
@@ -541,7 +649,7 @@
   }
 
   .module-content {
-    @apply mt-2;
+    @apply h-full;
     overflow: visible;
   }
 

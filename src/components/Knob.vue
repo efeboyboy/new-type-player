@@ -129,30 +129,20 @@
     event.preventDefault();
 
     const pageY = event.touches ? event.touches[0].pageY : event.pageY;
+    const deltaY = dragStart.value.y - pageY;
 
-    // More precise delta calculation
-    const pixelDelta = dragStart.value.y - pageY;
+    // Simplified sensitivity calculation
     const range = props.max - props.min;
+    const sensitivity = range / 200; // Fixed ratio for more predictable movement
 
-    // Adjust sensitivity based on range and step size
-    let sensitivity;
-    if (props.step > 0) {
-      // For stepped values, make sure we move at least one step with reasonable movement
-      const pixelsPerStep = Math.max(1, 100 / (range / props.step));
-      sensitivity = props.step / pixelsPerStep;
-    } else {
-      // For continuous values, use a finer sensitivity
-      sensitivity = range / 400;
-    }
-
-    // Calculate new value with higher precision
-    const delta = pixelDelta * sensitivity;
+    // Calculate new value
+    const delta = deltaY * sensitivity;
     const rawValue = dragStart.value.value + delta;
 
-    // Apply quantization and clamping
+    // Quantize and clamp the value
     const newValue = quantizeValue(clampValue(rawValue));
 
-    // Only update if the quantized value has changed
+    // Only emit if value actually changed
     if (newValue !== lastEmittedValue.value) {
       internalValue.value = newValue;
       lastEmittedValue.value = newValue;
@@ -164,13 +154,9 @@
     event.preventDefault();
 
     const range = props.max - props.min;
-    // Make wheel sensitivity much lower
-    const sensitivity =
-      props.step > 0
-        ? props.step * 0.05 // Move by 1/20th of a step per wheel tick
-        : range * 0.0005; // Very fine control for continuous values (1/2000th of range)
-
+    const sensitivity = range / 400; // Fixed ratio for wheel movement
     const delta = -event.deltaY * sensitivity;
+
     const rawValue = internalValue.value + delta;
     const newValue = quantizeValue(clampValue(rawValue));
 

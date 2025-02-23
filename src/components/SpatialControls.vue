@@ -1,80 +1,94 @@
 <template>
   <div class="module-panel">
-    <div class="grid grid-cols-4 gap-4">
-      <!-- Channel Controls -->
-      <div v-for="n in 4" :key="n" class="flex flex-col items-center gap-4">
+    <!-- Channel Controls in a more compact grid -->
+    <div class="grid grid-cols-4 gap-3">
+      <div v-for="n in 4" :key="n" class="flex flex-col gap-2">
         <div class="text-center">
-          <div class="module-label">Channel {{ n }}</div>
+          <div class="module-title">{{ n }}</div>
         </div>
 
-        <!-- XY Pad -->
-        <div
-          class="xy-pad relative bg-zinc-800/50 rounded-lg w-full aspect-square"
-          @mousedown="startDrag($event, n - 1)"
-          @touchstart="startDrag($event, n - 1)"
-        >
-          <!-- Grid Lines -->
+        <!-- X-Y Position Control - Made slightly larger since it's the main control -->
+        <div class="control-group">
           <div
-            class="absolute inset-0 grid grid-cols-2 grid-rows-2 pointer-events-none"
+            class="w-24 h-24 bg-zinc-900 rounded-lg relative cursor-pointer hover:bg-zinc-900/70 transition-colors"
+            @mousedown="startDrag(n - 1)"
+            @mousemove="handleDrag"
+            @mouseup="stopDrag"
+            @mouseleave="stopDrag"
+            ref="xyPad"
           >
-            <div class="border-r border-b border-zinc-700/30"></div>
-            <div class="border-l border-b border-zinc-700/30"></div>
-            <div class="border-r border-t border-zinc-700/30"></div>
-            <div class="border-l border-t border-zinc-700/30"></div>
-          </div>
-
-          <!-- Position Indicator -->
-          <div
-            class="absolute w-3 h-3 bg-emerald-500/50 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-            :style="{
-              left: (channels[n - 1].x + 1) * 50 + '%',
-              top: (channels[n - 1].y + 1) * 50 + '%',
-            }"
-          ></div>
-
-          <!-- Labels -->
-          <div
-            class="absolute inset-0 flex items-center justify-center pointer-events-none"
-          >
-            <div class="text-[10px] font-medium text-zinc-500">
-              {{ formatPan(channels[n - 1].x) }} /
-              {{ formatPan(channels[n - 1].y) }}
+            <div
+              :class="[
+                'absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1/2 transition-transform',
+                isAnimating[n - 1] ? 'bg-emerald-500' : 'bg-zinc-400',
+              ]"
+              :style="{
+                left: `${(channels[n - 1].x + 1) * 50}%`,
+                top: `${(channels[n - 1].y + 1) * 50}%`,
+                transform: `translate(-50%, -50%) scale(${
+                  isAnimating[n - 1] ? 1.2 : 1
+                })`,
+              }"
+            ></div>
+            <!-- Add grid lines for better visual reference -->
+            <div
+              class="absolute inset-0 grid grid-cols-2 grid-rows-2 pointer-events-none"
+            >
+              <div class="border-r border-b border-zinc-800/30"></div>
+              <div class="border-b border-zinc-800/30"></div>
+              <div class="border-r border-zinc-800/30"></div>
+              <div></div>
             </div>
           </div>
+          <label class="module-label">Position</label>
         </div>
 
-        <!-- Reverb Send -->
-        <div class="control-group">
-          <Knob
-            v-model="channels[n - 1].reverb"
-            :min="0"
-            :max="1"
-            :step="0.01"
-            class="w-10 h-10"
-          />
-          <div class="module-value">
-            {{ formatPercent(channels[n - 1].reverb) }}
+        <!-- Combined Space Control and Animation -->
+        <div class="flex items-end gap-2">
+          <div class="control-group flex-1">
+            <Knob
+              v-model="channels[n - 1].reverb"
+              :min="0"
+              :max="1"
+              :step="0.01"
+              class="w-12 h-12"
+            />
+            <div class="module-value">
+              {{ formatPercent(channels[n - 1].reverb) }}
+            </div>
+            <label class="module-label">Space</label>
           </div>
-          <label class="module-label">Reverb</label>
+
+          <button
+            @click="toggleAnimation(n - 1)"
+            :class="[
+              isAnimating[n - 1]
+                ? 'bg-emerald-500/20 text-emerald-500'
+                : 'bg-zinc-800/50 text-zinc-400 hover:bg-zinc-800/70',
+              'w-8 h-8 rounded transition-colors flex items-center justify-center self-center mb-4',
+            ]"
+          >
+            <span class="text-lg">{{ isAnimating[n - 1] ? "↻" : "→" }}</span>
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Global Reverb Controls -->
-    <div class="mt-4 pt-4 border-t border-zinc-800">
-      <div class="grid grid-cols-2 gap-4">
+    <!-- Global Reverb Controls - Made more compact -->
+    <div class="mt-3 pt-3 border-t border-zinc-800">
+      <div class="grid grid-cols-2 gap-3">
         <div class="control-group">
           <Knob
             v-model="reverbParams.decay"
             :min="0.1"
             :max="10"
             :step="0.1"
-            class="w-10 h-10"
+            class="w-12 h-12"
           />
           <div class="module-value">
             {{ formatTime(reverbParams.decay) }}
           </div>
-          <label class="module-label">Decay</label>
+          <label class="module-label">Length</label>
         </div>
 
         <div class="control-group">
@@ -83,12 +97,12 @@
             :min="0"
             :max="1"
             :step="0.01"
-            class="w-10 h-10"
+            class="w-12 h-12"
           />
           <div class="module-value">
             {{ formatPercent(reverbParams.diffusion) }}
           </div>
-          <label class="module-label">Diffusion</label>
+          <label class="module-label">Blend</label>
         </div>
       </div>
     </div>
@@ -96,7 +110,7 @@
 </template>
 
 <script setup>
-  import { ref, watch } from "vue";
+  import { ref, watch, onMounted, onUnmounted } from "vue";
   import { RotateCcw, Shuffle } from "lucide-vue-next";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
@@ -120,167 +134,252 @@
       .map(() => ({ ...defaultChannel }))
   );
 
-  // Initialize reverb parameters
   const reverbParams = ref({ ...defaultReverbParams });
+  const isAnimating = ref([false, false, false, false]);
+  const animationFrames = ref([null, null, null, null]);
+  const draggedChannel = ref(null);
+  const xyPad = ref(null);
 
-  // XY Pad drag handling
-  let activeChannel = -1;
-  let isDragging = false;
+  // Animation parameters
+  const animationConfigs = [
+    { type: "circle", speed: 0.5, radius: 0.8 },
+    { type: "figure8", speed: 0.3, size: 0.7 },
+    { type: "random", speed: 0.2, range: 0.6 },
+    { type: "lissajous", speed: 0.4, complexity: 3 },
+  ];
 
-  const startDrag = (event, channelIndex) => {
-    event.preventDefault();
-    isDragging = true;
-    activeChannel = channelIndex;
-
-    const handler = event.touches ? handleTouchMove : handleMouseMove;
-    const endHandler = event.touches ? handleTouchEnd : handleMouseEnd;
-
-    document.addEventListener("mousemove", handler);
-    document.addEventListener("mouseup", endHandler);
-    document.addEventListener("touchmove", handler);
-    document.addEventListener("touchend", endHandler);
-
-    updatePosition(event);
+  const startDrag = (channelIndex) => {
+    draggedChannel.value = channelIndex;
   };
 
-  const handleMouseMove = (event) => {
-    if (!isDragging) return;
-    updatePosition(event);
+  const handleDrag = (event) => {
+    if (draggedChannel.value === null || !xyPad.value) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+
+    channels.value[draggedChannel.value].x = Math.max(-1, Math.min(1, x));
+    channels.value[draggedChannel.value].y = Math.max(-1, Math.min(1, y));
+
+    updateSpatialPosition(draggedChannel.value);
   };
 
-  const handleTouchMove = (event) => {
-    if (!isDragging) return;
-    updatePosition(event.touches[0]);
+  const stopDrag = () => {
+    draggedChannel.value = null;
   };
 
-  const handleMouseEnd = () => {
-    isDragging = false;
-    activeChannel = -1;
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseEnd);
+  const toggleAnimation = (channelIndex) => {
+    isAnimating.value[channelIndex] = !isAnimating.value[channelIndex];
+    if (isAnimating.value[channelIndex]) {
+      startAnimation(channelIndex);
+    } else {
+      stopAnimation(channelIndex);
+    }
   };
 
-  const handleTouchEnd = () => {
-    isDragging = false;
-    activeChannel = -1;
-    document.removeEventListener("touchmove", handleTouchMove);
-    document.removeEventListener("touchend", handleTouchEnd);
-  };
+  const startAnimation = (channelIndex) => {
+    const config = animationConfigs[channelIndex];
+    let time = 0;
 
-  const updatePosition = (event) => {
-    if (activeChannel === -1) return;
+    const animate = () => {
+      time += config.speed / 60;
 
-    const pad = event.target.closest(".xy-pad");
-    if (!pad) return;
+      switch (config.type) {
+        case "circle":
+          channels.value[channelIndex].x = Math.cos(time) * config.radius;
+          channels.value[channelIndex].y = Math.sin(time) * config.radius;
+          break;
+        case "figure8":
+          channels.value[channelIndex].x = Math.cos(time) * config.size;
+          channels.value[channelIndex].y =
+            (Math.sin(time * 2) * config.size) / 2;
+          break;
+        case "random":
+          if (time % 1 < 0.016) {
+            // Update position every ~1 second
+            channels.value[channelIndex].x =
+              (Math.random() * 2 - 1) * config.range;
+            channels.value[channelIndex].y =
+              (Math.random() * 2 - 1) * config.range;
+          }
+          break;
+        case "lissajous":
+          channels.value[channelIndex].x =
+            Math.sin(time * config.complexity) * 0.8;
+          channels.value[channelIndex].y =
+            Math.cos(time * (config.complexity + 1)) * 0.8;
+          break;
+      }
 
-    const rect = pad.getBoundingClientRect();
-    const clientX = event.clientX || event.touches?.[0].clientX;
-    const clientY = event.clientY || event.touches?.[0].clientY;
-
-    const x = Math.max(
-      -1,
-      Math.min(1, ((clientX - rect.left) / rect.width) * 2 - 1)
-    );
-    const y = Math.max(
-      -1,
-      Math.min(1, ((clientY - rect.top) / rect.height) * 2 - 1)
-    );
-
-    channels.value[activeChannel].x = x;
-    channels.value[activeChannel].y = y;
-
-    updateChannel(activeChannel);
-  };
-
-  // Format values for display
-  const formatPan = (value) => {
-    if (Math.abs(value) < 0.05) return "C";
-    return value > 0
-      ? "R" + (value * 100).toFixed(0)
-      : "L" + (Math.abs(value) * 100).toFixed(0);
-  };
-
-  const formatPercent = (value) => (value * 100).toFixed(0) + "%";
-  const formatTime = (value) => value.toFixed(1) + "s";
-
-  // Update spatial position and reverb for a channel
-  const updateChannel = (index) => {
-    const channel = channels.value[index];
-    audioEngine.setSpatialPosition(index, channel.x, channel.y);
-    audioEngine.setSpatialReverb(
-      index,
-      reverbParams.value.decay,
-      channel.reverb
-    );
-  };
-
-  // Reset to defaults
-  const reset = () => {
-    channels.value = channels.value.map(() => ({ ...defaultChannel }));
-    reverbParams.value = { ...defaultReverbParams };
-    channels.value.forEach((_, index) => updateChannel(index));
-  };
-
-  // Randomize all parameters
-  const randomize = () => {
-    channels.value = channels.value.map(() => ({
-      x: Math.random() * 2 - 1,
-      y: Math.random() * 2 - 1,
-      reverb: Math.random(),
-    }));
-
-    reverbParams.value = {
-      decay: Math.random() * 9.9 + 0.1,
-      diffusion: Math.random(),
+      updateSpatialPosition(channelIndex);
+      animationFrames.value[channelIndex] = requestAnimationFrame(animate);
     };
 
-    channels.value.forEach((_, index) => updateChannel(index));
+    animate();
   };
+
+  const stopAnimation = (channelIndex) => {
+    if (animationFrames.value[channelIndex]) {
+      cancelAnimationFrame(animationFrames.value[channelIndex]);
+      animationFrames.value[channelIndex] = null;
+    }
+  };
+
+  const updateSpatialPosition = async (channelIndex) => {
+    try {
+      // Ensure audio engine is initialized
+      if (!audioEngine.initialized) {
+        await audioEngine.initialize();
+      }
+
+      const channel = channels.value[channelIndex];
+      await audioEngine.setSpatialPosition(
+        channelIndex,
+        channel.x,
+        channel.y,
+        channel.reverb
+      );
+    } catch (error) {
+      console.warn(
+        `Error updating spatial position for channel ${channelIndex}:`,
+        error
+      );
+    }
+  };
+
+  // Reset function
+  const reset = () => {
+    // Stop all animations
+    isAnimating.value.forEach((_, index) => {
+      if (isAnimating.value[index]) {
+        stopAnimation(index);
+        isAnimating.value[index] = false;
+      }
+    });
+
+    // Reset channels to default values
+    channels.value = Array(4)
+      .fill()
+      .map(() => ({ ...defaultChannel }));
+
+    // Reset reverb parameters
+    reverbParams.value = { ...defaultReverbParams };
+
+    // Update all channels
+    channels.value.forEach((_, index) => updateSpatialPosition(index));
+  };
+
+  // Randomize function
+  const randomize = () => {
+    // Stop all animations
+    isAnimating.value.forEach((_, index) => {
+      if (isAnimating.value[index]) {
+        stopAnimation(index);
+        isAnimating.value[index] = false;
+      }
+    });
+
+    // Randomize channel positions and reverb
+    channels.value = channels.value.map(() => ({
+      x: (Math.random() * 2 - 1) * 0.8, // -0.8 to 0.8 for better stereo spread
+      y: (Math.random() * 2 - 1) * 0.8, // -0.8 to 0.8 for better depth
+      reverb: Math.random() * 0.6 + 0.2, // 0.2 to 0.8 for musical reverb amounts
+    }));
+
+    // Randomize reverb parameters within musical ranges
+    reverbParams.value = {
+      decay: Math.random() * 4 + 1, // 1 to 5 seconds
+      diffusion: Math.random() * 0.4 + 0.4, // 0.4 to 0.8 for natural sound
+    };
+
+    // Update all channels
+    channels.value.forEach((_, index) => updateSpatialPosition(index));
+  };
+
+  const formatPercent = (value) => {
+    return `${(value * 100).toFixed(0)}%`;
+  };
+
+  const formatTime = (value) => {
+    return `${value.toFixed(1)}s`;
+  };
+
+  // Clean up animations on component unmount
+  onUnmounted(() => {
+    try {
+      animationFrames.value.forEach((frame, index) => {
+        if (frame) stopAnimation(index);
+      });
+    } catch (error) {
+      console.warn("Error cleaning up animations:", error);
+    }
+  });
+
+  // Watch for changes and update audio engine with error handling
+  watch(
+    channels,
+    async () => {
+      try {
+        for (const [index, channel] of channels.value.entries()) {
+          await updateSpatialPosition(index);
+        }
+      } catch (error) {
+        console.warn("Error in channels watcher:", error);
+      }
+    },
+    { deep: true }
+  );
+
+  watch(
+    reverbParams,
+    async () => {
+      try {
+        // Ensure audio engine is initialized
+        if (!audioEngine.initialized) {
+          await audioEngine.initialize();
+        }
+
+        // Update reverb for each channel
+        for (let i = 0; i < channels.value.length; i++) {
+          await audioEngine.setSpatialReverb(
+            i,
+            reverbParams.value.decay,
+            reverbParams.value.diffusion
+          );
+        }
+      } catch (error) {
+        console.warn("Error in reverb params watcher:", error);
+      }
+    },
+    { deep: true }
+  );
 
   // Expose methods for parent component
   defineExpose({
     reset,
     randomize,
   });
-
-  // Watch for changes in parameters
-  watch(
-    [channels, reverbParams],
-    () => {
-      channels.value.forEach((_, index) => updateChannel(index));
-    },
-    { deep: true }
-  );
 </script>
 
 <style scoped>
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-6;
-  }
-
-  .module-value {
-    @apply text-[10px] font-medium text-zinc-500 text-center mt-0.5;
-  }
-
-  .module-label {
-    @apply text-[10px] font-medium text-zinc-400 text-center;
+    @apply bg-zinc-900/30 rounded-lg p-4;
   }
 
   .control-group {
     @apply flex flex-col items-center gap-1;
   }
 
-  .xy-pad {
-    @apply cursor-pointer select-none border border-zinc-800;
-    touch-action: none;
-    min-height: 80px;
+  .module-value {
+    @apply text-[10px] font-mono text-zinc-500 text-center mt-1;
   }
 
-  .xy-pad:hover {
-    @apply bg-zinc-800/70 border-zinc-700;
+  .module-label {
+    @apply text-[11px] font-medium text-zinc-400 text-center;
   }
 
-  .xy-pad:active {
-    @apply bg-zinc-800/90 border-emerald-500/30;
+  .module-title {
+    @apply text-sm font-medium text-zinc-300;
   }
 </style>

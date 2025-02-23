@@ -27,7 +27,20 @@ class AudioEngine {
   constructor() {
     this.initialized = false;
 
-    // Create nodes without connecting them
+    // Create master effects chain
+    this.masterCompressor = new Tone.Compressor({
+      threshold: -24, // Start compressing when signal exceeds -24dB
+      ratio: 4, // For every 4dB increase in input, output increases by 1dB
+      attack: 0.003, // Fast attack to catch transients
+      release: 0.25, // Moderate release time
+      knee: 12, // Soft knee for smoother compression
+    });
+
+    this.masterLimiter = new Tone.Limiter({
+      threshold: -3, // Prevent output from exceeding -3dB
+      release: 0.05, // Fast release to prevent pumping
+    });
+
     this.masterVolume = new Tone.Volume(0);
 
     // Create quad outputs
@@ -95,6 +108,14 @@ class AudioEngine {
         envelope: null,
         lfo: null,
       }));
+
+    // Add global envelope control
+    this.globalEnvelope = {
+      rise: 0.1, // Global rise time
+      fall: 0.2, // Global fall time
+      level: 0.8, // Global level
+      offsets: [1, 0.8, 0.6, 0.4], // Different strengths for each channel
+    };
 
     // Create matrix mixer components
     this.matrixMixer = {
@@ -216,12 +237,12 @@ class AudioEngine {
     // Create envelope generators
     this.envelopes = Array(4)
       .fill()
-      .map(() => {
+      .map((_, i) => {
         const env = new Tone.Envelope({
-          attack: 0.01,
-          decay: 0.2,
-          sustain: 0.5,
-          release: 0.5,
+          attack: this.globalEnvelope.rise * this.globalEnvelope.offsets[i],
+          decay: this.globalEnvelope.fall * this.globalEnvelope.offsets[i],
+          sustain: this.globalEnvelope.level * this.globalEnvelope.offsets[i],
+          release: this.globalEnvelope.fall * this.globalEnvelope.offsets[i],
           attackCurve: "exponential",
           releaseCurve: "exponential",
         });
@@ -229,7 +250,7 @@ class AudioEngine {
         return {
           envelope: env,
           offset: new Tone.Add(0.2),
-          multiply: new Tone.Multiply(1),
+          multiply: new Tone.Multiply(this.globalEnvelope.offsets[i]),
           isLooping: false,
           timeScale: 1,
         };
@@ -570,54 +591,140 @@ class AudioEngine {
     }
   }
 
+  // Set oscillator parameters
+  setOscillatorParams(oscNumber, params) {
+    if (!this.initialized) {
+      console.warn("Audio engine not initialized");
+      return;
+    }
+
+    try {
+      if (oscNumber >= 1 && oscNumber <= 3) {
+        const osc = this[`osc${oscNumber}`];
+        if (!osc) {
+          console.warn(`Oscillator ${oscNumber} not found`);
+          return;
+        }
+
+        // Update frequency if provided
+        if (params.frequency !== undefined) {
+          osc.frequency.value = Math.max(20, Math.min(20000, params.frequency));
+        }
+
+        // Update wave type if provided
+        if (params.waveType !== undefined) {
+          osc.type = params.waveType;
+        }
+
+        // Update wave shape (folding) if provided
+        if (params.waveShape !== undefined) {
+          this.setWaveFold(oscNumber, params.waveShape);
+        }
+
+        // Update FM amount if provided (only for osc3 which has the frequency shifter)
+        if (params.fmAmount !== undefined && oscNumber === 3) {
+          this.setFrequencyShift(params.fmAmount * 1000); // Scale to 0-1000 Hz range
+        }
+      }
+    } catch (error) {
+      console.warn(`Error setting oscillator ${oscNumber} parameters:`, error);
+    }
+  }
+
   // Set wave folding amount (0-1)
   setWaveFold(oscNumber, amount) {
-    if (oscNumber >= 1 && oscNumber <= 3) {
-      const fold = 1 + amount * 4; // Map 0-1 to 1-5 folds
-      this.waveFolders[oscNumber - 1].setMap((x) => {
-        return Math.sin(x * Math.PI * fold);
-      });
+    if (!this.initialized) return;
+
+    try {
+      if (oscNumber >= 1 && oscNumber <= 3) {
+        // Map 0-1 to different wave shaping functions for more timbral variety
+        const normalizedAmount = amount * 15; // Scale up the input range more dramatically
+        let shapeFunc;
+
+        if (normalizedAmount < 5) {
+          // Gentle sine folding for subtle harmonics
+          const fold = 1 + normalizedAmount * 0.8;
+          shapeFunc = (x) => Math.sin(x * Math.PI * fold);
+        } else if (normalizedAmount < 10) {
+          // Asymmetric folding for richer harmonics
+          const fold = 1 + (normalizedAmount - 5) * 1.2;
+          shapeFunc = (x) => {
+            const folded = Math.sin(x * Math.PI * fold);
+            return folded * Math.cos(x * Math.PI * 0.7) * 1.2;
+          };
+        } else {
+          // Hard folding for aggressive timbres
+          const fold = 1 + (normalizedAmount - 10) * 1.5;
+          shapeFunc = (x) => {
+            const folded = Math.sin(x * Math.PI * fold);
+            const shaped = Math.sign(folded) * Math.pow(Math.abs(folded), 0.6);
+            return shaped * 1.5; // Increase output gain for more presence
+          };
+        }
+
+        this.waveFolders[oscNumber - 1].setMap(shapeFunc);
+      }
+    } catch (error) {
+      console.warn(
+        `Error setting wave fold for oscillator ${oscNumber}:`,
+        error
+      );
     }
   }
 
-  // Set bandpass filter parameters
-  setFilter(oscNumber, frequency, Q) {
-    if (oscNumber >= 1 && oscNumber <= 3) {
-      const filter = this.bandpassFilters[oscNumber - 1];
-      filter.frequency.value = frequency;
-      filter.Q.value = Q;
+  // Set frequency shift amount
+  setFrequencyShift(shiftAmount) {
+    if (!this.initialized) return;
+
+    try {
+      this.freqShifter.frequency.value = Math.max(
+        0,
+        Math.min(1000, shiftAmount)
+      );
+    } catch (error) {
+      console.warn("Error setting frequency shift:", error);
     }
-  }
-
-  // Set tone shaper parameters (in dB)
-  setToneShape(low, mid, high) {
-    this.toneShaper.low.value = low;
-    this.toneShaper.mid.value = mid;
-    this.toneShaper.high.value = high;
-  }
-
-  // Get a random CV value (-1 to 1)
-  getRandomCV() {
-    return this.randomSampleHold.value * 2 - 1;
   }
 
   // Enhanced envelope methods
   setEnvelope(channel, params) {
     if (channel >= 0 && channel < 4) {
-      const envSystem = this.envelopes[channel];
-      const env = envSystem.envelope;
+      // Update global envelope if this is channel 0 (master)
+      if (
+        channel === 0 &&
+        (params.rise !== undefined ||
+          params.fall !== undefined ||
+          params.level !== undefined)
+      ) {
+        if (params.rise !== undefined) this.globalEnvelope.rise = params.rise;
+        if (params.fall !== undefined) this.globalEnvelope.fall = params.fall;
+        if (params.level !== undefined)
+          this.globalEnvelope.level = params.level;
 
-      if (params.attack !== undefined)
-        env.attack = params.attack * envSystem.timeScale;
-      if (params.decay !== undefined)
-        env.decay = params.decay * envSystem.timeScale;
-      if (params.sustain !== undefined) env.sustain = params.sustain;
-      if (params.release !== undefined)
-        env.release = params.release * envSystem.timeScale;
-      if (params.offset !== undefined) envSystem.offset.value = params.offset;
-      if (params.scale !== undefined) envSystem.multiply.value = params.scale;
-      if (params.timeScale !== undefined)
-        envSystem.timeScale = params.timeScale;
+        // Update all channels with scaled values
+        this.envelopes.forEach((envSystem, i) => {
+          const env = envSystem.envelope;
+          env.attack =
+            this.globalEnvelope.rise * this.globalEnvelope.offsets[i];
+          env.decay = this.globalEnvelope.fall * this.globalEnvelope.offsets[i];
+          env.sustain =
+            this.globalEnvelope.level * this.globalEnvelope.offsets[i];
+          env.release =
+            this.globalEnvelope.fall * this.globalEnvelope.offsets[i];
+        });
+      } else {
+        // Individual channel updates
+        const envSystem = this.envelopes[channel];
+        const env = envSystem.envelope;
+        const offset = this.globalEnvelope.offsets[channel];
+
+        if (params.rise !== undefined) env.attack = params.rise * offset;
+        if (params.fall !== undefined) {
+          env.decay = params.fall * offset;
+          env.release = params.fall * offset;
+        }
+        if (params.level !== undefined) env.sustain = params.level * offset;
+      }
     }
   }
 
@@ -644,9 +751,10 @@ class AudioEngine {
   }
 
   // Enhanced trigger with proper timing
-  triggerEnvelope(channel, time = "+0.05", params = {}) {
+  triggerEnvelope(channel, time = "+0.01", params = {}) {
     if (channel >= 0 && channel < 4) {
       const envSystem = this.envelopes[channel];
+      const lpg = this.lpgs[channel];
 
       // Use provided duration or calculate from envelope settings
       const duration =
@@ -656,9 +764,15 @@ class AudioEngine {
 
       // Convert velocity (0-1) to appropriate envelope scaling
       if (params.velocity !== undefined) {
-        const velocityScale = Math.max(0.1, params.velocity);
+        const velocityScale = Math.max(0.2, params.velocity); // Minimum velocity of 0.2
         envSystem.multiply.value = velocityScale;
       }
+
+      // Reset filter and VCA
+      lpg.filter.frequency.cancelScheduledValues(time);
+      lpg.vca.gain.cancelScheduledValues(time);
+      lpg.filter.frequency.setValueAtTime(20, time);
+      lpg.vca.gain.setValueAtTime(0, time);
 
       // Trigger with timing consideration
       envSystem.envelope.triggerAttackRelease(duration, time);
@@ -673,11 +787,6 @@ class AudioEngine {
         Math.min(1, level)
       );
     }
-  }
-
-  // Set frequency shift amount
-  setFrequencyShift(shiftAmount) {
-    this.freqShifter.frequency.value = shiftAmount;
   }
 
   // Method to set oscillator waveform (sine, square, sawtooth)
@@ -854,70 +963,70 @@ class AudioEngine {
 
   // Initialize Tone.js and prepare audio engine
   async initialize() {
-    if (this.initialized) return this;
+    if (this.initialized) return;
 
     try {
-      // Start audio context
       await Tone.start();
-      await Tone.context.resume();
-      await sleep(100); // Small delay to ensure context is ready
+      await this.initializeComponents();
+      this.connectMasterChain();
 
-      // Connect master volume to destination
-      this.masterVolume.toDestination();
+      // Start oscillators
+      this.osc1.start();
+      this.osc2.start();
+      this.osc3.start();
+      this.noise.start();
 
-      // Connect quad outputs to master volume
-      Object.values(this.quadOutputs).forEach((output) => {
-        output.connect(this.masterVolume);
-      });
+      this.initialized = true;
+    } catch (error) {
+      console.error("Failed to initialize audio engine:", error);
+      throw error;
+    }
+  }
 
+  async initializeComponents() {
+    try {
       // Initialize LPGs
       for (let i = 0; i < 4; i++) {
         const lpg = this.lpgs[i];
+        const offset = this.globalEnvelope.offsets[i];
 
-        lpg.vactrol = new Tone.Follower(0.1);
-        lpg.vca = new Tone.Gain(0);
+        lpg.vactrol = new Tone.Follower(0.01); // Faster response time
+        lpg.vca = new Tone.Gain(0); // Start closed
         lpg.filter = new Tone.Filter({
-          frequency: 2000,
+          frequency: 20, // Start fully closed
           type: "lowpass",
-          rolloff: -12,
+          rolloff: -24, // Steeper slope
         });
         lpg.envelope = new Tone.Envelope({
-          attack: 0.1,
-          decay: 0,
-          sustain: 1,
-          release: 0.2,
+          attack: this.globalEnvelope.rise * offset,
+          decay: this.globalEnvelope.fall * offset,
+          sustain: this.globalEnvelope.level * offset,
+          release: this.globalEnvelope.fall * offset,
           attackCurve: "exponential",
           releaseCurve: "exponential",
         });
         lpg.lfo = new Tone.LFO({
           frequency: 1,
-          min: 0,
+          min: 0, // Full modulation range
           max: 1,
           type: "sine",
         });
 
-        // Connect LPG components
+        // Connect LPG components with envelope integration
         lpg.envelope.connect(lpg.vactrol);
         lpg.lfo.connect(lpg.vactrol);
         lpg.vactrol.connect(lpg.vca.gain);
-        lpg.vactrol.connect(lpg.filter.frequency);
+
+        // Scale envelope to filter frequency (20Hz - 20kHz)
+        const filterScale = new Tone.Scale(20, 20000);
+        lpg.vactrol.connect(filterScale);
+        filterScale.connect(lpg.filter.frequency);
+
         lpg.filter.connect(lpg.vca);
+
+        // Start the LFO
+        lpg.lfo.start();
       }
-
-      // Connect matrix mixer
-      this.matrixMixer.inputs.forEach((input, i) => {
-        this.matrixMixer.outputs.forEach((output, j) => {
-          input.connect(this.matrixMixer.matrix[i][j]);
-          this.matrixMixer.matrix[i][j].connect(output);
-        });
-      });
-
-      // Connect matrix outputs to spatial directors
-      this.matrixMixer.outputs.forEach((output, i) => {
-        if (this.spatialDirectors[i]?.panner) {
-          output.connect(this.spatialDirectors[i].panner);
-        }
-      });
 
       // Initialize spatial routing
       await Promise.all(
@@ -939,6 +1048,23 @@ class AudioEngine {
           director.outputs.rr.connect(this.quadOutputs.rearRight);
         })
       );
+
+      // Connect matrix mixer
+      this.matrixMixer.inputs.forEach((input, i) => {
+        this.matrixMixer.outputs.forEach((output, j) => {
+          input.connect(this.matrixMixer.matrix[i][j]);
+          this.matrixMixer.matrix[i][j].connect(output);
+        });
+      });
+
+      // Connect matrix outputs to tone shaper and then to spatial directors
+      this.matrixMixer.outputs.forEach((output, i) => {
+        if (this.spatialDirectors[i]?.panner) {
+          // Insert tone shaper in the signal path
+          output.connect(this.toneShaper);
+          this.toneShaper.connect(this.spatialDirectors[i].panner);
+        }
+      });
 
       // Connect signal chains
       this.osc1.chain(
@@ -980,335 +1106,214 @@ class AudioEngine {
 
       // Final delay to ensure everything is ready
       await sleep(100);
-
-      this.initialized = true;
-      console.log("Audio engine initialized with Buchla-style LPGs");
-      return this;
     } catch (error) {
-      console.error("Failed to initialize audio engine:", error);
+      console.error("Failed to initialize components:", error);
       throw error;
     }
   }
 
-  // Test direct signal path
-  async testDirectPath() {
-    await Tone.start();
-    await sleep(100);
+  connectMasterChain() {
+    // Connect quad outputs to master chain
+    Object.values(this.quadOutputs).forEach((output) => {
+      output.connect(this.masterCompressor);
+    });
 
-    console.log("Testing direct signal path...");
-
-    // Start oscillators
-    this.osc1.start();
-    this.osc2.start();
-    this.osc3.start();
-
-    // Test each oscillator in sequence
-    const testSequence = async () => {
-      // Test osc1
-      this.osc1.frequency.value = 440;
-      await Tone.Destination.volume.rampTo(-12, 0.1);
-      await sleep(100);
-
-      // Test osc2
-      this.osc2.frequency.value = 554.37;
-      await sleep(100);
-
-      // Test osc3
-      this.osc3.frequency.value = 659.25;
-      await sleep(100);
-
-      // Stop all
-      this.osc1.stop();
-      this.osc2.stop();
-      this.osc3.stop();
-
-      // Disconnect test monitor
-      this.osc1.disconnect(this.testMonitor);
-      this.osc2.disconnect(this.testMonitor);
-      this.osc3.disconnect(this.testMonitor);
-
-      // Restore original connections
-      this.osc1.chain(
-        this.waveFolders[0],
-        this.bandpassFilters[0],
-        this.lpgs[0].filter,
-        this.lpgs[0].vca,
-        this.matrixMixer.inputs[0]
-      );
-
-      this.osc2.chain(
-        this.waveFolders[1],
-        this.bandpassFilters[1],
-        this.lpgs[1].filter,
-        this.lpgs[1].vca,
-        this.matrixMixer.inputs[1]
-      );
-
-      this.osc3.chain(
-        this.waveFolders[2],
-        this.bandpassFilters[2],
-        this.lpgs[2].filter,
-        this.lpgs[2].vca,
-        this.matrixMixer.inputs[2]
-      );
-
-      console.log("Direct path test complete");
-    };
-
-    await testSequence();
+    // Connect master effects chain
+    this.masterCompressor.connect(this.masterLimiter);
+    this.masterLimiter.connect(this.masterVolume);
+    this.masterVolume.toDestination();
   }
 
-  // Test sound output with proper initialization
-  async testSound() {
-    await Tone.start();
-    await sleep(100);
+  // ... rest of your existing methods ...
 
-    console.log("Testing full signal path...");
+  setMasterVolume(value, fadeTime = 0.1) {
+    // Ensure value is between 0 and 1
+    const normalizedValue = Math.max(0, Math.min(1, value));
+    // Convert to dB (-Infinity to 0)
+    const dbValue =
+      normalizedValue === 0 ? -Infinity : Tone.gainToDb(normalizedValue);
 
-    // Stop any existing playback
-    this.stopPlayback();
-
-    // Start oscillators
-    this.osc1.start();
-    this.osc2.start();
-    this.osc3.start();
-    this.noise.start();
-
-    // Set some basic frequencies
-    this.osc1.frequency.value = 440; // A4
-    this.osc2.frequency.value = 554.37; // C#5
-    this.osc3.frequency.value = 659.25; // E5
-
-    // Set all mixer points to full
-    for (let i = 0; i < 4; i++) {
-      this.setMixerPoint(i, i, 1);
+    if (fadeTime > 0) {
+      this.masterVolume.volume.rampTo(dbValue, fadeTime);
+    } else {
+      this.masterVolume.volume.value = dbValue;
     }
-
-    // Trigger envelopes repeatedly
-    const triggerInterval = setInterval(() => {
-      this.triggerEnvelope(0);
-      setTimeout(() => this.triggerEnvelope(1), 150);
-      setTimeout(() => this.triggerEnvelope(2), 300);
-      setTimeout(() => this.triggerEnvelope(3), 450);
-    }, 1000);
-
-    // Stop after 4 seconds
-    setTimeout(() => {
-      clearInterval(triggerInterval);
-      this.stopPlayback();
-      console.log("Full path test complete");
-    }, 4000);
   }
 
-  // Set oscillator parameters
-  setOscillatorParams(oscNumber, params) {
-    if (oscNumber >= 1 && oscNumber <= 3) {
-      const osc = this[`osc${oscNumber}`];
-      if (!osc) return;
+  // Add method to adjust compressor settings
+  setCompressorSettings({
+    threshold = -24,
+    ratio = 4,
+    attack = 0.003,
+    release = 0.25,
+    knee = 12,
+  } = {}) {
+    this.masterCompressor.threshold.value = threshold;
+    this.masterCompressor.ratio.value = ratio;
+    this.masterCompressor.attack.value = attack;
+    this.masterCompressor.release.value = release;
+    this.masterCompressor.knee.value = knee;
+  }
 
-      // Update frequency if provided
-      if (params.frequency !== undefined) {
-        osc.frequency.value = params.frequency;
-      }
+  // Add method to adjust limiter settings
+  setLimiterSettings({ threshold = -3, release = 0.05 } = {}) {
+    this.masterLimiter.threshold.value = threshold;
+    this.masterLimiter.release.value = release;
+  }
 
-      // Update wave type if provided
-      if (params.waveType !== undefined) {
-        osc.type = params.waveType;
-      }
+  dispose() {
+    // Dispose of master effects
+    this.masterCompressor.dispose();
+    this.masterLimiter.dispose();
+    this.masterVolume.dispose();
 
-      // Update wave shape (folding) if provided
-      if (params.waveShape !== undefined) {
-        this.setWaveFold(oscNumber, params.waveShape);
-      }
-
-      // Update FM amount if provided (only for osc3 which has the frequency shifter)
-      if (params.fmAmount !== undefined && oscNumber === 3) {
-        this.setFrequencyShift(params.fmAmount * 1000); // Scale to 0-1000 Hz range
-      }
-    }
+    // ... rest of your dispose logic ...
   }
 
   // Add method for noise control
   setNoiseParams(params) {
-    if (params.volume !== undefined) {
-      this.noiseVCA.gain.value = Math.max(0, Math.min(1, params.volume));
-    }
-    if (params.filterFreq !== undefined) {
-      this.noiseFilter.frequency.value = params.filterFreq;
-    }
-    if (params.filterQ !== undefined) {
-      this.noiseFilter.Q.value = params.filterQ;
-    }
-  }
+    if (!this.initialized) return;
 
-  // Enhanced sequence generation from text
-  generateSequenceFromText(text) {
-    const charCodes = text.split("").map((c) => c.charCodeAt(0));
-    const seq = [];
-
-    // Generate base sequence
-    for (let i = 0; i < 16; i++) {
-      const code = charCodes[i % charCodes.length];
-      seq[i] = {
-        cv1: (code % 12) / 12, // Quantized pitch
-        cv2: ((code >> 4) % 16) / 16, // Wave shape
-        trig1: code % 2, // Trigger probability
-        trig2: (code >> 1) % 2, // Secondary trigger
-        duration: 0.25 * (1 + (code % 4)), // Variable step duration
-      };
-    }
-
-    // Apply sequence to AFG
-    seq.forEach((step, i) => {
-      this.updateAFGStep(i, step);
-      // Store as morph target
-      this.sequenceMorph.target[i].value = step.cv1;
-    });
-
-    return seq;
-  }
-
-  // Update sequence morphing
-  setSequenceMorph(amount) {
-    this.sequenceMorph.amount.value = Math.max(0, Math.min(1, amount));
-  }
-
-  // Set active voices
-  setActiveVoices(count) {
-    this.voiceManager.activeVoices = Math.max(
-      1,
-      Math.min(this.voiceManager.maxVoices, count)
-    );
-  }
-
-  // Convert a Magenta sequence to our format
-  convertFromMagentaSequence(magentaSequence) {
-    const sequence = {
-      notes: [],
-      gates: [],
-      accents: [],
-      durations: [],
-    };
-
-    // Extract notes and timing
-    magentaSequence.notes.forEach((note) => {
-      sequence.notes.push(note.pitch);
-      sequence.durations.push(note.endTime - note.startTime);
-      sequence.gates.push(1); // Default gate on for notes
-      sequence.accents.push(note.velocity / 127); // Convert MIDI velocity to 0-1
-    });
-
-    // Extract control changes if present
-    if (magentaSequence.controlChanges) {
-      magentaSequence.controlChanges.forEach((cc) => {
-        const stepIndex = Math.floor(cc.time * 4); // Convert time to step index
-        if (cc.controlNumber === 64) {
-          // Gate
-          sequence.gates[stepIndex] = cc.value / 127;
-        } else if (cc.controlNumber === 11) {
-          // Expression/Accent
-          sequence.accents[stepIndex] = cc.value / 127;
-        }
-      });
-    }
-
-    return sequence;
-  }
-
-  // Convert our sequence to Magenta format
-  convertToMagentaSequence(sequence) {
-    const magentaSequence = {
-      notes: [],
-      totalTime: sequence.durations.reduce((sum, dur) => sum + dur, 0),
-      tempos: [{ time: 0, qpm: 120 }],
-      timeSignatures: [{ time: 0, numerator: 4, denominator: 4 }],
-    };
-
-    let currentTime = 0;
-    sequence.notes.forEach((note, i) => {
-      magentaSequence.notes.push({
-        pitch: note,
-        startTime: currentTime,
-        endTime: currentTime + sequence.durations[i],
-        velocity: Math.round(sequence.accents[i] * 127),
-        program: 0,
-        isDrum: false,
-      });
-      currentTime += sequence.durations[i];
-    });
-
-    // Add gates and accents as control changes
-    magentaSequence.controlChanges = [];
-    sequence.gates.forEach((gate, i) => {
-      magentaSequence.controlChanges.push({
-        time: i * 0.25, // Assuming quarter note divisions
-        controlNumber: 64,
-        value: Math.round(gate * 127),
-        program: 0,
-      });
-    });
-
-    sequence.accents.forEach((accent, i) => {
-      magentaSequence.controlChanges.push({
-        time: i * 0.25,
-        controlNumber: 11,
-        value: Math.round(accent * 127),
-        program: 0,
-      });
-    });
-
-    return magentaSequence;
-  }
-
-  // Add volume control method
-  setMasterVolume(value, rampTime = 0.1) {
-    // Ensure value is a valid number and clamp between 0 and 1
-    const safeValue = Math.max(0, Math.min(1, Number(value) || 0));
-
-    // Convert linear 0-1 to decibels (-60 to 0)
-    // Use -60dB as the minimum instead of -Infinity for better volume control
-    const db =
-      safeValue === 0 ? -60 : Math.max(-60, 20 * Math.log10(safeValue));
-
-    // Ensure we have a valid ramp time
-    const safeRampTime = Math.max(0, Number(rampTime) || 0.1);
-
-    // Use linear ramping for values near silence to prevent exponential ramp errors
-    if (db <= -55) {
-      this.masterVolume.volume.linearRampToValueAtTime(
-        -60,
-        Tone.now() + safeRampTime
-      );
-    } else {
-      this.masterVolume.volume.exponentialRampToValueAtTime(
-        db,
-        Tone.now() + safeRampTime
-      );
+    try {
+      if (params.volume !== undefined) {
+        this.noiseVCA.gain.value = Math.max(0, Math.min(1, params.volume));
+      }
+      if (params.filterFreq !== undefined) {
+        this.noiseFilter.frequency.value = params.filterFreq;
+      }
+      if (params.filterQ !== undefined) {
+        this.noiseFilter.Q.value = params.filterQ;
+      }
+    } catch (error) {
+      console.warn("Error setting noise parameters:", error);
     }
   }
 
-  // Set LPG parameters
-  async setLPGParams(index, { response, level }) {
-    if (!this.initialized || !this.lpgs[index]) return;
+  // Set LPG parameters with improved error handling
+  async setLPGParams(index, { response, level, resonance }) {
+    if (!this.initialized || !this.lpgs[index]) {
+      console.warn(`LPG ${index} not initialized`);
+      return;
+    }
 
     try {
       const lpg = this.lpgs[index];
 
-      // Set vactrol response time
-      lpg.vactrol.smoothing = response;
-
-      // Set VCA maximum gain
-      lpg.vca.gain.value = level;
-
-      // Adjust filter frequency range based on level
-      lpg.filter.frequency.value = 200 + level * 10000;
-
-      // Retrigger envelope if not in LFO mode
-      if (!lpg.lfo.state === "started") {
-        lpg.envelope.triggerAttackRelease(0.01);
+      // Set vactrol response time (smoothing)
+      if (response !== undefined) {
+        lpg.vactrol.smoothing = Math.max(0.01, Math.min(1, response));
       }
+
+      // Set VCA level
+      if (level !== undefined) {
+        lpg.vca.gain.value = Math.max(0, Math.min(1, level));
+      }
+
+      // Set filter resonance
+      if (resonance !== undefined && lpg.filter) {
+        lpg.filter.Q.value = Math.max(0.1, Math.min(20, resonance));
+      }
+
+      // Adjust filter frequency based on level
+      if (level !== undefined && lpg.filter) {
+        const minFreq = 20;
+        const maxFreq = 20000;
+        const freqValue = minFreq + (maxFreq - minFreq) * level;
+        lpg.filter.frequency.value = freqValue;
+      }
+
+      return true;
     } catch (error) {
       console.warn(`Error setting LPG ${index} params:`, error);
+      return false;
+    }
+  }
+
+  // Add method to trigger LPG envelope
+  triggerLPG(index, duration = 0.1) {
+    if (!this.initialized || !this.lpgs[index]) return;
+
+    try {
+      const lpg = this.lpgs[index];
+      if (lpg.envelope) {
+        lpg.envelope.triggerAttackRelease(duration);
+      }
+    } catch (error) {
+      console.warn(`Error triggering LPG ${index}:`, error);
+    }
+  }
+
+  // Add method to start/stop LPG LFO
+  setLPGLFO(index, enabled, rate = 1) {
+    if (!this.initialized || !this.lpgs[index]) return;
+
+    try {
+      const lpg = this.lpgs[index];
+      if (enabled) {
+        lpg.lfo.frequency.value = rate;
+        lpg.lfo.start();
+      } else {
+        lpg.lfo.stop();
+      }
+    } catch (error) {
+      console.warn(`Error setting LPG ${index} LFO:`, error);
+    }
+  }
+
+  // Set filter parameters (frequency and Q)
+  setFilter(filterNumber, frequency, q) {
+    if (!this.initialized) {
+      console.warn("Audio engine not initialized");
+      return;
+    }
+
+    try {
+      if (filterNumber >= 1 && filterNumber <= 2) {
+        const filter = this.bandpassFilters[filterNumber - 1];
+        if (!filter) {
+          console.warn(`Filter ${filterNumber} not found`);
+          return;
+        }
+
+        // Update frequency if provided (clamp between 20Hz and 20kHz)
+        if (frequency !== undefined) {
+          filter.frequency.value = Math.max(20, Math.min(20000, frequency));
+        }
+
+        // Update Q if provided (clamp between 0.1 and 20)
+        if (q !== undefined) {
+          filter.Q.value = Math.max(0.1, Math.min(20, q));
+        }
+      }
+    } catch (error) {
+      console.warn(`Error setting filter ${filterNumber} parameters:`, error);
+    }
+  }
+
+  // Set tone shaper (EQ3) parameters
+  setToneShape(low, mid, high) {
+    if (!this.initialized) {
+      console.warn("Audio engine not initialized");
+      return;
+    }
+
+    try {
+      // Update low frequency band (-12 to +12 dB)
+      if (low !== undefined) {
+        this.toneShaper.low.value = Math.max(-12, Math.min(12, low));
+      }
+
+      // Update mid frequency band (-12 to +12 dB)
+      if (mid !== undefined) {
+        this.toneShaper.mid.value = Math.max(-12, Math.min(12, mid));
+      }
+
+      // Update high frequency band (-12 to +12 dB)
+      if (high !== undefined) {
+        this.toneShaper.high.value = Math.max(-12, Math.min(12, high));
+      }
+    } catch (error) {
+      console.warn("Error setting tone shape parameters:", error);
     }
   }
 }

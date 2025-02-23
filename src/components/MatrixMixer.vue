@@ -1,28 +1,35 @@
 <!-- Sound Mixer -->
 <template>
-  <div class="module-panel">
-    <!-- Output Labels Row -->
-    <div class="grid grid-cols-4 gap-x-4 mb-4 pl-12">
-      <div v-for="n in 4" :key="`out-${n}`" class="text-center">
-        <div class="module-label">Out {{ n }}</div>
-      </div>
-    </div>
-
+  <div class="h-full">
     <!-- Matrix Grid -->
-    <div class="grid gap-y-4">
-      <template v-for="i in 4" :key="`row-${i}`">
-        <div class="flex">
-          <!-- Input Label -->
-          <div class="w-12 flex items-center">
-            <div class="module-label">{{ sources[i - 1] }}</div>
-          </div>
+    <div class="grid grid-cols-[auto_1fr] gap-x-6">
+      <!-- Input Labels Column -->
+      <div class="flex flex-col gap-3 pt-8">
+        <div
+          v-for="i in 4"
+          :key="`label-${i}`"
+          class="h-[73px] flex items-center justify-end"
+        >
+          <div class="module-label">{{ sources[i - 1] }}</div>
+        </div>
+      </div>
 
-          <!-- Knob Row -->
-          <div class="grid grid-cols-4 gap-4 flex-1">
+      <!-- Mixer Grid -->
+      <div class="flex flex-col gap-3">
+        <!-- Output Labels Row -->
+        <div class="grid grid-cols-4 gap-3">
+          <div v-for="n in 4" :key="`out-${n}`" class="text-center">
+            <div class="module-label">Out {{ n }}</div>
+          </div>
+        </div>
+
+        <!-- Knob Grid -->
+        <div class="grid grid-rows-4 gap-3">
+          <div v-for="i in 4" :key="`row-${i}`" class="grid grid-cols-4 gap-3">
             <div
               v-for="j in 4"
               :key="`cell-${i}-${j}`"
-              class="flex flex-col items-center"
+              class="bento-box flex flex-col items-center justify-center p-4"
             >
               <Knob
                 v-model="mixerLevels[i - 1][j - 1]"
@@ -32,13 +39,13 @@
                 class="w-10 h-10"
                 @update:modelValue="(v) => updateMixerPoint(i - 1, j - 1, v)"
               />
-              <div class="module-value">
+              <div class="module-value mt-2">
                 {{ formatLevel(mixerLevels[i - 1][j - 1]) }}
               </div>
             </div>
           </div>
         </div>
-      </template>
+      </div>
     </div>
   </div>
 </template>
@@ -61,32 +68,35 @@
   // Format level value
   const formatLevel = (value) => `${(value * 100).toFixed(0)}%`;
 
-  // Update mixer point in the audio engine
-  const updateMixerPoint = (input, output, value) => {
-    mixerLevels.value[input][output] = value;
-    audioEngine.setMixerPoint(input, output, value);
+  // Update mixer point
+  const updateMixerPoint = (i, j, value) => {
+    audioEngine.setMixerPoint(i, j, value);
   };
 
-  // Reset mixer to default state (diagonal connections)
+  // Reset to default values
   const reset = () => {
-    mixerLevels.value = mixerLevels.value.map((row, i) =>
-      row.map((_, j) => (i === j ? 0.7 : 0))
-    );
-    mixerLevels.value.forEach((row, i) => {
-      row.forEach((value, j) => {
-        audioEngine.setMixerPoint(i, j, value);
-      });
+    mixerLevels.value = Array(4)
+      .fill()
+      .map(() => Array(4).fill(0));
+    mixerLevels.value.forEach((_, i) => {
+      mixerLevels.value[i][i] = 0.7; // Set diagonal to 0.7
+      updateMixerPoint(i, i, 0.7);
     });
   };
 
-  // Randomize mixer values
+  // Randomize all mixer points
   const randomize = () => {
-    mixerLevels.value = mixerLevels.value.map((row) =>
-      row.map(() => Math.random() * 0.8)
-    );
+    mixerLevels.value = Array(4)
+      .fill()
+      .map(
+        () =>
+          Array(4)
+            .fill()
+            .map(() => Math.random()) // 0 to 1
+      );
     mixerLevels.value.forEach((row, i) => {
       row.forEach((value, j) => {
-        audioEngine.setMixerPoint(i, j, value);
+        updateMixerPoint(i, j, value);
       });
     });
   };
@@ -97,26 +107,27 @@
     randomize,
   });
 
+  // Initialize default values
   onMounted(() => {
-    // Set initial diagonal connections (1:1 routing)
     reset();
   });
 </script>
 
 <style scoped>
-  .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-6;
+  .bento-box {
+    @apply bg-zinc-900/50 rounded-lg border border-zinc-800/50;
+    aspect-ratio: 1;
   }
 
   .module-value {
-    @apply text-[11px] font-mono text-zinc-500 text-center mt-1;
+    @apply text-[10px] font-mono text-zinc-500;
   }
 
   .module-label {
-    @apply text-xs font-medium text-zinc-400 text-center;
+    @apply text-[11px] font-medium text-zinc-400;
   }
 
   .module-title {
-    @apply text-sm font-medium text-zinc-300 mb-2;
+    @apply text-sm font-medium text-zinc-300;
   }
 </style>

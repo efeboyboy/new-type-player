@@ -64,7 +64,7 @@
 <script setup>
   import { ref, watch, onMounted } from "vue";
   import Knob from "./Knob.vue";
-  import audioEngine from "../services/AudioEngine.js";
+  import audioEngine from "../services/audio-engine/AudioEngine.js";
   import * as Tone from "tone";
 
   // Default values for each LPG

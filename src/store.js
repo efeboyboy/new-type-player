@@ -1,6 +1,6 @@
 import { reactive } from "vue";
 import { generateSequence } from "./services/Sequencer.js";
-import audioEngine from "./services/AudioEngine.js";
+import audioEngine from "./services/audio-engine/AudioEngine.js";
 import * as Tone from "tone";
 
 // Default patch seed

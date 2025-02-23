@@ -11,7 +11,7 @@
   import SpatialControls from "./components/SpatialControls.vue";
   import Knob from "./components/Knob.vue";
   import { store } from "./store.js";
-  import audioEngine from "./services/AudioEngine.js";
+  import audioEngine from "./services/audio-engine/AudioEngine.js";
   import {
     RotateCcw,
     Shuffle,
@@ -127,7 +127,7 @@
   };
 
   // Lifecycle
-  onMounted(() => {
+  onMounted(async () => {
     // Register component refs with store
     store.osc1 = osc1.value;
     store.osc2 = osc2.value;
@@ -139,8 +139,14 @@
     store.filterControls = filterControls.value;
     store.spatialControls = spatialControls.value;
 
-    // Initialize audio engine
-    audioEngine.initialize();
+    try {
+      // Initialize audio engine and wait for completion
+      await audioEngine.initialize();
+      store.audioInitialized = true;
+    } catch (error) {
+      console.error("Failed to initialize audio engine:", error);
+      store.audioInitialized = false;
+    }
   });
 
   onUnmounted(() => {

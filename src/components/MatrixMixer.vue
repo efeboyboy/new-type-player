@@ -44,9 +44,9 @@
 </template>
 
 <script setup>
-  import { ref, onMounted } from "vue";
+  import { ref, onMounted, watch } from "vue";
   import Knob from "./Knob.vue";
-  import audioEngine from "../services/AudioEngine.js";
+  import audioEngine from "../services/audio-engine/AudioEngine.js";
 
   // Source labels
   const sources = ["Sound 1", "Sound 2", "Sound 3", "Texture"];

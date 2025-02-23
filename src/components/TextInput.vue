@@ -74,7 +74,7 @@
   import { store } from "../store.js";
   import * as Tone from "tone";
   import MagentaService from "../services/MagentaService.js";
-  import audioEngine from "../services/AudioEngine.js";
+  import audioEngine from "../services/audio-engine/AudioEngine.js";
   import { debounce } from "lodash-es";
   import { Play, Pause, Shuffle } from "lucide-vue-next";
   import IconHolder from "./IconHolder.vue";

@@ -105,7 +105,7 @@
 <script setup>
   import { ref, watch } from "vue";
   import Knob from "./Knob.vue";
-  import audioEngine from "../services/AudioEngine.js";
+  import audioEngine from "../services/audio-engine/AudioEngine.js";
 
   // Initialize uncertainty controls
   const gates = ref({

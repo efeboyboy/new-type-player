@@ -99,7 +99,8 @@
   import { ref, watch } from "vue";
   import { RotateCcw, Shuffle } from "lucide-vue-next";
   import Knob from "./Knob.vue";
-  import audioEngine from "../services/AudioEngine.js";
+  import audioEngine from "../services/audio-engine/AudioEngine.js";
+  import { store } from "../store.js";
 
   // Default values
   const defaultChannel = {
@@ -205,6 +206,8 @@
 
   // Update spatial position and reverb for a channel
   const updateChannel = (index) => {
+    if (!store.audioInitialized) return;
+
     const channel = channels.value[index];
     audioEngine.setSpatialPosition(index, channel.x, channel.y);
     audioEngine.setSpatialReverb(
@@ -216,6 +219,8 @@
 
   // Reset to defaults
   const reset = () => {
+    if (!store.audioInitialized) return;
+
     channels.value = channels.value.map(() => ({ ...defaultChannel }));
     reverbParams.value = { ...defaultReverbParams };
     channels.value.forEach((_, index) => updateChannel(index));
@@ -223,6 +228,8 @@
 
   // Randomize all parameters
   const randomize = () => {
+    if (!store.audioInitialized) return;
+
     channels.value = channels.value.map(() => ({
       x: Math.random() * 2 - 1,
       y: Math.random() * 2 - 1,

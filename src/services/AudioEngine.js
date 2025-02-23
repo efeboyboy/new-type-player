@@ -607,17 +607,42 @@ class AudioEngine {
       const envSystem = this.envelopes[channel];
       const env = envSystem.envelope;
 
-      if (params.attack !== undefined)
-        env.attack = params.attack * envSystem.timeScale;
-      if (params.decay !== undefined)
-        env.decay = params.decay * envSystem.timeScale;
-      if (params.sustain !== undefined) env.sustain = params.sustain;
-      if (params.release !== undefined)
-        env.release = params.release * envSystem.timeScale;
-      if (params.offset !== undefined) envSystem.offset.value = params.offset;
-      if (params.scale !== undefined) envSystem.multiply.value = params.scale;
-      if (params.timeScale !== undefined)
-        envSystem.timeScale = params.timeScale;
+      // Time parameters - apply time scaling
+      if (params.attack !== undefined) {
+        env.attack = Math.max(0.001, params.attack * envSystem.timeScale);
+      }
+      if (params.decay !== undefined) {
+        env.decay = Math.max(0.001, params.decay * envSystem.timeScale);
+      }
+      if (params.sustain !== undefined) {
+        env.sustain = Math.max(0, Math.min(1, params.sustain));
+      }
+      if (params.release !== undefined) {
+        env.release = Math.max(0.001, params.release * envSystem.timeScale);
+      }
+
+      // Scaling parameters
+      if (params.scale !== undefined) {
+        envSystem.multiply.value = Math.max(0, params.scale);
+      }
+      if (params.offset !== undefined) {
+        envSystem.offset.value = params.offset;
+      }
+      if (params.timeScale !== undefined) {
+        envSystem.timeScale = Math.max(0.1, params.timeScale);
+        // Update time parameters with new scale
+        env.attack = env.attack * envSystem.timeScale;
+        env.decay = env.decay * envSystem.timeScale;
+        env.release = env.release * envSystem.timeScale;
+      }
+
+      // Update curves if specified
+      if (params.attackCurve !== undefined) {
+        env.attackCurve = params.attackCurve;
+      }
+      if (params.releaseCurve !== undefined) {
+        env.releaseCurve = params.releaseCurve;
+      }
     }
   }
 
@@ -657,17 +682,25 @@ class AudioEngine {
 
       // Convert velocity (0-1) to appropriate envelope scaling
       if (params.velocity !== undefined) {
-        const velocityScale = Math.max(0.1, params.velocity);
+        const velocityScale = Math.max(0.2, params.velocity * 2); // Stronger velocity scaling
         envSystem.multiply.value = velocityScale;
       }
+
+      // Set initial VCA gain to ensure sound starts from silence
+      lpg.vca.gain.setValueAtTime(0, time);
 
       // Trigger envelope with timing consideration
       envSystem.envelope.triggerAttackRelease(duration, time);
 
-      // If in LFO mode, ensure LFO is running
-      if (envSystem.isLooping && lpg.lfo.state !== "started") {
-        lpg.lfo.start(time);
-      } else if (!envSystem.isLooping && lpg.lfo.state === "started") {
+      // If in LFO mode, ensure LFO is running with proper timing
+      if (envSystem.isLooping) {
+        if (lpg.lfo.state !== "started") {
+          lpg.lfo.start(time);
+        }
+        // Adjust LFO rate based on envelope timing
+        const lfoRate = 1 / (duration * 2);
+        lpg.lfo.frequency.setValueAtTime(lfoRate, time);
+      } else if (lpg.lfo.state === "started") {
         lpg.lfo.stop(time);
       }
     }
@@ -914,17 +947,49 @@ class AudioEngine {
         // Initialize envelope parameters and create proper signal chain
         const envSystem = this.envelopes[i];
 
-        // Create a VCA for the envelope to control
-        envSystem.vca = new Tone.Gain(0);
-        envSystem.envelope.connect(envSystem.vca.gain);
-        envSystem.vca.connect(lpg.vactrol);
+        // Create proper signal processing chain for envelope
+        envSystem.vca = new Tone.Gain(1); // Changed initial gain to 1
+        envSystem.multiply = new Tone.Multiply(1);
+        envSystem.offset = new Tone.Add(0);
 
-        // Initialize envelope parameters
+        // Connect the envelope processing chain
+        envSystem.envelope.chain(
+          envSystem.multiply,
+          envSystem.offset,
+          envSystem.vca
+        );
+
+        // Connect directly to both VCA and filter for stronger effect
+        envSystem.vca.connect(lpg.vca.gain);
+        envSystem.vca.connect(lpg.filter.frequency);
+
+        // Set wider frequency range for filter - using proper Tone.js methods
+        lpg.filter.frequency.value = 2000; // Set initial frequency
+        lpg.filter.frequency.setValueAtTime(2000, "+0.1");
+        lpg.filter.Q.value = 1; // Moderate resonance
+
+        // Set up frequency scaling for the envelope
+        const freqScaler = new Tone.Scale(50, 8000);
+        envSystem.vca.connect(freqScaler);
+        freqScaler.connect(lpg.filter.frequency);
+
+        // Initialize envelope with more dramatic settings
         envSystem.envelope.attack = 0.01;
-        envSystem.envelope.decay = 0.2;
-        envSystem.envelope.sustain = 0.5;
+        envSystem.envelope.decay = 0.5; // Longer decay
+        envSystem.envelope.sustain = 0.7; // Higher sustain
         envSystem.envelope.release = 0.5;
+        envSystem.envelope.attackCurve = "exponential";
+        envSystem.envelope.releaseCurve = "exponential";
+
+        // Set initial scaling values for stronger effect
         envSystem.timeScale = 1;
+        envSystem.multiply.value = 2; // Increased multiplication
+        envSystem.offset.value = 0.2; // Small positive offset
+        envSystem.vca.gain.value = 1;
+
+        // Configure LPG for better response
+        lpg.vca.gain.value = 0; // Start closed
+        lpg.filter.Q.value = 1; // Moderate resonance
 
         // Start LFO if in loop mode
         if (envSystem.isLooping) {

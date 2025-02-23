@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref } from "vue";
+  import { computed, ref, onMounted, onUnmounted } from "vue";
   import TextInput from "./components/TextInput.vue";
   import Sequencer from "./components/Sequencer.vue";
   import OscillatorControls from "./components/OscillatorControls.vue";
@@ -13,6 +13,7 @@
   import { store } from "./store.js";
   import audioEngine from "./services/AudioEngine.js";
   import { RotateCcw, Shuffle } from "lucide-vue-next";
+  import AIControls from "./components/AIControls.vue";
 
   const handleUpdateText = (newText) => {
     store.updateInput(newText);
@@ -48,6 +49,45 @@
   const lpgControls = ref(null);
   const filterControls = ref(null);
   const spatialControls = ref(null);
+
+  const isPlaying = ref(false);
+  const currentSequence = ref(null);
+
+  // Handle text changes
+  const handleTextChange = (text) => {
+    currentSequence.value = audioEngine.generateSequence(text);
+  };
+
+  // Handle AI-generated sequences
+  const handleAISequence = (sequence) => {
+    // Convert Magenta sequence to our format
+    currentSequence.value = audioEngine.convertFromMagentaSequence(sequence);
+  };
+
+  // Playback controls
+  const togglePlay = () => {
+    if (isPlaying.value) {
+      audioEngine.stop();
+    } else {
+      audioEngine.play(currentSequence.value);
+    }
+    isPlaying.value = !isPlaying.value;
+  };
+
+  const resetSequence = () => {
+    audioEngine.stop();
+    isPlaying.value = false;
+    currentSequence.value = null;
+  };
+
+  // Lifecycle
+  onMounted(() => {
+    audioEngine.initialize();
+  });
+
+  onUnmounted(() => {
+    audioEngine.dispose();
+  });
 </script>
 
 <template>

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@magenta/music": "^1.23.1",
     "@tailwindcss/vite": "^4.0.8",
     "lucide-vue-next": "^0.475.0",
     "tone": "^15.0.4",

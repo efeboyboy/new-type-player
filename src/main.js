@@ -1,5 +1,8 @@
-import { createApp } from 'vue'
-import './style.css'
-import App from './App.vue'
+// Import polyfills first
+import "./services/polyfills.js";
 
-createApp(App).mount('#app')
+import { createApp } from "vue";
+import App from "./App.vue";
+import "./style.css";
+
+createApp(App).mount("#app");

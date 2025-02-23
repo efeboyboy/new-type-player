@@ -1238,6 +1238,85 @@ class AudioEngine {
       Math.min(this.voiceManager.maxVoices, count)
     );
   }
+
+  // Convert a Magenta sequence to our format
+  convertFromMagentaSequence(magentaSequence) {
+    const sequence = {
+      notes: [],
+      gates: [],
+      accents: [],
+      durations: [],
+    };
+
+    // Extract notes and timing
+    magentaSequence.notes.forEach((note) => {
+      sequence.notes.push(note.pitch);
+      sequence.durations.push(note.endTime - note.startTime);
+      sequence.gates.push(1); // Default gate on for notes
+      sequence.accents.push(note.velocity / 127); // Convert MIDI velocity to 0-1
+    });
+
+    // Extract control changes if present
+    if (magentaSequence.controlChanges) {
+      magentaSequence.controlChanges.forEach((cc) => {
+        const stepIndex = Math.floor(cc.time * 4); // Convert time to step index
+        if (cc.controlNumber === 64) {
+          // Gate
+          sequence.gates[stepIndex] = cc.value / 127;
+        } else if (cc.controlNumber === 11) {
+          // Expression/Accent
+          sequence.accents[stepIndex] = cc.value / 127;
+        }
+      });
+    }
+
+    return sequence;
+  }
+
+  // Convert our sequence to Magenta format
+  convertToMagentaSequence(sequence) {
+    const magentaSequence = {
+      notes: [],
+      totalTime: sequence.durations.reduce((sum, dur) => sum + dur, 0),
+      tempos: [{ time: 0, qpm: 120 }],
+      timeSignatures: [{ time: 0, numerator: 4, denominator: 4 }],
+    };
+
+    let currentTime = 0;
+    sequence.notes.forEach((note, i) => {
+      magentaSequence.notes.push({
+        pitch: note,
+        startTime: currentTime,
+        endTime: currentTime + sequence.durations[i],
+        velocity: Math.round(sequence.accents[i] * 127),
+        program: 0,
+        isDrum: false,
+      });
+      currentTime += sequence.durations[i];
+    });
+
+    // Add gates and accents as control changes
+    magentaSequence.controlChanges = [];
+    sequence.gates.forEach((gate, i) => {
+      magentaSequence.controlChanges.push({
+        time: i * 0.25, // Assuming quarter note divisions
+        controlNumber: 64,
+        value: Math.round(gate * 127),
+        program: 0,
+      });
+    });
+
+    sequence.accents.forEach((accent, i) => {
+      magentaSequence.controlChanges.push({
+        time: i * 0.25,
+        controlNumber: 11,
+        value: Math.round(accent * 127),
+        program: 0,
+      });
+    });
+
+    return magentaSequence;
+  }
 }
 
 // Create and export a single instance

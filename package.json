@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@magenta/music": "^1.23.1",
     "@tailwindcss/vite": "^4.0.8",
     "lodash-es": "^4.17.21",
     "lucide-vue-next": "^0.475.0",

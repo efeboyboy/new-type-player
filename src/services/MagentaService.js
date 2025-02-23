@@ -39,8 +39,11 @@ if (typeof performance === "undefined") {
   };
 }
 
-// We'll initialize Buffer in the constructor
-import * as mm from "@magenta/music";
+// Import Magenta modules separately
+import * as core from "@magenta/music/es6/core";
+import * as musicVAE from "@magenta/music/es6/music_vae";
+import * as musicRNN from "@magenta/music/es6/music_rnn";
+
 import {
   buchlaTemplates,
   textToTemplateMapping,
@@ -79,21 +82,21 @@ class MagentaService {
       this.error = null;
 
       // Initialize models in parallel
-      const [musicRNN, musicVAE, grooveVAE] = await Promise.all([
-        new mm.MusicRNN(this.modelUrls.musicRNN),
-        new mm.MusicVAE(this.modelUrls.musicVAE),
-        new mm.MusicVAE(this.modelUrls.grooveVAE),
+      const [musicRNNModel, musicVAEModel, grooveVAEModel] = await Promise.all([
+        new musicRNN.MusicRNN(this.modelUrls.musicRNN),
+        new musicVAE.MusicVAE(this.modelUrls.musicVAE),
+        new musicVAE.MusicVAE(this.modelUrls.grooveVAE),
       ]);
 
       await Promise.all([
-        musicRNN.initialize(),
-        musicVAE.initialize(),
-        grooveVAE.initialize(),
+        musicRNNModel.initialize(),
+        musicVAEModel.initialize(),
+        grooveVAEModel.initialize(),
       ]);
 
-      this.musicRNN = musicRNN;
-      this.musicVAE = musicVAE;
-      this.grooveVAE = grooveVAE;
+      this.musicRNN = musicRNNModel;
+      this.musicVAE = musicVAEModel;
+      this.grooveVAE = grooveVAEModel;
       this.isInitialized = true;
       console.log("Magenta models initialized successfully");
     } catch (err) {

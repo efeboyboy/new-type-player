@@ -37,9 +37,9 @@
   });
 
   // Add volume state management
-  const previousVolume = ref(0.75); // Default volume
+  const previousVolume = ref(0.6); // Default volume
   const volume = computed({
-    get: () => store.volume ?? 0.75, // Default to 0.75 if undefined
+    get: () => store.volume ?? 0.6, // Default to 0.6 if undefined
     set: (val) => {
       // Ensure val is a number and clamp between 0 and 1
       const numVal = Number(val);

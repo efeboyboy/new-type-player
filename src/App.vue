@@ -204,8 +204,7 @@
 
             <button
               @click="showHelp = true"
-              class="col-span-2 sm:col-span-1 h-10 sm:w-8 sm:h-8 rounded-lg sm:rounded-full bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
-              title="How to use"
+              class="col-span-2 sm:col-span-1 h-10 sm:w-8 sm:h-8 rounded-lg sm:rounded-full bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50 relative"
             >
               <IconHolder
                 class="w-4 h-4 text-zinc-400 group-hover:text-emerald-400"
@@ -215,6 +214,12 @@
               <span class="ml-2 text-[10px] text-zinc-400 sm:hidden"
                 >How to use</span
               >
+              <!-- Tooltip -->
+              <div
+                class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-zinc-800 text-zinc-200 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
+              >
+                How to use
+              </div>
             </button>
           </div>
         </div>
@@ -556,39 +561,6 @@
   /* Ensure parent containers don't clip */
   .grid {
     overflow: visible;
-  }
-
-  /* Tooltip */
-  [title] {
-    position: relative;
-    z-index: 20;
-  }
-
-  [title]:hover::after {
-    content: attr(title);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-bottom: 8px;
-    padding: 6px 8px;
-    white-space: nowrap;
-    @apply bg-zinc-800 text-zinc-200 text-[10px] rounded;
-    z-index: 100;
-    pointer-events: none;
-  }
-
-  /* Add a small arrow to the tooltip */
-  [title]:hover::before {
-    content: "";
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 4px;
-    border-style: solid;
-    border-color: theme("colors.zinc.800") transparent transparent transparent;
-    z-index: 100;
   }
 
   /* Custom scrollbar */

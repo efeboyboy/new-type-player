@@ -41,19 +41,22 @@
         <!-- Randomize Button -->
         <button
           @click="handleRandomize"
-          class="px-3 py-2 text-[10px] bg-indigo-500/20 text-indigo-500 rounded-lg hover:bg-indigo-500/30 transition-colors flex items-center gap-2 whitespace-nowrap"
+          class="px-3 py-2 text-[10px] bg-indigo-500/20 text-indigo-500 rounded-lg hover:bg-indigo-500/30 transition-colors flex items-center gap-2 whitespace-nowrap group relative"
           :class="{
             'opacity-50 cursor-not-allowed': !isInitialized,
           }"
           :disabled="!isInitialized"
-          :title="
-            currentSeed ? `Current Seed: ${currentSeed}` : 'Randomize All'
-          "
         >
           <IconHolder class="w-3 h-3">
             <Shuffle class="text-current" stroke-width="1.5" />
           </IconHolder>
           <span>Random</span>
+          <!-- Tooltip -->
+          <div
+            class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-zinc-800 text-zinc-200 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
+          >
+            {{ currentSeed ? `Current Seed: ${currentSeed}` : "Randomize All" }}
+          </div>
         </button>
       </div>
     </div>

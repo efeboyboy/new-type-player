@@ -22,6 +22,38 @@ class AFG248PlayHead {
 
 class AudioEngine {
   constructor() {
+    // Add clock system before other components
+    this.clockSystem = {
+      // Master clock source (frequency in Hz for 120 BPM quarter notes)
+      master: new Tone.Clock(),
+
+      // Clock divisions (whole, half, quarter, eighth, sixteenth)
+      divisions: {
+        "1n": new Tone.Signal(0),
+        "2n": new Tone.Signal(0),
+        "4n": new Tone.Signal(0),
+        "8n": new Tone.Signal(0),
+        "16n": new Tone.Signal(0),
+      },
+
+      // Division counters
+      counters: {
+        "1n": 0,
+        "2n": 0,
+        "4n": 0,
+        "8n": 0,
+        "16n": 0,
+      },
+
+      // Distribution buses
+      buses: Array(4)
+        .fill()
+        .map(() => new Tone.Signal(0)),
+    };
+
+    // Initialize clock processing
+    this.initializeClockSystem();
+
     // Create quad outputs first (Front L/R, Rear L/R)
     this.quadOutputs = {
       frontLeft: new Tone.Gain().toDestination(),
@@ -75,6 +107,76 @@ class AudioEngine {
         return director;
       });
 
+    // Create Low Pass Gates (LPGs) - Buchla style
+    this.lpgs = Array(4)
+      .fill()
+      .map(() => ({
+        // Vactrol-style response
+        vactrol: new Tone.Follower(0.1), // Slow response like a vactrol
+        filter: new Tone.Filter({
+          type: "lowpass",
+          frequency: 2000, // Start with higher frequency
+          Q: 0.5,
+          rolloff: -24,
+        }),
+        vca: new Tone.Gain(0.5), // Initialize with non-zero gain
+        // Combined response curve
+        response: new Tone.WaveShaper((x) => {
+          // More gradual response curve
+          return Math.pow(Math.max(0, x), 1.2);
+        }),
+      }));
+
+    // Create envelope generators (Buchla 284-style) with proper timing
+    this.envelopes = Array(4)
+      .fill()
+      .map(() => {
+        const env = new Tone.Envelope({
+          attack: 0.01, // Faster attack
+          decay: 0.2,
+          sustain: 0.5,
+          release: 0.5,
+          attackCurve: "exponential",
+          releaseCurve: "exponential",
+        });
+
+        // Add offset capability with initial values
+        const offset = new Tone.Add(0.2); // Small positive offset
+        const multiply = new Tone.Multiply(1);
+
+        env.chain(offset, multiply);
+
+        return {
+          envelope: env,
+          offset: offset,
+          multiply: multiply,
+          isLooping: false,
+          timeScale: 1,
+        };
+      });
+
+    // Connect envelopes to LPGs with proper gain staging
+    this.envelopes.forEach((envSystem, i) => {
+      const lpg = this.lpgs[i];
+
+      // Connect through vactrol simulation
+      envSystem.multiply.connect(lpg.vactrol);
+      lpg.vactrol.connect(lpg.response);
+
+      // Control both filter frequency and VCA gain with proper scaling
+      const freqScale = new Tone.Scale(50, 4000); // Map envelope to frequency range
+      const gainScale = new Tone.Scale(0.001, 1); // Map envelope to gain range
+
+      lpg.response.connect(freqScale);
+      lpg.response.connect(gainScale);
+
+      freqScale.connect(lpg.filter.frequency);
+      gainScale.connect(lpg.vca.gain);
+
+      // Trigger envelope once to initialize the response
+      envSystem.envelope.triggerAttackRelease(0.1, "+0.1");
+    });
+
     // Create mixer channels (4x4 matrix mixer)
     this.mixer = {
       inputs: Array(4)
@@ -103,31 +205,6 @@ class AudioEngine {
         input.connect(this.mixer.matrix[i][j]);
         this.mixer.matrix[i][j].connect(output);
       });
-    });
-
-    // Create envelope generators (Buchla 284-style)
-    this.envelopes = Array(4)
-      .fill()
-      .map(
-        () =>
-          new Tone.Envelope({
-            attack: 0.1,
-            decay: 0.2,
-            sustain: 0.5,
-            release: 0.8,
-            attackCurve: "linear",
-            releaseCurve: "exponential",
-          })
-      );
-
-    // VCAs for envelope control
-    this.vcas = Array(4)
-      .fill()
-      .map(() => new Tone.Gain(0));
-
-    // Connect envelopes to their respective VCAs
-    this.envelopes.forEach((env, i) => {
-      env.connect(this.vcas[i].gain);
     });
 
     // Wave folders and shapers for each oscillator
@@ -169,15 +246,25 @@ class AudioEngine {
       frequency: 440,
     });
     // Route through wave folder and filter before VCA
-    this.osc1.chain(this.waveFolders[0], this.bandpassFilters[0], this.vcas[0]);
-    this.vcas[0].connect(this.mixer.inputs[0]);
+    this.osc1.chain(
+      this.waveFolders[0],
+      this.bandpassFilters[0],
+      this.lpgs[0].filter,
+      this.lpgs[0].vca,
+      this.mixer.inputs[0]
+    );
 
     this.osc2 = new Tone.Oscillator({
       type: "sine",
       frequency: 440,
     });
-    this.osc2.chain(this.waveFolders[1], this.bandpassFilters[1], this.vcas[1]);
-    this.vcas[1].connect(this.mixer.inputs[1]);
+    this.osc2.chain(
+      this.waveFolders[1],
+      this.bandpassFilters[1],
+      this.lpgs[1].filter,
+      this.lpgs[1].vca,
+      this.mixer.inputs[1]
+    );
 
     // Additional oscillator with frequency shifter
     this.osc3 = new Tone.Oscillator({
@@ -196,17 +283,22 @@ class AudioEngine {
       this.waveFolders[2],
       this.freqShifter,
       this.bandpassFilters[2],
-      this.vcas[2]
+      this.lpgs[2].filter,
+      this.lpgs[2].vca,
+      this.mixer.inputs[2]
     );
-    this.vcas[2].connect(this.mixer.inputs[2]);
 
     // Noise generator with tone shaping
     this.noise = new Tone.Noise({
       type: "white",
       volume: -10,
     });
-    this.noise.chain(this.toneShaper, this.vcas[3]);
-    this.vcas[3].connect(this.mixer.inputs[3]);
+    this.noise.chain(
+      this.toneShaper,
+      this.lpgs[3].filter,
+      this.lpgs[3].vca,
+      this.mixer.inputs[3]
+    );
 
     // Initialize sequences array
     this.activeSequences = [];
@@ -251,6 +343,148 @@ class AudioEngine {
 
     // Initialize AFG processing
     this.initializeAFG();
+  }
+
+  initializeClockSystem() {
+    // Set initial tempo (2Hz = 120 BPM)
+    this.clockSystem.master.frequency.value = 2;
+
+    // Create the clock tick callback
+    this.clockTick = (time) => {
+      // Update counters
+      this.clockSystem.counters["16n"] =
+        (this.clockSystem.counters["16n"] + 1) % 4;
+      if (this.clockSystem.counters["16n"] === 0) {
+        this.clockSystem.counters["8n"] =
+          (this.clockSystem.counters["8n"] + 1) % 2;
+        if (this.clockSystem.counters["8n"] === 0) {
+          this.clockSystem.counters["4n"] =
+            (this.clockSystem.counters["4n"] + 1) % 2;
+          if (this.clockSystem.counters["4n"] === 0) {
+            this.clockSystem.counters["2n"] =
+              (this.clockSystem.counters["2n"] + 1) % 2;
+            if (this.clockSystem.counters["2n"] === 0) {
+              this.clockSystem.counters["1n"] =
+                (this.clockSystem.counters["1n"] + 1) % 2;
+              this.clockSystem.divisions["1n"].setValueAtTime(
+                this.clockSystem.counters["1n"],
+                time
+              );
+            }
+            this.clockSystem.divisions["2n"].setValueAtTime(
+              this.clockSystem.counters["2n"],
+              time
+            );
+          }
+          this.clockSystem.divisions["4n"].setValueAtTime(
+            this.clockSystem.counters["4n"],
+            time
+          );
+        }
+        this.clockSystem.divisions["8n"].setValueAtTime(
+          this.clockSystem.counters["8n"],
+          time
+        );
+      }
+      this.clockSystem.divisions["16n"].setValueAtTime(
+        this.clockSystem.counters["16n"] > 0 ? 1 : 0,
+        time
+      );
+
+      // Distribute clock pulses
+      this.distributeClockPulse(time);
+    };
+
+    // Set the callback after it's created
+    this.clockSystem.master.callback = this.clockTick;
+  }
+
+  distributeClockPulse(time) {
+    // Distribute clock to buses based on current routing
+    this.clockSystem.buses.forEach((bus, i) => {
+      if (this.clockRoutings && this.clockRoutings[i]) {
+        const division = this.clockRoutings[i];
+        const counter = this.clockSystem.counters[division];
+        bus.setValueAtTime(counter, time);
+      }
+    });
+
+    // Trigger AFG on quarter notes
+    if (this.clockSystem.counters["4n"] === 0) {
+      this.afg.clockInputs.forEach((clock, i) => {
+        if (this.afg.playheads[i].running) {
+          clock.setValueAtTime(1, time);
+          clock.setValueAtTime(0, time + 0.01);
+        }
+      });
+    }
+  }
+
+  // Clock control methods
+  setClockDivision(busIndex, division) {
+    if (busIndex >= 0 && busIndex < 4 && this.clockSystem.divisions[division]) {
+      this.clockRoutings = this.clockRoutings || {};
+      this.clockRoutings[busIndex] = division;
+    }
+  }
+
+  startClock() {
+    this.clockSystem.master.start();
+    if (Tone.Transport.state !== "started") {
+      Tone.Transport.start();
+    }
+  }
+
+  stopClock() {
+    this.clockSystem.master.stop();
+    if (Tone.Transport.state === "started") {
+      Tone.Transport.stop();
+    }
+  }
+
+  setClockTempo(bpm) {
+    // Convert BPM to Hz (sixteenth notes)
+    const hz = (bpm / 60) * 4;
+    this.clockSystem.master.frequency.value = hz;
+    Tone.Transport.bpm.value = bpm;
+  }
+
+  // Add a test method for the clock system
+  async testClock() {
+    await this.initialize();
+
+    console.log("Testing clock system...");
+
+    // Set up a basic clock routing
+    this.setClockDivision(0, "4n"); // Quarter notes on bus 1
+    this.setClockDivision(1, "8n"); // Eighth notes on bus 2
+    this.setClockDivision(2, "16n"); // Sixteenth notes on bus 3
+
+    // Start AFG playheads
+    this.startAFG(0);
+    this.startAFG(1);
+
+    // Set up some basic CV values
+    for (let i = 0; i < 16; i++) {
+      this.setAFGStep(i, {
+        cv: Math.random(),
+        trigger: Math.random() > 0.5 ? 1 : 0,
+      });
+    }
+
+    // Start the clock
+    this.setClockTempo(120);
+    this.startClock();
+
+    // Let it run for 4 seconds
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+
+    // Stop everything
+    this.stopClock();
+    this.stopAFG(0);
+    this.stopAFG(1);
+
+    console.log("Clock test complete");
   }
 
   initializeAFG() {
@@ -407,19 +641,58 @@ class AudioEngine {
     return this.randomSampleHold.value * 2 - 1;
   }
 
-  // Set envelope parameters for a specific channel
+  // Enhanced envelope methods
   setEnvelope(channel, params) {
-    if (channel >= 0 && channel < 4 && this.envelopes[channel]) {
-      Object.entries(params).forEach(([param, value]) => {
-        this.envelopes[channel][param] = value;
-      });
+    if (channel >= 0 && channel < 4) {
+      const envSystem = this.envelopes[channel];
+      const env = envSystem.envelope;
+
+      if (params.attack !== undefined)
+        env.attack = params.attack * envSystem.timeScale;
+      if (params.decay !== undefined)
+        env.decay = params.decay * envSystem.timeScale;
+      if (params.sustain !== undefined) env.sustain = params.sustain;
+      if (params.release !== undefined)
+        env.release = params.release * envSystem.timeScale;
+      if (params.offset !== undefined) envSystem.offset.value = params.offset;
+      if (params.scale !== undefined) envSystem.multiply.value = params.scale;
+      if (params.timeScale !== undefined)
+        envSystem.timeScale = params.timeScale;
     }
   }
 
-  // Enable envelope looping (LFO mode)
-  setEnvelopeLFO(channel, enabled) {
-    if (channel >= 0 && channel < 4 && this.envelopes[channel]) {
-      this.envelopes[channel].loop = enabled;
+  // Enable envelope looping (LFO mode) with timing control
+  setEnvelopeLFO(channel, enabled, rate = 1) {
+    if (channel >= 0 && channel < 4) {
+      const envSystem = this.envelopes[channel];
+      envSystem.isLooping = enabled;
+
+      if (enabled) {
+        const totalTime =
+          (envSystem.envelope.attack + envSystem.envelope.decay) *
+          envSystem.timeScale;
+        const loopTime = totalTime / rate;
+
+        // Schedule the loop
+        Tone.Transport.scheduleRepeat((time) => {
+          if (envSystem.isLooping) {
+            this.triggerEnvelope(channel, time);
+          }
+        }, loopTime);
+      }
+    }
+  }
+
+  // Enhanced trigger with proper timing
+  triggerEnvelope(channel, time = "+0.05") {
+    if (channel >= 0 && channel < 4) {
+      const envSystem = this.envelopes[channel];
+      const duration =
+        (envSystem.envelope.attack + envSystem.envelope.decay) *
+        envSystem.timeScale;
+
+      // Trigger with timing consideration
+      envSystem.envelope.triggerAttackRelease(duration, time);
     }
   }
 
@@ -529,13 +802,6 @@ class AudioEngine {
     Tone.Transport.bpm.value = bpm;
   }
 
-  // Trigger an envelope
-  triggerEnvelope(channel, time = "+0.05") {
-    if (channel >= 0 && channel < 4 && this.envelopes[channel]) {
-      this.envelopes[channel].triggerAttackRelease("8n", time);
-    }
-  }
-
   // Set spatial position for a channel (-1 to 1 for x/y)
   setSpatialPosition(channel, x, y) {
     if (channel >= 0 && channel < 4) {
@@ -568,6 +834,164 @@ class AudioEngine {
       const reverb = this.spatialDirectors[channel].reverb;
       reverb.decay = decay;
       reverb.wet.value = wet;
+    }
+  }
+
+  // Initialize Tone.js and prepare audio engine
+  async initialize() {
+    // Start audio context
+    await Tone.start();
+
+    // Set initial volume
+    Tone.Destination.volume.value = -12; // Start at a safe level
+
+    // Set up direct monitoring for testing
+    this.testMonitor = new Tone.Gain(0.5).toDestination();
+
+    // Connect a direct path for testing
+    this.osc1.connect(this.testMonitor);
+    this.osc2.connect(this.testMonitor);
+    this.osc3.connect(this.testMonitor);
+
+    return this;
+  }
+
+  // Test direct signal path
+  async testDirectPath() {
+    await this.initialize();
+
+    console.log("Testing direct signal path...");
+
+    // Start oscillators
+    this.osc1.start();
+    this.osc2.start();
+    this.osc3.start();
+
+    // Test each oscillator in sequence
+    const testSequence = async () => {
+      // Test osc1
+      this.osc1.frequency.value = 440;
+      await Tone.Destination.volume.rampTo(-12, 0.1);
+      await Tone.sleep(1);
+
+      // Test osc2
+      this.osc2.frequency.value = 554.37;
+      await Tone.sleep(1);
+
+      // Test osc3
+      this.osc3.frequency.value = 659.25;
+      await Tone.sleep(1);
+
+      // Stop all
+      this.osc1.stop();
+      this.osc2.stop();
+      this.osc3.stop();
+
+      // Disconnect test monitor
+      this.osc1.disconnect(this.testMonitor);
+      this.osc2.disconnect(this.testMonitor);
+      this.osc3.disconnect(this.testMonitor);
+
+      // Restore original connections
+      this.osc1.chain(
+        this.waveFolders[0],
+        this.bandpassFilters[0],
+        this.lpgs[0].filter,
+        this.lpgs[0].vca,
+        this.mixer.inputs[0]
+      );
+
+      this.osc2.chain(
+        this.waveFolders[1],
+        this.bandpassFilters[1],
+        this.lpgs[1].filter,
+        this.lpgs[1].vca,
+        this.mixer.inputs[1]
+      );
+
+      this.osc3.chain(
+        this.waveFolders[2],
+        this.freqShifter,
+        this.bandpassFilters[2],
+        this.lpgs[2].filter,
+        this.lpgs[2].vca,
+        this.mixer.inputs[2]
+      );
+
+      console.log("Direct path test complete");
+    };
+
+    await testSequence();
+  }
+
+  // Test sound output with proper initialization
+  async testSound() {
+    await this.initialize();
+
+    console.log("Testing full signal path...");
+
+    // Stop any existing playback
+    this.stopPlayback();
+
+    // Start oscillators
+    this.osc1.start();
+    this.osc2.start();
+    this.osc3.start();
+    this.noise.start();
+
+    // Set some basic frequencies
+    this.osc1.frequency.value = 440; // A4
+    this.osc2.frequency.value = 554.37; // C#5
+    this.osc3.frequency.value = 659.25; // E5
+
+    // Set all mixer points to full
+    for (let i = 0; i < 4; i++) {
+      this.setMixerPoint(i, i, 1);
+    }
+
+    // Trigger envelopes repeatedly
+    const triggerInterval = setInterval(() => {
+      this.triggerEnvelope(0);
+      setTimeout(() => this.triggerEnvelope(1), 150);
+      setTimeout(() => this.triggerEnvelope(2), 300);
+      setTimeout(() => this.triggerEnvelope(3), 450);
+    }, 1000);
+
+    // Stop after 4 seconds
+    setTimeout(() => {
+      clearInterval(triggerInterval);
+      this.stopPlayback();
+      console.log("Full path test complete");
+    }, 4000);
+  }
+
+  // Set oscillator parameters
+  setOscillatorParams(oscNumber, params) {
+    if (oscNumber >= 1 && oscNumber <= 3) {
+      const osc = this[`osc${oscNumber}`];
+      if (!osc) return;
+
+      // Update frequency if provided
+      if (params.frequency !== undefined) {
+        osc.frequency.value = params.frequency;
+      }
+
+      // Update wave type if provided
+      if (params.waveType !== undefined) {
+        osc.type = params.waveType;
+      }
+
+      // Update wave shape (folding) if provided
+      if (params.waveShape !== undefined) {
+        this.setWaveFold(oscNumber, params.waveShape);
+      }
+
+      // Update FM amount if provided (only for osc3 which has the frequency shifter)
+      if (params.fmAmount !== undefined && oscNumber === 3) {
+        this.setFrequencyShift(params.fmAmount * 1000); // Scale to 0-1000 Hz range
+      }
+
+      console.log(`Updated oscillator ${oscNumber} params:`, params);
     }
   }
 }

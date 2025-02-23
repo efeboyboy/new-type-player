@@ -3,6 +3,8 @@
   import TextInput from "./components/TextInput.vue";
   import Sequencer from "./components/Sequencer.vue";
   import ControlPanel from "./components/ControlPanel.vue";
+  import OscillatorControls from "./components/OscillatorControls.vue";
+  import MatrixMixer from "./components/MatrixMixer.vue";
   import { store } from "./store.js";
   import AudioEngine from "./services/AudioEngine.js";
 
@@ -34,6 +36,17 @@
       </section>
       <section id="sequencer-section">
         <Sequencer />
+      </section>
+      <section
+        id="synthesis-section"
+        class="flex flex-wrap gap-4 justify-center"
+      >
+        <OscillatorControls :number="1" />
+        <OscillatorControls :number="2" />
+        <OscillatorControls :number="3" />
+      </section>
+      <section id="mixer-section" class="flex justify-center">
+        <MatrixMixer />
       </section>
       <section id="control-section">
         <ControlPanel />

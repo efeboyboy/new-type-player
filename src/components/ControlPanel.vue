@@ -23,6 +23,7 @@
   import { computed } from "vue";
   import { store } from "../store.js";
   import Knob from "./Knob.vue";
+  import audioEngine from "../services/AudioEngine.js";
 
   const playing = computed(() => store.playing);
 
@@ -34,6 +35,8 @@
     get: () => store.tempo,
     set: (val) => {
       store.tempo = val;
+      audioEngine.setTempo(val);
+      console.log("Setting tempo to:", val);
     },
   });
 </script>

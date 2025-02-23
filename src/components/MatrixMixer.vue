@@ -1,74 +1,48 @@
 <!-- Full 4x4 Matrix Mixer -->
 <template>
   <div class="module-panel">
-    <div class="flex items-center justify-between mb-3">
-      <div class="module-title">Matrix Mixer 292</div>
-      <div class="flex items-center gap-2">
-        <!-- Reset Button -->
-        <button
-          @click="resetMixer"
-          class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-          title="Reset to Default"
-        >
-          <RotateCcw
-            :size="14"
-            class="text-zinc-400 group-hover:text-emerald-400"
-            stroke-width="1.5"
-          />
-        </button>
-        <!-- Randomize Button -->
-        <button
-          @click="randomizeMixer"
-          class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-          title="Randomize Values"
-        >
-          <Shuffle
-            :size="14"
-            class="text-zinc-400 group-hover:text-emerald-400"
-            stroke-width="1.5"
-          />
-        </button>
+    <!-- Output Labels Row -->
+    <div class="grid grid-cols-4 gap-x-4 mb-4 pl-12">
+      <div v-for="n in 4" :key="`out-${n}`" class="text-center">
+        <div class="module-label">Out {{ n }}</div>
       </div>
     </div>
 
     <!-- Matrix Grid -->
-    <div class="grid grid-cols-5 gap-2">
-      <!-- Empty top-left corner -->
-      <div></div>
-      <!-- Output Labels -->
-      <div v-for="n in 4" :key="`out-${n}`" class="text-center">
-        <div class="module-label">Out {{ n }}</div>
-      </div>
-
-      <!-- Matrix rows -->
+    <div class="grid gap-y-4">
       <template v-for="i in 4" :key="`row-${i}`">
-        <!-- Input label -->
-        <div class="flex items-center justify-end pr-2">
-          <div class="module-label">In {{ i }}</div>
-        </div>
-        <!-- Matrix cells -->
-        <div
-          v-for="j in 4"
-          :key="`cell-${i}-${j}`"
-          class="flex flex-col items-center gap-1"
-        >
-          <Knob
-            v-model="mixerLevels[i - 1][j - 1]"
-            :min="0"
-            :max="1"
-            :step="0.01"
-            class="w-8 h-8"
-            @update:modelValue="(v) => updateMixerPoint(i - 1, j - 1, v)"
-          />
-          <div class="module-value">
-            {{ formatLevel(mixerLevels[i - 1][j - 1]) }}
+        <div class="flex">
+          <!-- Input Label -->
+          <div class="w-12 flex items-center">
+            <div class="module-label">In {{ i }}</div>
+          </div>
+
+          <!-- Knob Row -->
+          <div class="grid grid-cols-4 gap-4 flex-1">
+            <div
+              v-for="j in 4"
+              :key="`cell-${i}-${j}`"
+              class="flex flex-col items-center"
+            >
+              <Knob
+                v-model="mixerLevels[i - 1][j - 1]"
+                :min="0"
+                :max="1"
+                :step="0.01"
+                class="w-10 h-10"
+                @update:modelValue="(v) => updateMixerPoint(i - 1, j - 1, v)"
+              />
+              <div class="module-value text-[10px]">
+                {{ formatLevel(mixerLevels[i - 1][j - 1]) }}
+              </div>
+            </div>
           </div>
         </div>
       </template>
     </div>
 
     <!-- Source Labels -->
-    <div class="grid grid-cols-4 gap-2 mt-3">
+    <div class="grid grid-cols-4 gap-4 pl-12 mt-2">
       <div v-for="(source, i) in sources" :key="source" class="text-center">
         <div class="module-label">{{ source }}</div>
       </div>
@@ -102,11 +76,10 @@
   };
 
   // Reset mixer to default state (diagonal connections)
-  const resetMixer = () => {
+  const reset = () => {
     mixerLevels.value = mixerLevels.value.map((row, i) =>
       row.map((_, j) => (i === j ? 0.7 : 0))
     );
-    // Update all points in audio engine
     mixerLevels.value.forEach((row, i) => {
       row.forEach((value, j) => {
         audioEngine.setMixerPoint(i, j, value);
@@ -115,11 +88,10 @@
   };
 
   // Randomize mixer values
-  const randomizeMixer = () => {
-    mixerLevels.value = mixerLevels.value.map(
-      (row) => row.map(() => Math.random() * 0.8) // Random values between 0 and 0.8
+  const randomize = () => {
+    mixerLevels.value = mixerLevels.value.map((row) =>
+      row.map(() => Math.random() * 0.8)
     );
-    // Update all points in audio engine
     mixerLevels.value.forEach((row, i) => {
       row.forEach((value, j) => {
         audioEngine.setMixerPoint(i, j, value);
@@ -127,15 +99,21 @@
     });
   };
 
+  // Expose methods for parent component
+  defineExpose({
+    reset,
+    randomize,
+  });
+
   onMounted(() => {
     // Set initial diagonal connections (1:1 routing)
-    resetMixer();
+    reset();
   });
 </script>
 
 <style scoped>
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-3;
+    @apply bg-zinc-900/30 rounded-lg p-6;
   }
 
   .module-title {
@@ -143,7 +121,7 @@
   }
 
   .module-value {
-    @apply text-[10px] font-medium text-zinc-500;
+    @apply font-medium text-zinc-500 text-center mt-0.5;
   }
 
   .module-label {

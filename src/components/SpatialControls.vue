@@ -1,45 +1,15 @@
 <template>
   <div class="module-panel">
-    <div class="flex items-center justify-between mb-3">
-      <div class="module-title">Quad Spatial Director 227</div>
-      <div class="flex items-center gap-2">
-        <!-- Reset Button -->
-        <button
-          @click="resetSpatial"
-          class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-          title="Reset to Default"
-        >
-          <RotateCcw
-            :size="14"
-            class="text-zinc-400 group-hover:text-emerald-400"
-            stroke-width="1.5"
-          />
-        </button>
-        <!-- Randomize Button -->
-        <button
-          @click="randomize"
-          class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-          title="Randomize Values"
-        >
-          <Shuffle
-            :size="14"
-            class="text-zinc-400 group-hover:text-emerald-400"
-            stroke-width="1.5"
-          />
-        </button>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-4 gap-3">
+    <div class="grid grid-cols-4 gap-4">
       <!-- Channel Controls -->
-      <div v-for="n in 4" :key="n" class="flex flex-col gap-2">
+      <div v-for="n in 4" :key="n" class="flex flex-col items-center gap-4">
         <div class="text-center">
           <div class="module-label">Channel {{ n }}</div>
         </div>
 
         <!-- XY Pad -->
         <div
-          class="xy-pad relative bg-zinc-800/50 rounded-lg aspect-square"
+          class="xy-pad relative bg-zinc-800/50 rounded-lg w-full aspect-square"
           @mousedown="startDrag($event, n - 1)"
           @touchstart="startDrag($event, n - 1)"
         >
@@ -55,7 +25,7 @@
 
           <!-- Position Indicator -->
           <div
-            class="absolute w-2 h-2 bg-emerald-500/50 rounded-full -translate-x-1/2 -translate-y-1/2"
+            class="absolute w-3 h-3 bg-emerald-500/50 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none"
             :style="{
               left: (channels[n - 1].x + 1) * 50 + '%',
               top: (channels[n - 1].y + 1) * 50 + '%',
@@ -66,7 +36,7 @@
           <div
             class="absolute inset-0 flex items-center justify-center pointer-events-none"
           >
-            <div class="text-[8px] text-zinc-500">
+            <div class="text-[10px] font-medium text-zinc-500">
               {{ formatPan(channels[n - 1].x) }} /
               {{ formatPan(channels[n - 1].y) }}
             </div>
@@ -80,7 +50,7 @@
             :min="0"
             :max="1"
             :step="0.01"
-            class="w-6 h-6"
+            class="w-10 h-10"
           />
           <div class="module-value">
             {{ formatPercent(channels[n - 1].reverb) }}
@@ -91,7 +61,7 @@
     </div>
 
     <!-- Global Reverb Controls -->
-    <div class="mt-3 pt-3 border-t border-zinc-800">
+    <div class="mt-4 pt-4 border-t border-zinc-800">
       <div class="grid grid-cols-2 gap-4">
         <div class="control-group">
           <Knob
@@ -99,7 +69,7 @@
             :min="0.1"
             :max="10"
             :step="0.1"
-            class="w-8 h-8"
+            class="w-10 h-10"
           />
           <div class="module-value">
             {{ formatTime(reverbParams.decay) }}
@@ -113,7 +83,7 @@
             :min="0"
             :max="1"
             :step="0.01"
-            class="w-8 h-8"
+            class="w-10 h-10"
           />
           <div class="module-value">
             {{ formatPercent(reverbParams.diffusion) }}
@@ -204,11 +174,20 @@
     if (!pad) return;
 
     const rect = pad.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    const y = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+    const clientX = event.clientX || event.touches?.[0].clientX;
+    const clientY = event.clientY || event.touches?.[0].clientY;
 
-    channels.value[activeChannel].x = Math.max(-1, Math.min(1, x));
-    channels.value[activeChannel].y = Math.max(-1, Math.min(1, y));
+    const x = Math.max(
+      -1,
+      Math.min(1, ((clientX - rect.left) / rect.width) * 2 - 1)
+    );
+    const y = Math.max(
+      -1,
+      Math.min(1, ((clientY - rect.top) / rect.height) * 2 - 1)
+    );
+
+    channels.value[activeChannel].x = x;
+    channels.value[activeChannel].y = y;
 
     updateChannel(activeChannel);
   };
@@ -236,7 +215,7 @@
   };
 
   // Reset to defaults
-  const resetSpatial = () => {
+  const reset = () => {
     channels.value = channels.value.map(() => ({ ...defaultChannel }));
     reverbParams.value = { ...defaultReverbParams };
     channels.value.forEach((_, index) => updateChannel(index));
@@ -258,6 +237,12 @@
     channels.value.forEach((_, index) => updateChannel(index));
   };
 
+  // Expose methods for parent component
+  defineExpose({
+    reset,
+    randomize,
+  });
+
   // Watch for changes in parameters
   watch(
     [channels, reverbParams],
@@ -270,19 +255,15 @@
 
 <style scoped>
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-3;
-  }
-
-  .module-title {
-    @apply text-sm font-medium text-zinc-400;
+    @apply bg-zinc-900/30 rounded-lg p-6;
   }
 
   .module-value {
-    @apply text-[10px] font-medium text-zinc-500;
+    @apply text-[10px] font-medium text-zinc-500 text-center mt-0.5;
   }
 
   .module-label {
-    @apply text-[10px] font-medium text-zinc-400;
+    @apply text-[10px] font-medium text-zinc-400 text-center;
   }
 
   .control-group {
@@ -290,11 +271,16 @@
   }
 
   .xy-pad {
-    @apply cursor-pointer select-none;
+    @apply cursor-pointer select-none border border-zinc-800;
     touch-action: none;
+    min-height: 80px;
   }
 
   .xy-pad:hover {
-    @apply bg-zinc-800/70;
+    @apply bg-zinc-800/70 border-zinc-700;
+  }
+
+  .xy-pad:active {
+    @apply bg-zinc-800/90 border-emerald-500/30;
   }
 </style>

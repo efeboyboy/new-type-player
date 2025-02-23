@@ -25,13 +25,13 @@
         <div class="control-group">
           <Knob
             v-model="filters[n - 1].q"
-            :min="0.5"
-            :max="8"
-            :step="0.1"
+            :min="1.2"
+            :max="4.8"
+            :step="0.2"
             class="w-10 h-10"
             @update:modelValue="updateFilters"
           />
-          <div class="module-value">{{ filters[n - 1].q.toFixed(1) }}</div>
+          <div class="module-value">{{ formatQ(filters[n - 1].q) }}</div>
           <label class="module-label">Focus</label>
         </div>
       </div>
@@ -46,9 +46,9 @@
         <div class="control-group">
           <Knob
             v-model="toneShape[n === 1 ? 'low' : 'high']"
-            :min="-6"
-            :max="6"
-            :step="0.5"
+            :min="-4.8"
+            :max="3.6"
+            :step="0.2"
             class="w-10 h-10"
             @update:modelValue="updateToneShape"
           />
@@ -58,18 +58,26 @@
           <label class="module-label">{{ n === 1 ? "Bass" : "Treble" }}</label>
         </div>
 
-        <!-- Mid -->
+        <!-- Mid/Presence -->
         <div class="control-group">
           <Knob
-            v-model="toneShape.mid"
-            :min="-3"
-            :max="3"
-            :step="0.5"
+            v-model="toneShape[n === 1 ? 'mid' : 'presence']"
+            :min="n === 1 ? -2.4 : 0"
+            :max="n === 1 ? 2.4 : 3.6"
+            :step="0.2"
             class="w-10 h-10"
             @update:modelValue="updateToneShape"
           />
-          <div class="module-value">{{ formatDb(toneShape.mid) }}</div>
-          <label class="module-label">Middle</label>
+          <div class="module-value">
+            {{
+              n === 1
+                ? formatDb(toneShape.mid)
+                : formatPresence(toneShape.presence)
+            }}
+          </div>
+          <label class="module-label">{{
+            n === 1 ? "Middle" : "Presence"
+          }}</label>
         </div>
       </div>
     </div>
@@ -83,14 +91,15 @@
 
   // Default values
   const defaultFilters = [
-    { freq: 1000, q: 1 },
-    { freq: 2000, q: 1 },
+    { freq: 440, q: 2.4 }, // Start at A4 with moderate focus
+    { freq: 880, q: 2.4 }, // Start an octave up with moderate focus
   ];
 
   const defaultToneShape = {
-    low: 0,
-    mid: 0,
-    high: 0,
+    low: 1.2, // Slight bass warmth
+    mid: -0.8, // Slight mid dip for clarity
+    high: -1.2, // Gentle high end roll-off
+    presence: 1.8, // Moderate presence boost
   };
 
   // Initialize states
@@ -104,9 +113,32 @@
       : `${Math.round(freq)}`;
   };
 
-  // Format dB values
+  // Format Q values with descriptive text
+  const formatQ = (q) => {
+    let desc = "";
+    if (q < 2) desc = " (Smooth)";
+    else if (q < 3.6) desc = " (Musical)";
+    else desc = " (Sharp)";
+    return `${q.toFixed(1)}${desc}`;
+  };
+
+  // Format dB values with descriptive text
   const formatDb = (db) => {
-    return db > 0 ? `+${db.toFixed(1)}` : db.toFixed(1);
+    const prefix = db > 0 ? "+" : "";
+    let desc = "";
+    if (Math.abs(db) < 1.2) desc = " (Subtle)";
+    else if (Math.abs(db) < 3.2) desc = " (Moderate)";
+    else desc = " (Strong)";
+    return `${prefix}${db.toFixed(1)}${desc}`;
+  };
+
+  // Format presence values with descriptive text
+  const formatPresence = (value) => {
+    let desc = "";
+    if (value < 1.2) desc = " (Soft)";
+    else if (value < 2.4) desc = " (Clear)";
+    else desc = " (Bright)";
+    return `${value.toFixed(1)}${desc}`;
   };
 
   // Update filter parameters
@@ -121,7 +153,8 @@
     audioEngine.setToneShape(
       toneShape.value.low,
       toneShape.value.mid,
-      toneShape.value.high
+      toneShape.value.high,
+      toneShape.value.presence
     );
   };
 
@@ -133,17 +166,32 @@
     updateToneShape();
   };
 
-  // Randomize values
+  // Randomize values with musical constraints
   const randomize = () => {
-    filters.value = filters.value.map(() => ({
-      freq: Math.exp(Math.random() * Math.log(20000 / 20)) * 20,
-      q: 0.1 + Math.random() * 9.9,
-    }));
+    filters.value = filters.value.map((_, i) => {
+      // Calculate frequency within the optimal range for each filter
+      const minFreq = i === 0 ? 80 : 200;
+      const maxFreq = i === 0 ? 800 : 2000;
+      const freqRange = Math.log(maxFreq / minFreq);
+      const randomFreq = Math.exp(Math.random() * freqRange) * minFreq;
+
+      // Focus (Q) favors musical values
+      const q = 1.2 + Math.random() * 2.4; // Bias towards moderate Q values
+
+      return {
+        freq: randomFreq,
+        q: q,
+      };
+    });
+
+    // Randomize tone shape with musical constraints
     toneShape.value = {
-      low: -12 + Math.random() * 24,
-      mid: -12 + Math.random() * 24,
-      high: -12 + Math.random() * 24,
+      low: (Math.random() * 4.8 - 2.4) * 0.75, // Bias towards subtle boost
+      mid: (Math.random() * 2.4 - 1.2) * 0.75, // Keep mids more subtle
+      high: (Math.random() * 3.6 - 2.4) * 0.75, // Bias towards slight cut
+      presence: 1.2 + Math.random() * 1.6, // Keep presence in the clear range
     };
+
     updateFilters();
     updateToneShape();
   };

@@ -17,8 +17,6 @@ export default defineConfig({
   define: {
     global: "globalThis",
     "process.env": {},
-    "process.hrtime":
-      "function(previousTimestamp) { const now = performance.now(); const prev = previousTimestamp ? previousTimestamp[0] * 1e3 + previousTimestamp[1] / 1e6 : 0; const diff = now - prev; return [Math.floor(diff / 1000), (diff % 1000) * 1e6]; }",
     "process.browser": true,
     "Buffer.isBuffer": "false",
   },

@@ -1,21 +1,25 @@
 <template>
   <div class="module-panel">
-    <div class="text-center mb-3">
-      <div class="module-title text-sm">Noise</div>
-    </div>
+    <div class="flex flex-col gap-2">
+      <!-- Title -->
+      <div class="text-center">
+        <div class="module-title">Noise</div>
+      </div>
 
-    <div class="flex flex-col items-center gap-4">
-      <!-- Amount Control -->
-      <div class="control-group">
-        <Knob
-          v-model="volume"
-          :min="0"
-          :max="1"
-          :step="0.01"
-          class="w-12 h-12"
-        />
-        <div class="module-value">{{ formatPercent(volume) }}</div>
-        <label class="module-label">Amount</label>
+      <!-- Controls -->
+      <div class="flex justify-center">
+        <!-- Amount Control -->
+        <div class="control-group">
+          <Knob
+            v-model="volume"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            class="w-10 h-10"
+          />
+          <div class="module-value">{{ formatPercent(volume) }}</div>
+          <label class="module-label">Amount</label>
+        </div>
       </div>
     </div>
   </div>
@@ -69,23 +73,23 @@
 </script>
 
 <style scoped>
-  .control-group {
-    @apply flex flex-col items-center gap-2;
-  }
-
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-4 flex flex-col items-center;
+    @apply bg-zinc-900/30 rounded-lg p-3;
   }
 
-  .module-title {
-    @apply text-sm font-medium text-zinc-300 mb-2;
+  .control-group {
+    @apply flex flex-col items-center gap-1;
   }
 
   .module-value {
-    @apply text-[11px] font-mono text-zinc-500 text-center mt-1;
+    @apply text-[10px] font-mono text-zinc-500 text-center mt-0.5;
   }
 
   .module-label {
-    @apply text-xs font-medium text-zinc-400 text-center;
+    @apply text-[11px] font-medium text-zinc-400 text-center;
+  }
+
+  .module-title {
+    @apply text-sm font-medium text-zinc-300;
   }
 </style>

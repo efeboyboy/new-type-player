@@ -113,32 +113,20 @@
       : `${Math.round(freq)}`;
   };
 
-  // Format Q values with descriptive text
+  // Format Q values without descriptive text
   const formatQ = (q) => {
-    let desc = "";
-    if (q < 2) desc = " (Smooth)";
-    else if (q < 3.6) desc = " (Musical)";
-    else desc = " (Sharp)";
-    return `${q.toFixed(1)}${desc}`;
+    return q.toFixed(1);
   };
 
-  // Format dB values with descriptive text
+  // Format dB values without descriptive text
   const formatDb = (db) => {
     const prefix = db > 0 ? "+" : "";
-    let desc = "";
-    if (Math.abs(db) < 1.2) desc = " (Subtle)";
-    else if (Math.abs(db) < 3.2) desc = " (Moderate)";
-    else desc = " (Strong)";
-    return `${prefix}${db.toFixed(1)}${desc}`;
+    return `${prefix}${db.toFixed(1)}`;
   };
 
-  // Format presence values with descriptive text
+  // Format presence values without descriptive text
   const formatPresence = (value) => {
-    let desc = "";
-    if (value < 1.2) desc = " (Soft)";
-    else if (value < 2.4) desc = " (Clear)";
-    else desc = " (Bright)";
-    return `${value.toFixed(1)}${desc}`;
+    return value.toFixed(1);
   };
 
   // Update filter parameters
@@ -176,7 +164,7 @@
       const randomFreq = Math.exp(Math.random() * freqRange) * minFreq;
 
       // Focus (Q) favors musical values
-      const q = 1.2 + Math.random() * 2.4; // Bias towards moderate Q values
+      const q = 1.2 + Math.random() * 2.4;
 
       return {
         freq: randomFreq,
@@ -186,10 +174,10 @@
 
     // Randomize tone shape with musical constraints
     toneShape.value = {
-      low: (Math.random() * 4.8 - 2.4) * 0.75, // Bias towards subtle boost
-      mid: (Math.random() * 2.4 - 1.2) * 0.75, // Keep mids more subtle
-      high: (Math.random() * 3.6 - 2.4) * 0.75, // Bias towards slight cut
-      presence: 1.2 + Math.random() * 1.6, // Keep presence in the clear range
+      low: (Math.random() * 4.8 - 2.4) * 0.75,
+      mid: (Math.random() * 2.4 - 1.2) * 0.75,
+      high: (Math.random() * 3.6 - 2.4) * 0.75,
+      presence: 1.2 + Math.random() * 1.6,
     };
 
     updateFilters();
@@ -205,7 +193,7 @@
 
 <style scoped>
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-6;
+    @apply bg-zinc-900/30 rounded-lg p-3;
   }
 
   .control-group {
@@ -213,14 +201,14 @@
   }
 
   .module-value {
-    @apply text-[11px] font-mono text-zinc-500 text-center mt-1;
+    @apply text-[10px] font-mono text-zinc-500 text-center mt-0.5;
   }
 
   .module-label {
-    @apply text-xs font-medium text-zinc-400 text-center;
+    @apply text-[11px] font-medium text-zinc-400 text-center;
   }
 
   .module-title {
-    @apply text-sm font-medium text-zinc-300 mb-2;
+    @apply text-sm font-medium text-zinc-300;
   }
 </style>

@@ -2,23 +2,23 @@
 <template>
   <div class="module-panel">
     <!-- Output Labels Row -->
-    <div class="grid grid-cols-4 gap-x-4 mb-4 pl-12">
+    <div class="grid grid-cols-4 gap-x-3 mb-2 pl-10">
       <div v-for="n in 4" :key="`out-${n}`" class="text-center">
         <div class="module-label">Out {{ n }}</div>
       </div>
     </div>
 
     <!-- Matrix Grid -->
-    <div class="grid gap-y-4">
+    <div class="grid gap-y-2">
       <template v-for="i in 4" :key="`row-${i}`">
         <div class="flex">
           <!-- Input Label -->
-          <div class="w-12 flex items-center">
+          <div class="w-10 flex items-center">
             <div class="module-label">{{ sources[i - 1] }}</div>
           </div>
 
           <!-- Knob Row -->
-          <div class="grid grid-cols-4 gap-4 flex-1">
+          <div class="grid grid-cols-4 gap-3 flex-1">
             <div
               v-for="j in 4"
               :key="`cell-${i}-${j}`"
@@ -29,7 +29,7 @@
                 :min="0"
                 :max="1"
                 :step="0.1"
-                class="w-10 h-10"
+                class="w-8 h-8"
                 @update:modelValue="(v) => updateMixerPoint(i - 1, j - 1, v)"
               />
               <div class="module-value">
@@ -108,18 +108,18 @@
 
 <style scoped>
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-6;
+    @apply bg-zinc-900/30 rounded-lg p-3;
   }
 
   .module-value {
-    @apply text-[11px] font-mono text-zinc-500 text-center mt-1;
+    @apply text-[10px] font-mono text-zinc-500 text-center mt-0.5;
   }
 
   .module-label {
-    @apply text-xs font-medium text-zinc-400 text-center;
+    @apply text-[11px] font-medium text-zinc-400 text-center;
   }
 
   .module-title {
-    @apply text-sm font-medium text-zinc-300 mb-2;
+    @apply text-sm font-medium text-zinc-300;
   }
 </style>

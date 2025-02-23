@@ -119,46 +119,44 @@ export const store = reactive({
     }
   },
 
-  // Modified applySeed to respect the default patch
-  async applySeed(seed, updateText = false) {
-    if (!seed) return;
-
-    // If no seed is provided, use the default patch
-    const seedToUse = seed || DEFAULT_PATCH_SEED;
-    this.currentSeed = seedToUse;
-
+  async applySeed(seed, shouldUpdateText = false) {
     try {
-      // Wait for audio engine to be ready
-      if (!audioEngine.initialized) {
-        await audioEngine.initialize();
+      // Ensure audio is initialized first
+      if (!this.audioInitialized) {
+        await this.initializeAudio();
       }
 
-      const seedRandom = new Math.seedrandom(seedToUse);
-
-      // Apply randomization to all components using the seeded random
-      await Promise.all([
-        this.osc1?.randomize(seedRandom),
-        this.osc2?.randomize(seedRandom),
-        this.osc3?.randomize(seedRandom),
-        this.noiseControls?.randomize(seedRandom),
-        this.envelopeControls?.randomize(seedRandom),
-        this.lpgControls?.randomize(seedRandom),
-        this.matrixMixer?.randomize(seedRandom),
-        this.filterControls?.randomize(seedRandom),
-        this.spatialControls?.randomize(seedRandom),
-      ]);
-
-      // Only update text if specified (for randomize button)
-      if (updateText) {
-        this.inputText = `Patch ${seedToUse}`;
+      // Validate seed
+      if (!seed || typeof seed !== "string" || seed.length !== 8) {
+        throw new Error("Invalid seed format");
       }
 
-      // Store seed in localStorage
-      localStorage.setItem("defaultSeed", seedToUse);
+      this.currentSeed = seed;
+
+      // Wait for all component updates to complete
+      const updatePromises = [];
+
+      // Only update components that exist
+      if (this.osc1) updatePromises.push(this.osc1.randomize());
+      if (this.osc2) updatePromises.push(this.osc2.randomize());
+      if (this.osc3) updatePromises.push(this.osc3.randomize());
+      if (this.noiseControls)
+        updatePromises.push(this.noiseControls.randomize());
+      if (this.envelopeControls)
+        updatePromises.push(this.envelopeControls.randomize());
+      if (this.lpgControls) updatePromises.push(this.lpgControls.randomize());
+      if (this.matrixMixer) updatePromises.push(this.matrixMixer.randomize());
+      if (this.filterControls)
+        updatePromises.push(this.filterControls.randomize());
+      if (this.spatialControls)
+        updatePromises.push(this.spatialControls.randomize());
+
+      // Wait for all updates to complete
+      await Promise.all(updatePromises);
 
       return true;
     } catch (error) {
-      console.error("Failed to apply seed:", error);
+      console.error("Error applying seed:", error);
       return false;
     }
   },

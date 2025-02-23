@@ -3,58 +3,59 @@
     <div class="grid grid-cols-4 gap-4">
       <div v-for="n in 4" :key="n" class="flex flex-col items-center gap-4">
         <div class="text-center">
-          <div class="module-label">Gate {{ n }}</div>
+          <div class="module-label">{{ n }}</div>
         </div>
 
-        <!-- Response (Rise) -->
+        <!-- Response -->
         <div class="control-group">
           <Knob
             v-model="lpgs[n - 1].rise"
-            :min="0.01"
+            :min="0.001"
+            :max="0.1"
+            :step="0.001"
+            class="w-10 h-10"
+          />
+          <div class="module-value">{{ formatTime(lpgs[n - 1].rise) }}</div>
+          <label class="module-label">Speed</label>
+        </div>
+
+        <!-- Sustain -->
+        <div class="control-group">
+          <Knob
+            v-model="lpgs[n - 1].fall"
+            :min="0.05"
             :max="0.5"
             :step="0.01"
             class="w-10 h-10"
           />
-          <div class="module-value">{{ formatTime(lpgs[n - 1].rise) }}</div>
-          <label class="module-label">Rise</label>
-        </div>
-
-        <!-- Fall -->
-        <div class="control-group">
-          <Knob
-            v-model="lpgs[n - 1].fall"
-            :min="0.1"
-            :max="1"
-            :step="0.01"
-            class="w-10 h-10"
-          />
           <div class="module-value">{{ formatTime(lpgs[n - 1].fall) }}</div>
-          <label class="module-label">Fall</label>
+          <label class="module-label">Hold</label>
         </div>
 
         <!-- Level -->
         <div class="control-group">
           <Knob
             v-model="lpgs[n - 1].level"
-            :min="0.7"
-            :max="0.9"
+            :min="0.5"
+            :max="1"
             :step="0.01"
             class="w-10 h-10"
           />
           <div class="module-value">{{ formatPercent(lpgs[n - 1].level) }}</div>
-          <label class="module-label">Level</label>
+          <label class="module-label">Amount</label>
         </div>
 
         <!-- Mode Toggle -->
         <button
           @click="toggleMode(n - 1)"
-          :class="{
-            'bg-emerald-500/20 text-emerald-500': lpgs[n - 1].loopMode,
-            'bg-zinc-800/50 text-zinc-400': !lpgs[n - 1].loopMode,
-          }"
-          class="px-2 py-1 text-[10px] rounded transition-colors"
+          :class="[
+            lpgs[n - 1].loopMode
+              ? 'bg-emerald-500/20 text-emerald-500'
+              : 'bg-zinc-800/50 text-zinc-400',
+            'px-2 py-1 text-[10px] rounded transition-colors flex items-center justify-center w-8 h-8',
+          ]"
         >
-          {{ lpgs[n - 1].loopMode ? "LFO" : "Env" }}
+          <span>{{ lpgs[n - 1].loopMode ? "↻" : "→" }}</span>
         </button>
       </div>
     </div>
@@ -67,9 +68,9 @@
   import audioEngine from "../services/AudioEngine.js";
   import * as Tone from "tone";
 
-  // Default values for each LPG
+  // Refined default values based on Buchla Cookbook
   const defaultLPG = {
-    rise: 0.05, // 50ms rise time - optimal for percussive attacks
+    rise: 0.005, // 5ms rise time - snappy attack
     fall: 0.15, // 150ms fall time - natural decay
     level: 0.85, // 85% level for good presence
     loopMode: false,
@@ -79,7 +80,7 @@
     Array(4)
       .fill()
       .map((_, index) => ({
-        rise: index === 3 ? 0.08 : 0.05, // Slightly slower attack for noise
+        rise: index === 3 ? 0.01 : 0.005, // Slightly slower attack for noise
         fall: index === 3 ? 0.2 : 0.15, // Longer decay for noise
         level: index === 3 ? 0.7 : 0.85, // Lower level for noise
         loopMode: false,
@@ -91,6 +92,9 @@
   };
 
   const formatTime = (value) => {
+    if (value < 0.01) {
+      return `${(value * 1000).toFixed(1)}ms`;
+    }
     return `${(value * 1000).toFixed(0)}ms`;
   };
 
@@ -208,7 +212,7 @@
       lpgs.value = Array(4)
         .fill()
         .map((_, index) => ({
-          rise: index === 3 ? 0.08 : 0.05,
+          rise: index === 3 ? 0.01 : 0.005,
           fall: index === 3 ? 0.2 : 0.15,
           level: index === 3 ? 0.7 : 0.85,
           loopMode: false,

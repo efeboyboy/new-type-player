@@ -1,83 +1,89 @@
 <template>
   <div class="module-panel">
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-2 gap-3">
       <!-- Master Envelope Controls -->
-      <div class="flex flex-col items-center gap-4">
+      <div class="flex flex-col gap-2">
         <div class="text-center">
-          <div class="module-title">Master Shape</div>
+          <div class="module-title">Shape</div>
         </div>
 
-        <!-- Rise Time -->
-        <div class="control-group">
-          <Knob
-            v-model="masterEnvelope.rise"
-            :min="0.001"
-            :max="0.5"
-            :step="0.001"
-            class="w-12 h-12"
-            @update:modelValue="updateMasterEnvelope"
-          />
-          <div class="module-value">
-            {{ formatTime(masterEnvelope.rise) }}
+        <div class="flex flex-col gap-2">
+          <!-- Rise Time -->
+          <div class="control-group">
+            <Knob
+              v-model="masterEnvelope.rise"
+              :min="0.001"
+              :max="0.5"
+              :step="0.001"
+              class="w-10 h-10"
+              @update:modelValue="updateMasterEnvelope"
+            />
+            <div class="module-value">
+              {{ formatTime(masterEnvelope.rise) }}
+            </div>
+            <label class="module-label">Attack</label>
           </div>
-          <label class="module-label">Rise</label>
-        </div>
 
-        <!-- Fall Time -->
-        <div class="control-group">
-          <Knob
-            v-model="masterEnvelope.fall"
-            :min="0.01"
-            :max="2"
-            :step="0.01"
-            class="w-12 h-12"
-            @update:modelValue="updateMasterEnvelope"
-          />
-          <div class="module-value">
-            {{ formatTime(masterEnvelope.fall) }}
+          <!-- Fall Time -->
+          <div class="control-group">
+            <Knob
+              v-model="masterEnvelope.fall"
+              :min="0.01"
+              :max="2"
+              :step="0.01"
+              class="w-10 h-10"
+              @update:modelValue="updateMasterEnvelope"
+            />
+            <div class="module-value">
+              {{ formatTime(masterEnvelope.fall) }}
+            </div>
+            <label class="module-label">Release</label>
           </div>
-          <label class="module-label">Fall</label>
-        </div>
 
-        <!-- Level -->
-        <div class="control-group">
-          <Knob
-            v-model="masterEnvelope.level"
-            :min="0.2"
-            :max="1"
-            :step="0.01"
-            class="w-12 h-12"
-            @update:modelValue="updateMasterEnvelope"
-          />
-          <div class="module-value">
-            {{ formatPercent(masterEnvelope.level) }}
+          <!-- Level -->
+          <div class="control-group">
+            <Knob
+              v-model="masterEnvelope.level"
+              :min="0.2"
+              :max="1"
+              :step="0.01"
+              class="w-10 h-10"
+              @update:modelValue="updateMasterEnvelope"
+            />
+            <div class="module-value">
+              {{ formatPercent(masterEnvelope.level) }}
+            </div>
+            <label class="module-label">Amount</label>
           </div>
-          <label class="module-label">Level</label>
         </div>
       </div>
 
       <!-- Channel Mode Controls -->
-      <div class="flex flex-col items-center gap-4">
+      <div class="flex flex-col gap-2">
         <div class="text-center">
-          <div class="module-title">Mode</div>
+          <div class="module-title">Behavior</div>
         </div>
 
-        <!-- Loop Mode Toggles -->
-        <div v-for="n in 4" :key="n" class="control-group">
-          <button
-            @click="toggleMode(n - 1)"
-            :class="[
-              'w-12 h-12 rounded-full',
-              loopModes[n - 1]
-                ? 'bg-emerald-500/30 border-emerald-500'
-                : 'bg-zinc-800 border-zinc-700',
-              'border-2 hover:bg-zinc-700 transition-colors',
-            ]"
-          />
-          <div class="module-value">
-            {{ loopModes[n - 1] ? "Loop" : "Gate" }}
+        <div class="flex flex-col gap-2">
+          <!-- Loop Mode Toggles -->
+          <div v-for="n in 4" :key="n" class="control-group">
+            <button
+              @click="toggleMode(n - 1)"
+              :class="[
+                'w-10 h-10 rounded-lg',
+                loopModes[n - 1]
+                  ? 'bg-emerald-500/30 border-emerald-500'
+                  : 'bg-zinc-800 border-zinc-700',
+                'border hover:bg-zinc-700 transition-colors flex items-center justify-center',
+              ]"
+            >
+              <span class="text-xs">{{ loopModes[n - 1] ? "↻" : "→" }}</span>
+            </button>
+            <div class="module-value">{{ n }}</div>
+            <label class="module-label">{{
+              loopModes[n - 1] ? "Cycle" : "Once"
+            }}</label>
           </div>
-          <label class="module-label">Channel {{ n }}</label>
         </div>
       </div>
     </div>
@@ -177,7 +183,7 @@
 
 <style scoped>
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-6;
+    @apply bg-zinc-900/30 rounded-lg p-3;
   }
 
   .control-group {
@@ -185,14 +191,14 @@
   }
 
   .module-value {
-    @apply text-[11px] font-mono text-zinc-500 text-center mt-1;
+    @apply text-[10px] font-mono text-zinc-500 text-center mt-0.5;
   }
 
   .module-label {
-    @apply text-xs font-medium text-zinc-400 text-center;
+    @apply text-[11px] font-medium text-zinc-400 text-center;
   }
 
   .module-title {
-    @apply text-sm font-medium text-zinc-300 mb-2;
+    @apply text-sm font-medium text-zinc-300;
   }
 </style>

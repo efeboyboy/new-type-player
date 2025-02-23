@@ -11,26 +11,31 @@
 
     <!-- Modal Content -->
     <div
-      class="relative w-full max-w-md bg-blue-900/95 backdrop-blur-xl rounded-xl border border-blue-800/50 shadow-2xl transform transition-all duration-200"
+      class="relative w-full max-w-md bg-zinc-900/95 backdrop-blur-xl rounded-xl border border-zinc-800/50 shadow-2xl transform transition-all duration-200"
     >
       <!-- Content -->
       <div class="p-8 text-center">
-        <h2 class="text-2xl font-semibold text-blue-100 mb-4">
+        <h2 class="text-2xl font-semibold text-zinc-100 mb-4">
           Initialize Sound Engine
         </h2>
-        <p class="text-blue-200 text-sm mb-6">
+        <p class="text-zinc-400 text-sm mb-6">
           Click the button below to start the audio engine. This is required for
           browser security.
         </p>
         <button
           @click="handleInitialize"
-          class="w-full py-3 px-6 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+          class="w-full py-3 px-6 bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 border border-emerald-500/20"
           :class="{
             'opacity-50 cursor-not-allowed': isInitializing,
           }"
           :disabled="isInitializing"
         >
-          <span v-if="isInitializing">Initializing...</span>
+          <span v-if="isInitializing" class="flex items-center gap-2">
+            <span
+              class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"
+            ></span>
+            Initializing...
+          </span>
           <span v-else>Initialize</span>
         </button>
         <div v-if="error" class="mt-4 text-red-400 text-sm">

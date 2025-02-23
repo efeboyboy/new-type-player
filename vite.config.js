@@ -24,4 +24,16 @@ export default defineConfig({
   optimizeDeps: {
     include: ["buffer", "process/browser", "util", "stream-browserify"],
   },
+  build: {
+    rollupOptions: {
+      external: ["stream-browserify", "buffer", "util"],
+      output: {
+        globals: {
+          "stream-browserify": "Stream",
+          buffer: "Buffer",
+          util: "util",
+        },
+      },
+    },
+  },
 });

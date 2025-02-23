@@ -21,22 +21,17 @@ if (typeof performance === "undefined") {
 
 // Buffer polyfill
 if (typeof Buffer === "undefined") {
-  import("buffer").then(({ Buffer }) => {
-    window.Buffer = Buffer;
-    window.Buffer.isBuffer = false;
-  });
+  window.Buffer = {
+    isBuffer: () => false,
+  };
 }
 
 // Stream polyfill
 if (typeof Stream === "undefined") {
-  import("stream-browserify").then((Stream) => {
-    window.Stream = Stream;
-  });
+  window.Stream = {};
 }
 
 // Util polyfill
 if (typeof util === "undefined") {
-  import("util").then((util) => {
-    window.util = util;
-  });
+  window.util = {};
 }

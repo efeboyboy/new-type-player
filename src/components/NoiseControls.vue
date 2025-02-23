@@ -1,7 +1,7 @@
 <template>
   <div class="module-panel">
-    <div class="text-center">
-      <div class="module-label">Texture</div>
+    <div class="text-center mb-3">
+      <div class="module-title text-sm">Noise</div>
     </div>
 
     <div class="flex flex-col items-center gap-4">
@@ -11,37 +11,11 @@
           v-model="volume"
           :min="0"
           :max="1"
-          :step="0.1"
-          class="w-10 h-10"
+          :step="0.01"
+          class="w-12 h-12"
         />
         <div class="module-value">{{ formatPercent(volume) }}</div>
         <label class="module-label">Amount</label>
-      </div>
-
-      <!-- Brightness Control -->
-      <div class="control-group">
-        <Knob
-          v-model="filterFreq"
-          :min="20"
-          :max="20000"
-          :step="100"
-          class="w-10 h-10"
-        />
-        <div class="module-value">{{ formatFreq(filterFreq) }}</div>
-        <label class="module-label">Brightness</label>
-      </div>
-
-      <!-- Focus Control -->
-      <div class="control-group">
-        <Knob
-          v-model="filterQ"
-          :min="0.1"
-          :max="10"
-          :step="0.5"
-          class="w-10 h-10"
-        />
-        <div class="module-value">{{ filterQ.toFixed(1) }}</div>
-        <label class="module-label">Focus</label>
       </div>
     </div>
   </div>
@@ -55,47 +29,37 @@
   // Default values
   const defaultValues = {
     volume: 0.5,
-    filterFreq: 1000,
-    filterQ: 1,
   };
 
   // State
   const volume = ref(defaultValues.volume);
-  const filterFreq = ref(defaultValues.filterFreq);
-  const filterQ = ref(defaultValues.filterQ);
 
   // Formatters
   const formatPercent = (value) => `${(value * 100).toFixed(0)}%`;
-  const formatFreq = (freq) =>
-    freq >= 1000 ? `${(freq / 1000).toFixed(1)}k` : `${Math.round(freq)}`;
 
   // Update function
   const updateNoise = () => {
     audioEngine.setNoiseParams({
       volume: volume.value,
-      filterFreq: filterFreq.value,
-      filterQ: filterQ.value,
+      filterFreq: 2000, // Fixed mid-high frequency for brightness
+      filterQ: 1, // Fixed moderate resonance
     });
   };
 
   // Reset function
   const reset = () => {
     volume.value = defaultValues.volume;
-    filterFreq.value = defaultValues.filterFreq;
-    filterQ.value = defaultValues.filterQ;
     updateNoise();
   };
 
   // Randomize function
   const randomize = () => {
     volume.value = Math.random();
-    filterFreq.value = Math.exp(Math.random() * Math.log(20000 / 20)) * 20;
-    filterQ.value = Math.random() * 9.9 + 0.1;
     updateNoise();
   };
 
   // Watch for changes
-  watch([volume, filterFreq, filterQ], updateNoise);
+  watch(volume, updateNoise);
 
   // Expose methods
   defineExpose({
@@ -106,14 +70,22 @@
 
 <style scoped>
   .control-group {
-    @apply flex flex-col items-center gap-1;
+    @apply flex flex-col items-center gap-2;
+  }
+
+  .module-panel {
+    @apply bg-zinc-900/30 rounded-lg p-4 flex flex-col items-center;
+  }
+
+  .module-title {
+    @apply text-sm font-medium text-zinc-300 mb-2;
   }
 
   .module-value {
-    @apply text-[10px] font-medium text-zinc-500 text-center mt-0.5;
+    @apply text-[11px] font-mono text-zinc-500 text-center mt-1;
   }
 
   .module-label {
-    @apply text-[10px] font-medium text-zinc-400 text-center;
+    @apply text-xs font-medium text-zinc-400 text-center;
   }
 </style>

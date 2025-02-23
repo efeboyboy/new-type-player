@@ -7,7 +7,7 @@
     <div class="flex flex-col items-center gap-4">
       <!-- Pitch Control -->
       <div class="control-group">
-        <Knob v-model="octave" :min="-2" :max="2" :step="1" class="w-12 h-12" />
+        <Knob v-model="octave" :min="-3" :max="3" :step="1" class="w-12 h-12" />
         <div class="module-value">{{ formatOctave(octave) }}</div>
         <label class="module-label">Pitch</label>
       </div>
@@ -86,7 +86,7 @@
       shape.value = defaultValues.shape;
     },
     randomize: () => {
-      octave.value = Math.floor(Math.random() * 5) - 2;
+      octave.value = Math.floor(Math.random() * 7) - 3;
       finePitch.value = Math.random() * 24 - 12;
       shape.value = Math.random() * 10;
     },

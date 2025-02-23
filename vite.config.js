@@ -13,6 +13,7 @@ export default defineConfig({
       util: "util",
       stream: "stream-browserify",
     },
+    mainFields: ["browser", "module", "main"],
   },
   define: {
     global: "globalThis",
@@ -21,23 +22,29 @@ export default defineConfig({
     "Buffer.isBuffer": "false",
   },
   optimizeDeps: {
-    include: ["buffer", "process/browser", "@magenta/music"],
+    include: [
+      "buffer",
+      "process/browser",
+      "@magenta/music/es6/core",
+      "@magenta/music/es6/music_vae",
+      "@magenta/music/es6/music_rnn",
+    ],
+    esbuildOptions: {
+      resolveExtensions: [".js", ".jsx", ".ts", ".tsx"],
+      mainFields: ["browser", "module", "main"],
+    },
   },
   build: {
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true,
+    },
     rollupOptions: {
-      external: ["@magenta/music"],
       output: {
-        globals: {
-          "@magenta/music": "mm",
-        },
         manualChunks: {
           vendor: ["tone"],
         },
       },
-    },
-    commonjsOptions: {
-      include: [/node_modules/],
-      transformMixedEsModules: true,
     },
     chunkSizeWarningLimit: 3000,
   },

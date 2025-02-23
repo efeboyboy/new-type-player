@@ -7,23 +7,7 @@ if (typeof global === "undefined") {
 if (typeof process === "undefined") {
   window.process = {
     env: {},
-    hrtime: function (previousTimestamp) {
-      const performanceNow =
-        performance && performance.now ? performance.now() : Date.now();
-      const clocktime = performanceNow * 1e-3;
-      let seconds = Math.floor(clocktime);
-      let nanoseconds = Math.floor((clocktime % 1) * 1e9);
-
-      if (previousTimestamp) {
-        seconds = seconds - previousTimestamp[0];
-        nanoseconds = nanoseconds - previousTimestamp[1];
-        if (nanoseconds < 0) {
-          seconds--;
-          nanoseconds += 1e9;
-        }
-      }
-      return [seconds, nanoseconds];
-    },
+    hrtime: [0, 0],
     browser: true,
   };
 }
@@ -31,9 +15,7 @@ if (typeof process === "undefined") {
 // Performance polyfill
 if (typeof performance === "undefined") {
   window.performance = {
-    now: function () {
-      return Date.now();
-    },
+    now: Date.now,
   };
 }
 
@@ -41,7 +23,7 @@ if (typeof performance === "undefined") {
 if (typeof Buffer === "undefined") {
   import("buffer").then(({ Buffer }) => {
     window.Buffer = Buffer;
-    window.Buffer.isBuffer = (obj) => Buffer.isBuffer(obj);
+    window.Buffer.isBuffer = false;
   });
 }
 

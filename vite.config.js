@@ -22,22 +22,22 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ["buffer", "process/browser", "@magenta/music"],
+    esbuildOptions: {
+      resolveExtensions: [".js", ".jsx", ".ts", ".tsx"],
+      mainFields: ["module", "main"],
+    },
   },
   build: {
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true,
+    },
     rollupOptions: {
-      external: ["@magenta/music"],
       output: {
-        globals: {
-          "@magenta/music": "mm",
-        },
         manualChunks: {
           vendor: ["tone"],
         },
       },
-    },
-    commonjsOptions: {
-      include: [/node_modules/],
-      transformMixedEsModules: true,
     },
     chunkSizeWarningLimit: 3000,
   },

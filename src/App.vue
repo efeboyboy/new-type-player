@@ -12,7 +12,16 @@
   import Knob from "./components/Knob.vue";
   import { store } from "./store.js";
   import audioEngine from "./services/AudioEngine.js";
-  import { RotateCcw, Shuffle } from "lucide-vue-next";
+  import {
+    RotateCcw,
+    Shuffle,
+    AudioWaveform,
+    ActivityIcon,
+    NetworkIcon,
+    SwitchCameraIcon,
+    SlidersIcon,
+    CompassIcon,
+  } from "lucide-vue-next";
   import AIControls from "./components/AIControls.vue";
   import IconHolder from "./components/IconHolder.vue";
 
@@ -92,10 +101,12 @@
 </script>
 
 <template>
-  <div class="min-h-screen w-screen bg-zinc-950 font-instrument">
-    <!-- Sticky Header -->
+  <div
+    class="h-screen w-screen bg-zinc-950 font-instrument flex flex-col overflow-hidden"
+  >
+    <!-- Fixed Header -->
     <div
-      class="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800/50 px-4 py-3"
+      class="fixed top-0 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800/50 px-4 py-3"
     >
       <div class="flex flex-row items-center justify-between gap-4">
         <h1 class="text-xl font-semibold text-zinc-100 whitespace-nowrap">
@@ -119,244 +130,256 @@
     </div>
 
     <!-- Main Content -->
-    <div class="p-4">
-      <!-- Main Grid -->
-      <div class="grid grid-rows-[auto_auto] gap-4">
-        <!-- Top Row: Sound Sources, Envelopes, and Matrix -->
-        <div class="grid grid-cols-3 gap-4">
-          <!-- Sound Sources -->
-          <div class="bento-box">
-            <div class="bento-title flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-                <span>Sound Sources</span>
+    <div class="flex-1 overflow-y-auto mt-[72px]">
+      <div class="p-4">
+        <!-- Main Grid -->
+        <div class="grid grid-rows-[auto_auto] gap-4">
+          <!-- Top Row: Sound Sources, Envelopes, and Matrix -->
+          <div class="grid grid-cols-3 gap-4">
+            <!-- Sound Sources -->
+            <div class="bento-box">
+              <div class="bento-title flex items-center justify-between">
+                <div class="flex items-center gap-2 shrink-0">
+                  <IconHolder class="w-3.5 h-3.5 text-emerald-500/70">
+                    <ActivityIcon />
+                  </IconHolder>
+                  <span class="whitespace-nowrap">Sound Sources</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="resetAllOscillators"
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
+                  >
+                    <IconHolder
+                      class="w-3.5 h-3.5 text-zinc-400 group-hover:text-emerald-400"
+                    >
+                      <RotateCcw width="14" height="14" stroke-width="1.5" />
+                    </IconHolder>
+                  </button>
+                  <button
+                    @click="randomizeAllOscillators"
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
+                  >
+                    <IconHolder
+                      class="w-3.5 h-3.5 text-zinc-400 group-hover:text-emerald-400"
+                    >
+                      <Shuffle width="14" height="14" stroke-width="1.5" />
+                    </IconHolder>
+                  </button>
+                </div>
               </div>
-              <div class="flex items-center gap-2">
-                <button
-                  @click="resetAllOscillators"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <RotateCcw
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
-                <button
-                  @click="randomizeAllOscillators"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <Shuffle
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
+              <div class="grid grid-cols-4 gap-4">
+                <OscillatorControls ref="osc1" :number="1" />
+                <OscillatorControls ref="osc2" :number="2" />
+                <OscillatorControls ref="osc3" :number="3" />
+                <NoiseControls ref="noiseControls" />
               </div>
             </div>
-            <div class="grid grid-cols-4 gap-4">
-              <OscillatorControls ref="osc1" :number="1" />
-              <OscillatorControls ref="osc2" :number="2" />
-              <OscillatorControls ref="osc3" :number="3" />
-              <NoiseControls ref="noiseControls" />
+
+            <!-- Shape Controls -->
+            <div class="bento-box">
+              <div class="bento-title flex items-center justify-between">
+                <div class="flex items-center gap-2 shrink-0">
+                  <IconHolder class="w-3.5 h-3.5 text-emerald-500/70">
+                    <AudioWaveform />
+                  </IconHolder>
+                  <span class="whitespace-nowrap">Shape Controls</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="envelopeControls?.reset()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <RotateCcw
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                  <button
+                    @click="envelopeControls?.randomize()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <Shuffle
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                </div>
+              </div>
+              <div class="module-content">
+                <EnvelopeControls ref="envelopeControls" />
+              </div>
+            </div>
+
+            <!-- Routing -->
+            <div class="bento-box">
+              <div class="bento-title flex items-center justify-between">
+                <div class="flex items-center gap-2 shrink-0">
+                  <IconHolder class="w-3.5 h-3.5 text-emerald-500/70">
+                    <NetworkIcon />
+                  </IconHolder>
+                  <span class="whitespace-nowrap">Routing</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="matrixMixer?.reset()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <RotateCcw
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                  <button
+                    @click="matrixMixer?.randomize()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <Shuffle
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                </div>
+              </div>
+              <div class="module-content">
+                <MatrixMixer ref="matrixMixer" />
+              </div>
             </div>
           </div>
 
-          <!-- Shape Controls -->
-          <div class="bento-box">
-            <div class="bento-title flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-                <span>Shape Controls</span>
+          <!-- Bottom Row: Gate, Tone, Space -->
+          <div class="grid grid-cols-3 gap-4">
+            <!-- Gate Controls -->
+            <div class="bento-box">
+              <div class="bento-title flex items-center justify-between">
+                <div class="flex items-center gap-2 shrink-0">
+                  <IconHolder class="w-3.5 h-3.5 text-emerald-500/70">
+                    <SwitchCameraIcon />
+                  </IconHolder>
+                  <span class="whitespace-nowrap">Gate Controls</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="lpgControls?.reset()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <RotateCcw
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                  <button
+                    @click="lpgControls?.randomize()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <Shuffle
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                </div>
               </div>
-              <div class="flex items-center gap-2">
-                <button
-                  @click="envelopeControls?.reset()"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <RotateCcw
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
-                <button
-                  @click="envelopeControls?.randomize()"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <Shuffle
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
+              <div class="module-content">
+                <LPGControls ref="lpgControls" />
               </div>
             </div>
-            <div class="module-content">
-              <EnvelopeControls ref="envelopeControls" />
-            </div>
-          </div>
 
-          <!-- Routing -->
-          <div class="bento-box">
-            <div class="bento-title flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-                <span>Routing</span>
+            <!-- Tone Controls -->
+            <div class="bento-box">
+              <div class="bento-title flex items-center justify-between">
+                <div class="flex items-center gap-2 shrink-0">
+                  <IconHolder class="w-3.5 h-3.5 text-emerald-500/70">
+                    <SlidersIcon />
+                  </IconHolder>
+                  <span class="whitespace-nowrap">Tone Controls</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="filterControls?.reset()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <RotateCcw
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                  <button
+                    @click="filterControls?.randomize()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <Shuffle
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                </div>
               </div>
-              <div class="flex items-center gap-2">
-                <button
-                  @click="matrixMixer?.reset()"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <RotateCcw
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
-                <button
-                  @click="matrixMixer?.randomize()"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <Shuffle
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
+              <div class="module-content">
+                <FilterControls ref="filterControls" />
               </div>
             </div>
-            <div class="module-content">
-              <MatrixMixer ref="matrixMixer" />
+
+            <!-- Space Controls -->
+            <div class="bento-box">
+              <div class="bento-title flex items-center justify-between">
+                <div class="flex items-center gap-2 shrink-0">
+                  <IconHolder class="w-3.5 h-3.5 text-emerald-500/70">
+                    <CompassIcon />
+                  </IconHolder>
+                  <span class="whitespace-nowrap">Space Controls</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="spatialControls?.reset()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <RotateCcw
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                  <button
+                    @click="spatialControls?.randomize()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <Shuffle
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                </div>
+              </div>
+              <div class="module-content">
+                <SpatialControls ref="spatialControls" />
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Bottom Row: Gate, Tone, Space -->
-        <div class="grid grid-cols-3 gap-4">
-          <!-- Gate Controls -->
-          <div class="bento-box">
-            <div class="bento-title flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-                <span>Gate Controls</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <button
-                  @click="lpgControls?.reset()"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <RotateCcw
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
-                <button
-                  @click="lpgControls?.randomize()"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <Shuffle
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
-              </div>
-            </div>
-            <div class="module-content">
-              <LPGControls ref="lpgControls" />
-            </div>
-          </div>
-
-          <!-- Tone Controls -->
-          <div class="bento-box">
-            <div class="bento-title flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-                <span>Tone Controls</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <button
-                  @click="filterControls?.reset()"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <RotateCcw
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
-                <button
-                  @click="filterControls?.randomize()"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <Shuffle
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
-              </div>
-            </div>
-            <div class="module-content">
-              <FilterControls ref="filterControls" />
-            </div>
-          </div>
-
-          <!-- Space Controls -->
-          <div class="bento-box">
-            <div class="bento-title flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-                <span>Space Controls</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <button
-                  @click="spatialControls?.reset()"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <RotateCcw
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
-                <button
-                  @click="spatialControls?.randomize()"
-                  class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                >
-                  <IconHolder class="w-3.5 h-3.5">
-                    <Shuffle
-                      class="text-zinc-400 group-hover:text-emerald-400"
-                      stroke-width="1.5"
-                    />
-                  </IconHolder>
-                </button>
-              </div>
-            </div>
-            <div class="module-content">
-              <SpatialControls ref="spatialControls" />
-            </div>
-          </div>
+        <!-- Debug Sequencer (hidden but active) -->
+        <div class="hidden">
+          <Sequencer />
         </div>
-      </div>
-
-      <!-- Debug Sequencer (hidden but active) -->
-      <div class="hidden">
-        <Sequencer />
       </div>
     </div>
   </div>
@@ -385,8 +408,29 @@
   }
 
   .bento-title {
-    @apply text-base font-medium text-zinc-300 mb-3 pb-2 border-b border-zinc-800/50;
+    @apply text-sm font-medium text-zinc-300 mb-3 pb-2 border-b border-zinc-800/50 flex items-center justify-between;
     overflow: visible;
+  }
+
+  .bento-title span {
+    @apply whitespace-nowrap;
+  }
+
+  /* Reset and Random buttons */
+  .bento-title button {
+    @apply w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center border border-zinc-700/50 transition-colors;
+  }
+
+  .bento-title button:hover {
+    @apply border-emerald-500/50;
+  }
+
+  .bento-title .icon-holder {
+    @apply w-3.5 h-3.5 text-zinc-400;
+  }
+
+  .bento-title button:hover .icon-holder {
+    @apply text-emerald-400;
   }
 
   .module-content {

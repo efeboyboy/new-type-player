@@ -122,25 +122,32 @@
 
   // Reset function
   const reset = () => {
-    attack.value = 120;
-    release.value = 461;
-    amount.value = 0.89;
-    cycleStates.value = [true, false, false, false];
-    updateShape();
-    updateBehavior();
+    if (props.mode === "shape") {
+      attack.value = 120;
+      release.value = 461;
+      amount.value = 0.89;
+      updateShape();
+    } else {
+      cycleStates.value = [true, false, false, false];
+      updateBehavior();
+    }
   };
 
   // Randomize function
   const randomize = () => {
-    attack.value = 10 + Math.random() * 990;
-    release.value = 10 + Math.random() * 1990;
-    amount.value = Math.random();
-    cycleStates.value = cycleStates.value.map(() => Math.random() > 0.5);
-    updateShape();
-    updateBehavior();
+    if (props.mode === "shape") {
+      attack.value = Math.floor(10 + Math.random() * 990); // 10-1000ms
+      release.value = Math.floor(10 + Math.random() * 1990); // 10-2000ms
+      amount.value = Math.random(); // 0-1
+      updateShape();
+    } else {
+      cycleStates.value = cycleStates.value.map(() => Math.random() > 0.5);
+      updateBehavior();
+    }
   };
 
-  watch([attack, release, amount], updateShape);
+  // Watch for changes and update the audio engine
+  watch([attack, release, amount], updateShape, { immediate: true });
 
   defineExpose({
     reset,

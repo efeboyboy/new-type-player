@@ -226,7 +226,6 @@
     }
   };
 
-  // Update spatial position with error handling
   const updateSpatialPosition = async (channelIndex) => {
     try {
       // Ensure audio engine is initialized
@@ -247,6 +246,55 @@
         error
       );
     }
+  };
+
+  // Reset function
+  const reset = () => {
+    // Stop all animations
+    isAnimating.value.forEach((_, index) => {
+      if (isAnimating.value[index]) {
+        stopAnimation(index);
+        isAnimating.value[index] = false;
+      }
+    });
+
+    // Reset channels to default values
+    channels.value = Array(4)
+      .fill()
+      .map(() => ({ ...defaultChannel }));
+
+    // Reset reverb parameters
+    reverbParams.value = { ...defaultReverbParams };
+
+    // Update all channels
+    channels.value.forEach((_, index) => updateSpatialPosition(index));
+  };
+
+  // Randomize function
+  const randomize = () => {
+    // Stop all animations
+    isAnimating.value.forEach((_, index) => {
+      if (isAnimating.value[index]) {
+        stopAnimation(index);
+        isAnimating.value[index] = false;
+      }
+    });
+
+    // Randomize channel positions and reverb
+    channels.value = channels.value.map(() => ({
+      x: (Math.random() * 2 - 1) * 0.8, // -0.8 to 0.8 for better stereo spread
+      y: (Math.random() * 2 - 1) * 0.8, // -0.8 to 0.8 for better depth
+      reverb: Math.random() * 0.6 + 0.2, // 0.2 to 0.8 for musical reverb amounts
+    }));
+
+    // Randomize reverb parameters within musical ranges
+    reverbParams.value = {
+      decay: Math.random() * 4 + 1, // 1 to 5 seconds
+      diffusion: Math.random() * 0.4 + 0.4, // 0.4 to 0.8 for natural sound
+    };
+
+    // Update all channels
+    channels.value.forEach((_, index) => updateSpatialPosition(index));
   };
 
   const formatPercent = (value) => {
@@ -307,123 +355,10 @@
     { deep: true }
   );
 
-  // Expose methods for parent component with error handling
+  // Expose methods for parent component
   defineExpose({
-    reset: async () => {
-      try {
-        // Stop any ongoing animations first
-        isAnimating.value.forEach((isActive, index) => {
-          if (isActive) {
-            stopAnimation(index);
-          }
-        });
-
-        // Reset channel values
-        channels.value = Array(4)
-          .fill()
-          .map(() => ({ ...defaultChannel }));
-        reverbParams.value = { ...defaultReverbParams };
-
-        // Ensure all animations are stopped
-        isAnimating.value = isAnimating.value.map(() => false);
-
-        // Update all channels
-        for (let i = 0; i < channels.value.length; i++) {
-          await updateSpatialPosition(i);
-        }
-      } catch (error) {
-        console.warn("Error in reset:", error);
-      }
-    },
-    randomize: async () => {
-      try {
-        // Stop any ongoing animations first
-        isAnimating.value.forEach((isActive, index) => {
-          if (isActive) {
-            stopAnimation(index);
-          }
-        });
-
-        // Create more intentional spatial patterns
-        const patterns = [
-          // Quad spread pattern
-          {
-            x: [-0.7, 0.7, -0.7, 0.7],
-            y: [-0.7, -0.7, 0.7, 0.7],
-            reverb: [0.2, 0.2, 0.3, 0.3],
-          },
-          // Circle pattern
-          {
-            x: [0.7, 0, -0.7, 0],
-            y: [0, 0.7, 0, -0.7],
-            reverb: [0.2, 0.25, 0.2, 0.25],
-          },
-          // Stereo spread pattern
-          {
-            x: [-0.8, 0.8, -0.4, 0.4],
-            y: [0, 0, 0.6, 0.6],
-            reverb: [0.15, 0.15, 0.3, 0.3],
-          },
-          // Random but balanced pattern
-          {
-            x: Array(4)
-              .fill()
-              .map(() => Math.random() * 1.4 - 0.7),
-            y: Array(4)
-              .fill()
-              .map(() => Math.random() * 1.4 - 0.7),
-            reverb: Array(4)
-              .fill()
-              .map(() => Math.random() * 0.2 + 0.1),
-          },
-        ];
-
-        // Select a random pattern
-        const selectedPattern =
-          patterns[Math.floor(Math.random() * patterns.length)];
-
-        // Apply the pattern
-        channels.value = channels.value.map((_, index) => ({
-          x: selectedPattern.x[index],
-          y: selectedPattern.y[index],
-          reverb: selectedPattern.reverb[index],
-        }));
-
-        // Set musical reverb parameters
-        const reverbPresets = [
-          { decay: 1.5, diffusion: 0.6 }, // Room
-          { decay: 2.8, diffusion: 0.7 }, // Hall
-          { decay: 4.0, diffusion: 0.8 }, // Cathedral
-          { decay: 0.8, diffusion: 0.4 }, // Studio
-        ];
-
-        const selectedReverb =
-          reverbPresets[Math.floor(Math.random() * reverbPresets.length)];
-        reverbParams.value = selectedReverb;
-
-        // Update all channels
-        for (let i = 0; i < channels.value.length; i++) {
-          await updateSpatialPosition(i);
-        }
-
-        // Randomly start some animations
-        if (Math.random() > 0.5) {
-          const animCount = Math.floor(Math.random() * 3) + 1; // Start 1-3 animations
-          const availableChannels = [0, 1, 2, 3];
-          for (let i = 0; i < animCount; i++) {
-            const channelIndex = availableChannels.splice(
-              Math.floor(Math.random() * availableChannels.length),
-              1
-            )[0];
-            if (!isAnimating.value[channelIndex]) {
-              toggleAnimation(channelIndex);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn("Error in randomize:", error);
-      }
-    },
+    reset,
+    randomize,
   });
 </script>
 

@@ -1,21 +1,43 @@
 <template>
   <div class="knob-container" @pointerdown="startDrag">
-    <!-- Indicator Dot -->
-    <div
-      class="knob-indicator"
-      :style="{ transform: `rotate(${indicatorAngle}deg) translateY(-26px)` }"
-    ></div>
-    <!-- Display current value -->
-    <div class="knob-value">
-      {{ localValue }}
+    <div class="knob-ring">
+      <!-- Progress arc -->
+      <svg class="knob-progress" viewBox="0 0 32 32">
+        <circle
+          class="track"
+          cx="16"
+          cy="16"
+          r="14"
+          stroke-width="2"
+          fill="none"
+        />
+        <circle
+          class="value"
+          cx="16"
+          cy="16"
+          r="14"
+          stroke-width="2"
+          fill="none"
+          :stroke-dasharray="progressArc"
+          transform="rotate(-90 16 16)"
+        />
+      </svg>
+
+      <!-- Indicator dot -->
+      <div
+        class="knob-indicator"
+        :style="{ transform: `rotate(${indicatorAngle}deg) translateY(-14px)` }"
+      ></div>
     </div>
+
+    <!-- Value display -->
+    <div class="knob-value">{{ Math.round(localValue) }}</div>
   </div>
 </template>
 
 <script setup>
   import { ref, computed, watch, defineProps, defineEmits } from "vue";
 
-  // Define component props
   const props = defineProps({
     modelValue: {
       type: Number,
@@ -26,13 +48,9 @@
     step: { type: Number, default: 1 },
   });
 
-  // Define emits
   const emit = defineEmits(["update:modelValue"]);
-
-  // Local state for the knob's value
   const localValue = ref(props.modelValue);
 
-  // Watch for external changes
   watch(
     () => props.modelValue,
     (newVal) => {
@@ -41,7 +59,7 @@
   );
 
   let startY = 0;
-  let startValue = localValue.value;
+  let startValue = 0;
 
   const startDrag = (e) => {
     e.preventDefault();
@@ -56,14 +74,12 @@
   };
 
   const onDrag = (e) => {
-    const sensitivity = 2; // changed sensitivity factor from 3 to 2 for increased responsiveness
-    const dy = startY - e.clientY; // upward drag increases the value
+    const sensitivity = 2;
+    const dy = startY - e.clientY;
     const delta = Math.round(dy / sensitivity) * props.step;
     let newValue = startValue + delta;
-    if (newValue < props.min) newValue = props.min;
-    if (newValue > props.max) newValue = props.max;
+    newValue = Math.max(props.min, Math.min(props.max, newValue));
     localValue.value = newValue;
-    console.log("Knob newValue:", newValue);
     emit("update:modelValue", newValue);
   };
 
@@ -72,49 +88,66 @@
     window.removeEventListener("pointerup", stopDrag);
   };
 
-  // Compute the indicator angle from the current value, mapping value range to an angle between -135 and 135 degrees
   const indicatorAngle = computed(() => {
     const range = props.max - props.min;
     const normalized = (localValue.value - props.min) / range;
-    const angle = -135 + normalized * 270; // map to [-135, 135]
-    return angle;
+    return normalized * 360;
+  });
+
+  const progressArc = computed(() => {
+    const range = props.max - props.min;
+    const normalized = (localValue.value - props.min) / range;
+    const circumference = 2 * Math.PI * 14;
+    return `${normalized * circumference} ${circumference}`;
   });
 </script>
 
 <style scoped>
   .knob-container {
-    position: relative;
-    width: 4rem;
-    height: 4rem;
-    border-radius: 50%;
-    background: #ffffff;
-    border: 2px solid #666;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    user-select: none;
+    @apply relative flex flex-col items-center justify-center select-none;
+    width: 100%;
+    height: 100%;
+  }
+
+  .knob-ring {
+    @apply relative rounded-full cursor-pointer;
+    width: 90%;
+    aspect-ratio: 1;
+  }
+
+  .knob-progress {
+    @apply absolute inset-0 w-full h-full;
+    transform: rotate(-90deg);
+  }
+
+  .knob-progress circle {
+    @apply transition-all duration-100;
+  }
+
+  .knob-progress .track {
+    @apply stroke-zinc-800;
+  }
+
+  .knob-progress .value {
+    @apply stroke-red-500/40;
   }
 
   .knob-indicator {
-    position: absolute;
-    width: 0.75rem;
-    height: 0.75rem;
-    background: #3b82f6;
-    border-radius: 50%;
-    box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
+    @apply absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-red-500 rounded-full;
     transform-origin: center center;
   }
 
   .knob-value {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #333;
+    @apply mt-1 text-[10px] font-mono text-zinc-400 tabular-nums;
   }
 
-  .knob-container:hover {
-    border-color: #3b82f6;
+  /* Hover state */
+  .knob-ring:hover .knob-progress .value {
+    @apply stroke-red-500/60;
+  }
+
+  /* Active state */
+  .knob-ring:active .knob-progress .value {
+    @apply stroke-red-500;
   }
 </style>

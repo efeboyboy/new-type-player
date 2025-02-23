@@ -67,8 +67,8 @@
 
     <!-- Main Grid -->
     <div class="grid grid-rows-[1.2fr_1fr] gap-4 h-[calc(100vh-8rem)]">
-      <!-- Top Row: Sound Sources and Matrix -->
-      <div class="grid grid-cols-2 gap-4">
+      <!-- Top Row: Sound Sources, Envelopes, and Matrix -->
+      <div class="grid grid-cols-3 gap-4">
         <!-- Sound Sources (Sun Path) -->
         <div class="bento-box">
           <div class="bento-title flex items-center justify-between">
@@ -107,6 +107,45 @@
             <OscillatorControls ref="osc1" :number="1" />
             <OscillatorControls ref="osc2" :number="2" />
             <OscillatorControls ref="osc3" :number="3" />
+          </div>
+        </div>
+
+        <!-- Shape (Envelope Generators) -->
+        <div class="bento-box">
+          <div class="bento-title flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
+              <span>Envelope Generator 284</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Reset Button -->
+              <button
+                @click="envelopeControls?.reset()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Reset Envelopes"
+              >
+                <RotateCcw
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+              <!-- Randomize Button -->
+              <button
+                @click="envelopeControls?.randomize()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Randomize Envelopes"
+              >
+                <Shuffle
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+            </div>
+          </div>
+          <div class="module-content">
+            <EnvelopeControls ref="envelopeControls" />
           </div>
         </div>
 
@@ -150,47 +189,8 @@
         </div>
       </div>
 
-      <!-- Bottom Row: Shape, Gate, Tone, Space -->
-      <div class="grid grid-cols-4 gap-4">
-        <!-- Shape (Envelope Generators) -->
-        <div class="bento-box">
-          <div class="bento-title flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-              <span>Envelope Generator 284</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <!-- Reset Button -->
-              <button
-                @click="envelopeControls?.reset()"
-                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                title="Reset Envelopes"
-              >
-                <RotateCcw
-                  :size="14"
-                  class="text-zinc-400 group-hover:text-emerald-400"
-                  stroke-width="1.5"
-                />
-              </button>
-              <!-- Randomize Button -->
-              <button
-                @click="envelopeControls?.randomize()"
-                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                title="Randomize Envelopes"
-              >
-                <Shuffle
-                  :size="14"
-                  class="text-zinc-400 group-hover:text-emerald-400"
-                  stroke-width="1.5"
-                />
-              </button>
-            </div>
-          </div>
-          <div class="module-content">
-            <EnvelopeControls ref="envelopeControls" />
-          </div>
-        </div>
-
+      <!-- Bottom Row: Gate, Tone, Space -->
+      <div class="grid grid-cols-3 gap-4">
         <!-- Gate (Low Pass Gates) -->
         <div class="bento-box">
           <div class="bento-title flex items-center justify-between">

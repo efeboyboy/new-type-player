@@ -1,99 +1,123 @@
 <template>
-  <div class="w-full h-full grid grid-cols-2 gap-2">
-    <!-- Front Mix -->
-    <div class="module-panel">
-      <div class="module-title">Front Mix</div>
-      <div class="grid grid-cols-2 gap-1.5">
-        <!-- Front Level -->
-        <div class="control-group">
-          <Knob
-            v-model="frontMix.level"
-            :min="0"
-            :max="1"
-            :step="0.01"
-            class="w-full aspect-square max-w-[24px]"
+  <div class="module-panel">
+    <div class="flex items-center justify-between mb-3">
+      <div class="module-title">Quad Spatial Director 227</div>
+      <button
+        @click="randomize"
+        class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          class="text-zinc-400 group-hover:text-emerald-400"
+        >
+          <rect
+            x="4"
+            y="4"
+            width="16"
+            height="16"
+            rx="2"
+            stroke="currentColor"
+            stroke-width="2"
           />
-          <div class="module-value">
-            {{ (frontMix.level * 100).toFixed(0) }}
+          <circle cx="9" cy="9" r="1.5" fill="currentColor" />
+          <circle cx="15" cy="9" r="1.5" fill="currentColor" />
+          <circle cx="9" cy="15" r="1.5" fill="currentColor" />
+          <circle cx="15" cy="15" r="1.5" fill="currentColor" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <!-- Channel Controls -->
+      <div v-for="n in 4" :key="n" class="flex flex-col gap-2">
+        <div class="text-sm text-zinc-400 mb-1">Channel {{ n }}</div>
+
+        <!-- XY Pad -->
+        <div
+          class="xy-pad relative bg-zinc-800/50 rounded-lg aspect-square"
+          @mousedown="startDrag($event, n - 1)"
+          @touchstart="startDrag($event, n - 1)"
+        >
+          <!-- Grid Lines -->
+          <div
+            class="absolute inset-0 grid grid-cols-2 grid-rows-2 pointer-events-none"
+          >
+            <div class="border-r border-b border-zinc-700/30"></div>
+            <div class="border-l border-b border-zinc-700/30"></div>
+            <div class="border-r border-t border-zinc-700/30"></div>
+            <div class="border-l border-t border-zinc-700/30"></div>
           </div>
-          <label class="module-label">Level</label>
+
+          <!-- Position Indicator -->
+          <div
+            class="absolute w-3 h-3 bg-emerald-500/50 rounded-full -translate-x-1/2 -translate-y-1/2"
+            :style="{
+              left: `${(channels[n - 1].x + 1) * 50}%`,
+              top: `${(channels[n - 1].y + 1) * 50}%`,
+            }"
+          ></div>
+
+          <!-- Labels -->
+          <div
+            class="absolute inset-0 flex items-center justify-center pointer-events-none"
+          >
+            <div class="text-[10px] text-zinc-500">
+              {{ formatPan(channels[n - 1].x) }} /
+              {{ formatPan(channels[n - 1].y) }}
+            </div>
+          </div>
         </div>
 
-        <!-- Front Pan -->
+        <!-- Reverb Send -->
         <div class="control-group">
           <Knob
-            v-model="frontMix.pan"
-            :min="-1"
-            :max="1"
-            :step="0.01"
-            class="w-full aspect-square max-w-[24px]"
-          />
-          <div class="module-value">{{ formatPan(frontMix.pan) }}</div>
-          <label class="module-label">Pan</label>
-        </div>
-      </div>
-    </div>
-
-    <!-- Rear Mix -->
-    <div class="module-panel">
-      <div class="module-title">Rear Mix</div>
-      <div class="grid grid-cols-2 gap-1.5">
-        <!-- Rear Level -->
-        <div class="control-group">
-          <Knob
-            v-model="rearMix.level"
+            v-model="channels[n - 1].reverb"
             :min="0"
             :max="1"
             :step="0.01"
-            class="w-full aspect-square max-w-[24px]"
+            class="w-full aspect-square max-w-[32px]"
           />
-          <div class="module-value">{{ (rearMix.level * 100).toFixed(0) }}</div>
-          <label class="module-label">Level</label>
-        </div>
-
-        <!-- Rear Pan -->
-        <div class="control-group">
-          <Knob
-            v-model="rearMix.pan"
-            :min="-1"
-            :max="1"
-            :step="0.01"
-            class="w-full aspect-square max-w-[24px]"
-          />
-          <div class="module-value">{{ formatPan(rearMix.pan) }}</div>
-          <label class="module-label">Pan</label>
+          <div class="module-value text-sm">
+            {{ formatPercent(channels[n - 1].reverb) }}
+          </div>
+          <label class="module-label text-xs">Reverb</label>
         </div>
       </div>
     </div>
 
-    <!-- Reverb -->
-    <div class="module-panel col-span-2">
-      <div class="module-title">Space</div>
-      <div class="grid grid-cols-2 gap-1.5">
-        <!-- Decay -->
+    <!-- Global Reverb Controls -->
+    <div class="mt-4 border-t border-zinc-800 pt-4">
+      <div class="text-sm text-zinc-400 mb-2">Reverb</div>
+      <div class="grid grid-cols-2 gap-4">
         <div class="control-group">
           <Knob
-            v-model="reverb.decay"
+            v-model="reverbParams.decay"
             :min="0.1"
             :max="10"
             :step="0.1"
-            class="w-full aspect-square max-w-[24px]"
+            class="w-full aspect-square max-w-[32px]"
           />
-          <div class="module-value">{{ reverb.decay.toFixed(1) }}s</div>
-          <label class="module-label">Decay</label>
+          <div class="module-value text-sm">
+            {{ formatTime(reverbParams.decay) }}
+          </div>
+          <label class="module-label text-xs">Decay</label>
         </div>
 
-        <!-- Mix -->
         <div class="control-group">
           <Knob
-            v-model="reverb.mix"
+            v-model="reverbParams.diffusion"
             :min="0"
             :max="1"
             :step="0.01"
-            class="w-full aspect-square max-w-[24px]"
+            class="w-full aspect-square max-w-[32px]"
           />
-          <div class="module-value">{{ (reverb.mix * 100).toFixed(0) }}%</div>
-          <label class="module-label">Mix</label>
+          <div class="module-value text-sm">
+            {{ formatPercent(reverbParams.diffusion) }}
+          </div>
+          <label class="module-label text-xs">Diffusion</label>
         </div>
       </div>
     </div>
@@ -105,92 +129,157 @@
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
 
-  // Add props for channel
-  const props = defineProps({
-    channel: {
-      type: Number,
-      default: 0, // Default to first channel
+  // Initialize channels with default values
+  const channels = ref(
+    Array(4)
+      .fill()
+      .map(() => ({
+        x: 0,
+        y: 0,
+        reverb: 0.2,
+      }))
+  );
+
+  // Initialize reverb parameters
+  const reverbParams = ref({
+    decay: 2.0,
+    diffusion: 0.7,
+  });
+
+  // XY Pad drag handling
+  let activeChannel = -1;
+  let isDragging = false;
+
+  const startDrag = (event, channelIndex) => {
+    event.preventDefault();
+    isDragging = true;
+    activeChannel = channelIndex;
+
+    const handler = event.touches ? handleTouchMove : handleMouseMove;
+    const endHandler = event.touches ? handleTouchEnd : handleMouseEnd;
+
+    document.addEventListener("mousemove", handler);
+    document.addEventListener("mouseup", endHandler);
+    document.addEventListener("touchmove", handler);
+    document.addEventListener("touchend", endHandler);
+
+    updatePosition(event);
+  };
+
+  const handleMouseMove = (event) => {
+    if (!isDragging) return;
+    updatePosition(event);
+  };
+
+  const handleTouchMove = (event) => {
+    if (!isDragging) return;
+    updatePosition(event.touches[0]);
+  };
+
+  const handleMouseEnd = () => {
+    isDragging = false;
+    activeChannel = -1;
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseEnd);
+  };
+
+  const handleTouchEnd = () => {
+    isDragging = false;
+    activeChannel = -1;
+    document.removeEventListener("touchmove", handleTouchMove);
+    document.removeEventListener("touchend", handleTouchEnd);
+  };
+
+  const updatePosition = (event) => {
+    if (activeChannel === -1) return;
+
+    const pad = event.target.closest(".xy-pad");
+    if (!pad) return;
+
+    const rect = pad.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+
+    channels.value[activeChannel].x = Math.max(-1, Math.min(1, x));
+    channels.value[activeChannel].y = Math.max(-1, Math.min(1, y));
+
+    updateChannel(activeChannel);
+  };
+
+  // Format values for display
+  const formatPan = (value) => {
+    if (Math.abs(value) < 0.05) return "C";
+    return value > 0
+      ? `R${(value * 100).toFixed(0)}`
+      : `L${(Math.abs(value) * 100).toFixed(0)}`;
+  };
+
+  const formatPercent = (value) => `${(value * 100).toFixed(0)}%`;
+  const formatTime = (value) => value.toFixed(1) + "s";
+
+  // Update spatial position and reverb for a channel
+  const updateChannel = (index) => {
+    const channel = channels.value[index];
+    audioEngine.setSpatialPosition(index, channel.x, channel.y);
+    audioEngine.setReverbSend(index, channel.reverb);
+  };
+
+  // Update global reverb parameters
+  watch(
+    reverbParams,
+    (newParams) => {
+      audioEngine.setReverbParams(newParams);
     },
-  });
+    { deep: true }
+  );
 
-  // Initialize spatial controls
-  const frontMix = ref({
-    level: 0.7,
-    pan: 0,
-  });
+  // Watch for changes in channel parameters
+  watch(
+    channels.value,
+    (newValues) => {
+      newValues.forEach((_, index) => updateChannel(index));
+    },
+    { deep: true }
+  );
 
-  const rearMix = ref({
-    level: 0.5,
-    pan: 0,
-  });
+  // Randomize all parameters
+  const randomize = () => {
+    channels.value = channels.value.map(() => ({
+      x: Math.random() * 2 - 1,
+      y: Math.random() * 2 - 1,
+      reverb: Math.random(),
+    }));
 
-  const movement = ref({
-    rate: 1,
-    depth: 0.5,
-    spread: 0.7,
-    phase: 90,
-  });
-
-  // Add reverb controls
-  const reverb = ref({
-    decay: 2,
-    mix: 0.2,
-  });
-
-  // Format pan value
-  const formatPan = (pan) => {
-    if (pan === 0) return "C";
-    return pan < 0
-      ? `L${Math.abs(pan * 100).toFixed(0)}`
-      : `R${(pan * 100).toFixed(0)}`;
+    reverbParams.value = {
+      decay: Math.random() * 9.9 + 0.1,
+      diffusion: Math.random(),
+    };
   };
-
-  // Update spatial parameters
-  const updateSpatial = () => {
-    // Calculate front/back balance
-    const frontAmount = frontMix.value.level;
-    const rearAmount = rearMix.value.level;
-    const totalAmount = frontAmount + rearAmount;
-
-    // Normalize to get a -1 to 1 range for y-axis (front/back)
-    const y = totalAmount > 0 ? (rearAmount - frontAmount) / totalAmount : 0;
-
-    // Average the pan values, weighted by their levels
-    const x =
-      totalAmount > 0
-        ? (frontMix.value.pan * frontAmount + rearMix.value.pan * rearAmount) /
-          totalAmount
-        : 0;
-
-    // Update spatial position for all channels (since we're controlling the master position)
-    for (let i = 0; i < 4; i++) {
-      audioEngine.setSpatialPosition(i, x, y);
-      audioEngine.setSpatialReverb(i, reverb.value.decay, reverb.value.mix);
-    }
-  };
-
-  // Watch for changes
-  watch([frontMix, rearMix, movement, reverb], updateSpatial, { deep: true });
 </script>
 
 <style scoped>
-  .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-2;
-  }
-
-  .module-title {
-    @apply text-sm font-medium text-zinc-400 mb-2;
-  }
-
   .control-group {
-    @apply flex flex-col items-center gap-0.5;
+    @apply flex flex-col items-center gap-1;
   }
 
   .module-value {
-    @apply text-sm font-medium text-zinc-500;
+    @apply font-medium text-zinc-300;
   }
 
   .module-label {
-    @apply text-xs text-zinc-400;
+    @apply font-medium text-zinc-500;
+  }
+
+  .module-panel {
+    @apply bg-zinc-900/30 rounded-lg p-3;
+  }
+
+  .xy-pad {
+    @apply cursor-pointer select-none;
+    touch-action: none;
+  }
+
+  .xy-pad:hover {
+    @apply bg-zinc-800/70;
   }
 </style>

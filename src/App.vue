@@ -47,29 +47,32 @@
     </div>
 
     <!-- Main Grid -->
-    <div class="grid grid-rows-[1fr_1fr] gap-4 h-[calc(100vh-8rem)]">
-      <!-- Top Row -->
-      <div class="grid grid-cols-4 gap-4">
-        <!-- Sound Sources -->
+    <div class="grid grid-rows-[1.2fr_1fr] gap-4 h-[calc(100vh-8rem)]">
+      <!-- Top Row: Sound Sources and Matrix -->
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Sound Sources (Sun Path) -->
         <div class="bento-box">
           <div class="bento-title flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-            Sound Sources
+            Complex Oscillators 258
           </div>
-          <div class="module-grid grid-cols-3">
+          <div class="grid grid-cols-3 gap-4 h-full">
             <OscillatorControls v-for="n in 3" :key="n" :number="n" />
           </div>
         </div>
 
         <!-- Matrix Mixer -->
         <div class="bento-box">
-          <div class="bento-title">Mix</div>
+          <div class="bento-title">Matrix Mixer</div>
           <div class="module-content">
             <MatrixMixer />
           </div>
         </div>
+      </div>
 
-        <!-- Envelopes -->
+      <!-- Bottom Row: Shape, Gate, Tone, Space -->
+      <div class="grid grid-cols-4 gap-4">
+        <!-- Shape (Envelope Generators) -->
         <div class="bento-box">
           <div class="bento-title">Shape</div>
           <div class="module-content">
@@ -77,27 +80,24 @@
           </div>
         </div>
 
-        <!-- LPGs -->
+        <!-- Gate (Low Pass Gates) -->
         <div class="bento-box">
           <div class="bento-title">Gate</div>
           <div class="module-content">
             <LPGControls />
           </div>
         </div>
-      </div>
 
-      <!-- Bottom Row -->
-      <div class="grid grid-cols-4 gap-4">
-        <!-- Filter -->
-        <div class="bento-box col-span-2">
+        <!-- Tone (Filters) -->
+        <div class="bento-box">
           <div class="bento-title">Tone</div>
           <div class="module-content">
             <FilterControls />
           </div>
         </div>
 
-        <!-- Spatializer -->
-        <div class="bento-box col-span-2">
+        <!-- Space (Spatial Director) -->
+        <div class="bento-box">
           <div class="bento-title">Space</div>
           <div class="module-content">
             <SpatialControls />

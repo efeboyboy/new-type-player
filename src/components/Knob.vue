@@ -13,28 +13,15 @@
       :style="{ transform: `rotate(${rotation}deg)` }"
     >
       <!-- Background -->
-      <circle
-        cx="16"
-        cy="16"
-        r="14"
-        class="fill-zinc-900 stroke-zinc-800"
-        stroke-width="1"
-      />
+      <circle cx="16" cy="16" r="14" class="fill-zinc-800" />
 
       <!-- Value Track -->
-      <circle
-        cx="16"
-        cy="16"
-        r="12"
-        class="fill-none stroke-emerald-500/20"
-        stroke-width="1.5"
-        :stroke-dasharray="arcLength"
-        :stroke-dashoffset="arcOffset"
-        transform="rotate(-90 16 16)"
+      <path
+        d="M16 6 L16 2"
+        class="stroke-emerald-500"
+        stroke-width="2"
+        stroke-linecap="round"
       />
-
-      <!-- Indicator -->
-      <circle cx="16" cy="4" r="1.5" class="fill-emerald-500" />
     </svg>
   </div>
 </template>
@@ -61,27 +48,17 @@
     },
     size: {
       type: Number,
-      default: 32,
+      default: 40, // Increased default size
     },
   });
 
   const emit = defineEmits(["update:modelValue"]);
 
-  // Computed values for rotation and arc
+  // Computed values for rotation
   const rotation = computed(() => {
     const range = props.max - props.min;
     const normalized = (props.modelValue - props.min) / range;
     return normalized * 270 - 135; // -135 to 135 degrees
-  });
-
-  const arcLength = computed(() => {
-    return 2 * Math.PI * 12; // Circumference of track circle
-  });
-
-  const arcOffset = computed(() => {
-    const range = props.max - props.min;
-    const normalized = (props.modelValue - props.min) / range;
-    return arcLength.value * (1 - normalized);
   });
 
   // Drag handling
@@ -107,7 +84,7 @@
     const currentY = event.pageY || event.touches?.[0].pageY;
     const deltaY = startY - currentY;
     const range = props.max - props.min;
-    const sensitivity = range / 200; // Adjust for sensitivity
+    const sensitivity = range / 100; // Increased sensitivity
 
     let newValue = startValue + deltaY * sensitivity;
     newValue = Math.round(newValue / props.step) * props.step;
@@ -135,11 +112,19 @@
     touch-action: none;
   }
 
-  .knob:hover circle:last-child {
-    @apply fill-emerald-400;
+  .knob:hover circle {
+    @apply fill-zinc-700;
   }
 
-  .knob:active circle:last-child {
-    @apply fill-emerald-300;
+  .knob:active circle {
+    @apply fill-zinc-600;
+  }
+
+  .knob:hover path {
+    @apply stroke-emerald-400;
+  }
+
+  .knob:active path {
+    @apply stroke-emerald-300;
   }
 </style>

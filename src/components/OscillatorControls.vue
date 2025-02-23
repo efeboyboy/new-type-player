@@ -1,47 +1,76 @@
 <template>
   <div class="module-panel">
-    <div class="module-title text-center">Sound {{ number }}</div>
-    <div class="grid grid-cols-1 gap-1.5">
-      <!-- Octave Control -->
+    <div class="flex items-center justify-between mb-2">
+      <div class="module-title text-sm">
+        Complex Oscillator 258-{{ number }}
+      </div>
+      <button
+        @click="randomize"
+        class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+      >
+        <!-- Dice icon (simplified) -->
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          class="text-zinc-400 group-hover:text-emerald-400"
+        >
+          <rect
+            x="4"
+            y="4"
+            width="16"
+            height="16"
+            rx="2"
+            stroke="currentColor"
+            stroke-width="2"
+          />
+          <circle cx="9" cy="9" r="1.5" fill="currentColor" />
+          <circle cx="15" cy="9" r="1.5" fill="currentColor" />
+          <circle cx="9" cy="15" r="1.5" fill="currentColor" />
+          <circle cx="15" cy="15" r="1.5" fill="currentColor" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="flex flex-col gap-3">
+      <!-- Frequency Control -->
       <div class="control-group">
         <Knob
           v-model="octave"
           :min="-2"
           :max="2"
           :step="1"
-          class="w-full aspect-square max-w-[28px]"
-          @update:modelValue="updateOscillator"
+          class="w-full aspect-square max-w-[32px]"
         />
-        <div class="module-value">{{ formatOctave(octave) }}</div>
-        <label class="module-label">Octave</label>
+        <div class="module-value text-sm">{{ formatOctave(octave) }}</div>
+        <label class="module-label text-xs">Octave</label>
       </div>
 
-      <!-- Fine Pitch Control -->
+      <!-- Harmonic Control -->
       <div class="control-group">
         <Knob
           v-model="finePitch"
           :min="-12"
           :max="12"
           :step="0.1"
-          class="w-full aspect-square max-w-[28px]"
-          @update:modelValue="updateOscillator"
+          class="w-full aspect-square max-w-[32px]"
         />
-        <div class="module-value">{{ formatPitch(finePitch) }}</div>
-        <label class="module-label">Fine</label>
+        <div class="module-value text-sm">{{ formatPitch(finePitch) }}</div>
+        <label class="module-label text-xs">Fine</label>
       </div>
 
-      <!-- Wave Shape Control -->
+      <!-- Timbre Control -->
       <div class="control-group">
         <Knob
           v-model="shape"
           :min="0"
           :max="10"
           :step="0.1"
-          class="w-full aspect-square max-w-[28px]"
-          @update:modelValue="updateOscillator"
+          class="w-full aspect-square max-w-[32px]"
         />
-        <div class="module-value">{{ shape.toFixed(1) }}</div>
-        <label class="module-label">Shape</label>
+        <div class="module-value text-sm">{{ shape.toFixed(1) }}</div>
+        <label class="module-label text-xs">Timbre</label>
       </div>
     </div>
   </div>
@@ -59,12 +88,18 @@
     },
   });
 
-  const octave = ref(0);
-  const finePitch = ref(0);
-  const shape = ref(0);
+  // Default values
+  const defaultValues = {
+    octave: 0,
+    finePitch: 0,
+    shape: 5,
+  };
+
+  const octave = ref(defaultValues.octave);
+  const finePitch = ref(defaultValues.finePitch);
+  const shape = ref(defaultValues.shape);
 
   const updateOscillator = () => {
-    // Calculate frequency with both octave and fine pitch
     const baseFreq = 440; // A4
     const octaveMultiplier = Math.pow(2, octave.value);
     const semitoneFactor = Math.pow(2, finePitch.value / 12);
@@ -74,6 +109,12 @@
       frequency: frequency,
       waveShape: shape.value / 10,
     });
+  };
+
+  const randomize = () => {
+    octave.value = Math.floor(Math.random() * 5) - 2;
+    finePitch.value = Math.round((Math.random() * 24 - 12) * 10) / 10;
+    shape.value = Math.round(Math.random() * 100) / 10;
   };
 
   const formatOctave = (oct) => {
@@ -89,6 +130,18 @@
 
 <style scoped>
   .control-group {
-    @apply flex flex-col items-center gap-0.5;
+    @apply flex flex-col items-center gap-1;
+  }
+
+  .module-value {
+    @apply font-medium text-zinc-300;
+  }
+
+  .module-label {
+    @apply font-medium text-zinc-500;
+  }
+
+  .module-panel {
+    @apply bg-zinc-900/30 rounded-lg p-3 flex flex-col;
   }
 </style>

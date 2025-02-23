@@ -3,21 +3,27 @@
     class="knob relative w-full aspect-square"
     @mousedown="startDrag"
     @touchstart="startDrag"
+    @wheel="handleWheel"
     @dblclick="reset"
   >
     <svg
       viewBox="0 0 32 32"
-      class="w-full h-full transform transition-transform"
+      class="w-full h-full transform transition-transform duration-75"
       :style="{ transform: `rotate(${rotation}deg)` }"
     >
       <!-- Background -->
-      <circle cx="16" cy="16" r="14" class="fill-zinc-800" />
+      <circle
+        cx="16"
+        cy="16"
+        r="14"
+        class="fill-zinc-800 transition-colors duration-75"
+      />
 
       <!-- Value Track -->
       <path
         d="M16 6 L16 2"
-        class="stroke-emerald-500"
-        stroke-width="2"
+        class="stroke-emerald-500 transition-colors duration-75"
+        stroke-width="1.5"
         stroke-linecap="round"
       />
     </svg>
@@ -55,44 +61,74 @@
     return normalized * 270 - 135; // -135 to 135 degrees
   });
 
-  // Drag handling
+  // Drag handling with improved precision
   let isDragging = false;
-  let startY = 0;
-  let startValue = 0;
+  let lastY = 0;
+  let currentValue = 0;
 
   const startDrag = (event) => {
     event.preventDefault();
     isDragging = true;
-    startY = event.pageY || event.touches?.[0].pageY;
-    startValue = props.modelValue;
+    lastY = event.pageY || event.touches?.[0].pageY;
+    currentValue = props.modelValue;
 
-    document.addEventListener("mousemove", handleDrag);
-    document.addEventListener("mouseup", stopDrag);
-    document.addEventListener("touchmove", handleDrag);
-    document.addEventListener("touchend", stopDrag);
+    document.addEventListener("mousemove", handleDrag, { capture: true });
+    document.addEventListener("mouseup", stopDrag, { capture: true });
+    document.addEventListener("touchmove", handleDrag, {
+      capture: true,
+      passive: false,
+    });
+    document.addEventListener("touchend", stopDrag, { capture: true });
   };
 
   const handleDrag = (event) => {
     if (!isDragging) return;
 
     const currentY = event.pageY || event.touches?.[0].pageY;
-    const deltaY = startY - currentY;
-    const range = props.max - props.min;
-    const sensitivity = range / 100; // Increased sensitivity
+    const deltaY = lastY - currentY;
+    lastY = currentY;
 
-    let newValue = startValue + deltaY * sensitivity;
-    newValue = Math.round(newValue / props.step) * props.step;
+    const range = props.max - props.min;
+    const sensitivity = range / 50; // Much higher sensitivity
+
+    let newValue = currentValue + deltaY * sensitivity;
+
+    // Apply step quantization
+    if (props.step > 0) {
+      newValue = Math.round(newValue / props.step) * props.step;
+    }
+
+    // Clamp value
     newValue = Math.max(props.min, Math.min(props.max, newValue));
 
+    if (newValue !== props.modelValue) {
+      currentValue = newValue;
+      emit("update:modelValue", newValue);
+    }
+  };
+
+  const handleWheel = (event) => {
+    event.preventDefault();
+    const deltaY = event.deltaY;
+    const range = props.max - props.min;
+    const sensitivity = range / 200; // Much higher wheel sensitivity
+
+    let newValue = props.modelValue - deltaY * sensitivity;
+
+    if (props.step > 0) {
+      newValue = Math.round(newValue / props.step) * props.step;
+    }
+
+    newValue = Math.max(props.min, Math.min(props.max, newValue));
     emit("update:modelValue", newValue);
   };
 
   const stopDrag = () => {
     isDragging = false;
-    document.removeEventListener("mousemove", handleDrag);
-    document.removeEventListener("mouseup", stopDrag);
-    document.removeEventListener("touchmove", handleDrag);
-    document.removeEventListener("touchend", stopDrag);
+    document.removeEventListener("mousemove", handleDrag, { capture: true });
+    document.removeEventListener("mouseup", stopDrag, { capture: true });
+    document.removeEventListener("touchmove", handleDrag, { capture: true });
+    document.removeEventListener("touchend", stopDrag, { capture: true });
   };
 
   const reset = () => {

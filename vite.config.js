@@ -8,9 +8,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      buffer: "buffer/",
+      buffer: "buffer",
       process: "process/browser",
-      util: "util/",
+      util: "util",
       stream: "stream-browserify",
     },
   },
@@ -21,12 +21,7 @@ export default defineConfig({
     "Buffer.isBuffer": "false",
   },
   optimizeDeps: {
-    include: [
-      "buffer",
-      "process/browser",
-      "stream-browserify",
-      "@magenta/music",
-    ],
+    include: ["buffer", "process/browser", "@magenta/music"],
   },
   build: {
     rollupOptions: {
@@ -36,9 +31,13 @@ export default defineConfig({
           "@magenta/music": "mm",
         },
         manualChunks: {
-          vendor: ["tone", "buffer", "process/browser", "stream-browserify"],
+          vendor: ["tone"],
         },
       },
+    },
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true,
     },
     chunkSizeWarningLimit: 3000,
   },

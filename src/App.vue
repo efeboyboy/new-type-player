@@ -104,15 +104,11 @@
         <div
           class="flex items-center gap-3 bg-zinc-900/50 rounded-lg px-4 py-2 whitespace-nowrap"
         >
-          <span class="text-sm font-medium text-zinc-400">Speed</span>
-          <Knob
-            v-model="tempo"
-            :min="40"
-            :max="200"
-            :step="1"
-            class="w-8 h-8"
-          />
-          <span class="text-sm font-mono text-zinc-300">{{ tempo }}</span>
+          <span class="text-[10px] font-medium text-zinc-400">Speed</span>
+          <div class="w-8 h-8 flex items-center justify-center">
+            <Knob v-model="tempo" :min="40" :max="200" :step="1" />
+          </div>
+          <span class="text-[10px] font-mono text-zinc-300">{{ tempo }}</span>
         </div>
 
         <div class="flex-1">
@@ -381,16 +377,20 @@
   }
 
   .bento-box {
-    @apply bg-zinc-900/50 rounded-xl p-4 border border-zinc-800 overflow-hidden;
+    @apply bg-zinc-900/50 rounded-xl p-4 border border-zinc-800;
     backdrop-filter: blur(12px);
+    position: relative;
+    overflow: visible !important;
   }
 
   .bento-title {
     @apply text-base font-medium text-zinc-300 mb-3 pb-2 border-b border-zinc-800/50;
+    overflow: visible;
   }
 
   .module-content {
     @apply mt-2;
+    overflow: visible;
   }
 
   /* Module text hierarchy */
@@ -406,14 +406,42 @@
     @apply text-[11px] font-mono text-zinc-500;
   }
 
+  /* Ensure parent containers don't clip */
+  .grid {
+    overflow: visible;
+  }
+
   /* Tooltip */
   [title] {
     position: relative;
+    z-index: 20;
   }
 
   [title]:hover::after {
     content: attr(title);
-    @apply absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-zinc-800 rounded;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    white-space: nowrap;
+    @apply bg-zinc-800 text-zinc-200 text-[10px] rounded;
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  /* Add a small arrow to the tooltip */
+  [title]:hover::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 4px;
+    border-style: solid;
+    border-color: theme("colors.zinc.800") transparent transparent transparent;
+    z-index: 100;
   }
 
   /* Custom scrollbar */

@@ -1,15 +1,13 @@
 <template>
   <div
-    class="knob"
+    class="knob relative w-full aspect-square"
     @mousedown="startDrag"
     @touchstart="startDrag"
     @dblclick="reset"
   >
     <svg
-      :width="size"
-      :height="size"
       viewBox="0 0 32 32"
-      class="transform transition-transform"
+      class="w-full h-full transform transition-transform"
       :style="{ transform: `rotate(${rotation}deg)` }"
     >
       <!-- Background -->
@@ -45,10 +43,6 @@
     step: {
       type: Number,
       default: 1,
-    },
-    size: {
-      type: Number,
-      default: 40, // Increased default size
     },
   });
 

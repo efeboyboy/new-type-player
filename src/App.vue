@@ -28,18 +28,20 @@
 <template>
   <div class="min-h-screen w-screen bg-zinc-950 p-4 font-instrument">
     <!-- Main Control Panel -->
-    <div class="flex flex-row items-center justify-between mb-4">
-      <h1 class="text-xl text-zinc-100">Type Player</h1>
-      <div class="flex items-center gap-3 bg-zinc-900/50 rounded-lg px-4 py-2">
+    <div class="flex flex-row items-center justify-between gap-4 mb-4">
+      <h1 class="text-xl text-zinc-100 whitespace-nowrap">Type Player</h1>
+
+      <div
+        class="flex items-center gap-3 bg-zinc-900/50 rounded-lg px-4 py-2 whitespace-nowrap"
+      >
         <span class="text-sm text-zinc-400">Speed</span>
         <Knob v-model="tempo" :min="40" :max="200" :step="1" class="w-8 h-8" />
         <span class="text-sm font-mono text-zinc-300">{{ tempo }}</span>
       </div>
-    </div>
 
-    <!-- Text Input -->
-    <div class="mb-4">
-      <TextInput @update:text="handleUpdateText" />
+      <div class="flex-1">
+        <TextInput @update:text="handleUpdateText" />
+      </div>
     </div>
 
     <!-- Main Grid -->

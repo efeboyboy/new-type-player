@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 :root {
   --primary-bg: #18181b;
@@ -7,7 +9,7 @@
   --accent-color: #ef4444;
   --knob-color: #d4d4d8;
 
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -33,7 +35,7 @@ a:hover {
 
 body {
   margin: 0;
-  font-family: 'Instrument Serif', serif;
+  font-family: 'Instrument Sans', sans-serif;
   background: var(--primary-bg);
   color: #fafafa;
   min-height: 100vh;

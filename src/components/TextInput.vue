@@ -249,6 +249,32 @@
       .join("");
   };
 
+  const generateRandomPhrase = () => {
+    const subjects = [
+      "A cactus",
+      "The fern",
+      "A bamboo",
+      "The bonsai",
+      "An orchid",
+    ];
+
+    const actions = ["meditated", "danced", "coded", "sang", "painted"];
+
+    const reasons = [
+      "to grow",
+      "to bloom",
+      "to branch out",
+      "to leaf loose",
+      "to blossom",
+    ];
+
+    const subject = subjects[Math.floor(Math.random() * subjects.length)];
+    const action = actions[Math.floor(Math.random() * actions.length)];
+    const reason = reasons[Math.floor(Math.random() * reasons.length)];
+
+    return `${subject} ${action} ${reason}`;
+  };
+
   // Handle randomization of all parameters
   const handleRandomize = async () => {
     if (!isInitialized.value) return;
@@ -261,8 +287,8 @@
       // Apply new seed with text update
       await store.applySeed(newSeed, true);
 
-      // Update local text value
-      text.value = `Patch ${newSeed}`;
+      // Update local text value with a random plant joke phrase
+      text.value = generateRandomPhrase();
 
       // Generate pattern
       await generatePattern(text.value);

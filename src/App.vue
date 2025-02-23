@@ -143,59 +143,72 @@
     <div
       class="fixed top-0 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800/50 px-4 py-3"
     >
-      <div class="flex flex-row items-center justify-between gap-4">
-        <h1 class="text-xl font-semibold text-zinc-100 whitespace-nowrap">
-          Type Player
-        </h1>
+      <div
+        class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+      >
+        <!-- Title and Controls -->
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <h1 class="text-xl font-semibold text-zinc-100 whitespace-nowrap">
+            Type Player
+          </h1>
 
-        <div
-          class="flex items-center gap-3 bg-zinc-900/50 rounded-lg px-4 py-2 whitespace-nowrap"
-        >
-          <span class="text-[10px] font-medium text-zinc-400">Speed</span>
-          <div class="w-8 h-8 flex items-center justify-center">
-            <Knob v-model="tempo" :min="40" :max="200" :step="1" />
+          <div class="grid grid-cols-2 sm:flex items-center gap-2">
+            <div
+              class="flex items-center gap-2 bg-zinc-900/50 rounded-lg px-3 py-2 whitespace-nowrap"
+            >
+              <span class="text-[10px] font-medium text-zinc-400">Speed</span>
+              <div class="w-8 h-8 flex items-center justify-center">
+                <Knob v-model="tempo" :min="40" :max="200" :step="1" />
+              </div>
+              <span class="text-[10px] font-mono text-zinc-300">{{
+                tempo
+              }}</span>
+            </div>
+
+            <!-- Volume Control -->
+            <div
+              class="flex items-center gap-2 bg-zinc-900/50 rounded-lg px-3 py-2 whitespace-nowrap"
+            >
+              <span class="text-[10px] font-medium text-zinc-400">Volume</span>
+              <div class="w-8 h-8 flex items-center justify-center">
+                <Knob v-model="volume" :min="0" :max="1" :step="0.01" />
+              </div>
+              <span class="text-[10px] font-mono text-zinc-300"
+                >{{ Math.round(volume * 100) }}%</span
+              >
+            </div>
+
+            <button
+              @click="showHelp = true"
+              class="col-span-2 sm:col-span-1 h-10 sm:w-8 sm:h-8 rounded-lg sm:rounded-full bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
+              title="How to use"
+            >
+              <IconHolder
+                class="w-4 h-4 text-zinc-400 group-hover:text-emerald-400"
+              >
+                <HelpCircle />
+              </IconHolder>
+              <span class="ml-2 text-[10px] text-zinc-400 sm:hidden"
+                >How to use</span
+              >
+            </button>
           </div>
-          <span class="text-[10px] font-mono text-zinc-300">{{ tempo }}</span>
         </div>
 
-        <!-- Add Volume Control -->
-        <div
-          class="flex items-center gap-3 bg-zinc-900/50 rounded-lg px-4 py-2 whitespace-nowrap"
-        >
-          <span class="text-[10px] font-medium text-zinc-400">Volume</span>
-          <div class="w-8 h-8 flex items-center justify-center">
-            <Knob v-model="volume" :min="0" :max="1" :step="0.01" />
-          </div>
-          <span class="text-[10px] font-mono text-zinc-300"
-            >{{ Math.round(volume * 100) }}%</span
-          >
-        </div>
-
-        <div class="flex-1">
+        <!-- Text Input -->
+        <div class="flex-1 min-w-0">
           <TextInput @update:text="handleUpdateText" />
         </div>
-
-        <button
-          @click="showHelp = true"
-          class="w-8 h-8 rounded-full bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
-          title="How to use"
-        >
-          <IconHolder
-            class="w-4 h-4 text-zinc-400 group-hover:text-emerald-400"
-          >
-            <HelpCircle />
-          </IconHolder>
-        </button>
       </div>
     </div>
 
     <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto mt-[72px]">
+    <div class="flex-1 overflow-y-auto mt-[200px] sm:mt-[120px] lg:mt-[72px]">
       <div class="p-4">
         <!-- Main Grid -->
-        <div class="grid grid-rows-[auto_auto] gap-4">
+        <div class="grid grid-cols-1 lg:grid-rows-[auto_auto] gap-4">
           <!-- Top Row: Sound Sources, Envelopes, and Matrix -->
-          <div class="grid grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <!-- Sound Sources -->
             <div class="bento-box">
               <div class="bento-title flex items-center justify-between">
@@ -316,7 +329,7 @@
           </div>
 
           <!-- Bottom Row: Gate, Tone, Space -->
-          <div class="grid grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <!-- Gate Controls -->
             <div class="bento-box">
               <div class="bento-title flex items-center justify-between">
@@ -566,5 +579,14 @@
 
   ::-webkit-scrollbar-thumb {
     @apply bg-emerald-500/30 rounded-full hover:bg-emerald-500/50;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
   }
 </style>

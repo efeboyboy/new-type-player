@@ -1,13 +1,14 @@
 <template>
   <div class="text-input flex flex-col gap-2">
     <div class="flex items-center gap-2">
-      <textarea
+      <input
+        type="text"
         v-model="text"
         @input="handleInput"
-        class="flex-1 h-10 bg-zinc-900/50 rounded-lg px-3 py-2 text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+        class="flex-1 h-10 bg-zinc-900/50 rounded-lg px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
         placeholder="Enter text to generate sounds..."
         :disabled="!store.audioInitialized"
-      ></textarea>
+      />
 
       <div class="flex items-center gap-2">
         <div class="text-[10px] text-zinc-500">{{ text.length }} chars</div>
@@ -145,20 +146,9 @@
 </script>
 
 <style scoped>
-  .text-input textarea {
+  .text-input input {
     font-family: theme("fontFamily.mono");
     letter-spacing: -0.5px;
-  }
-
-  .text-input textarea::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  .text-input textarea::-webkit-scrollbar-track {
-    @apply bg-zinc-900;
-  }
-
-  .text-input textarea::-webkit-scrollbar-thumb {
-    @apply bg-emerald-500/30 rounded-full hover:bg-emerald-500/50;
+    line-height: 1;
   }
 </style>

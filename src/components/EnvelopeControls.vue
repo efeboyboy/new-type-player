@@ -1,65 +1,51 @@
 <template>
-  <div class="bg-gray-800 p-4 rounded-lg">
-    <h3 class="text-lg font-semibold mb-4">Envelope Controls</h3>
-
-    <div class="grid grid-cols-2 gap-4">
-      <div v-for="n in 4" :key="n" class="envelope-group">
-        <h4 class="text-sm font-medium mb-2">Envelope {{ n }}</h4>
-        <div class="grid grid-cols-2 gap-2">
-          <div class="param-group">
-            <label class="text-xs">Attack</label>
-            <Knob
-              v-model="envelopes[n - 1].attack"
-              :min="0"
-              :max="1"
-              :step="0.01"
-              class="w-8 h-8"
-              @update:modelValue="updateEnvelope(n - 1)"
-            />
-          </div>
-          <div class="param-group">
-            <label class="text-xs">Decay</label>
-            <Knob
-              v-model="envelopes[n - 1].decay"
-              :min="0"
-              :max="1"
-              :step="0.01"
-              class="w-8 h-8"
-              @update:modelValue="updateEnvelope(n - 1)"
-            />
-          </div>
-          <div class="param-group">
-            <label class="text-xs">Sustain</label>
-            <Knob
-              v-model="envelopes[n - 1].sustain"
-              :min="0"
-              :max="1"
-              :step="0.01"
-              class="w-8 h-8"
-              @update:modelValue="updateEnvelope(n - 1)"
-            />
-          </div>
-          <div class="param-group">
-            <label class="text-xs">Release</label>
-            <Knob
-              v-model="envelopes[n - 1].release"
-              :min="0"
-              :max="1"
-              :step="0.01"
-              class="w-8 h-8"
-              @update:modelValue="updateEnvelope(n - 1)"
-            />
-          </div>
-        </div>
-        <div class="flex items-center justify-between mt-2">
-          <label class="text-xs">Loop</label>
-          <input
-            type="checkbox"
-            v-model="envelopes[n - 1].loop"
-            @change="toggleLoop(n - 1)"
-            class="accent-blue-500"
+  <div class="grid grid-cols-2 gap-4">
+    <div v-for="n in 4" :key="n" class="envelope-group">
+      <div class="text-[10px] text-zinc-500 mb-2">{{ n }}</div>
+      <div class="grid grid-cols-3 gap-2">
+        <div class="control-group">
+          <label class="text-[10px] text-zinc-400">Start</label>
+          <Knob
+            v-model="envelopes[n - 1].attack"
+            :min="0.01"
+            :max="1"
+            :step="0.01"
+            class="w-8 h-8"
+            @update:modelValue="updateEnvelope(n - 1)"
           />
         </div>
+        <div class="control-group">
+          <label class="text-[10px] text-zinc-400">Hold</label>
+          <Knob
+            v-model="envelopes[n - 1].sustain"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            class="w-8 h-8"
+            @update:modelValue="updateEnvelope(n - 1)"
+          />
+        </div>
+        <div class="control-group">
+          <label class="text-[10px] text-zinc-400">End</label>
+          <Knob
+            v-model="envelopes[n - 1].release"
+            :min="0.01"
+            :max="1"
+            :step="0.01"
+            class="w-8 h-8"
+            @update:modelValue="updateEnvelope(n - 1)"
+          />
+        </div>
+      </div>
+      <div class="flex items-center gap-2 mt-2">
+        <label class="text-[10px] text-zinc-400">Loop</label>
+        <button
+          class="w-4 h-4 rounded bg-zinc-800 border border-zinc-700"
+          :class="{
+            'bg-emerald-500/20 border-emerald-500/50': envelopes[n - 1].loop,
+          }"
+          @click="toggleLoop(n - 1)"
+        ></button>
       </div>
     </div>
   </div>
@@ -75,7 +61,6 @@
       .fill()
       .map(() => ({
         attack: 0.01,
-        decay: 0.2,
         sustain: 0.5,
         release: 0.5,
         loop: false,
@@ -86,29 +71,23 @@
     const env = envelopes.value[index];
     audioEngine.setEnvelope(index, {
       attack: env.attack,
-      decay: env.decay,
       sustain: env.sustain,
       release: env.release,
     });
   };
 
   const toggleLoop = (index) => {
-    const env = envelopes.value[index];
-    audioEngine.setEnvelopeLFO(index, env.loop);
+    envelopes.value[index].loop = !envelopes.value[index].loop;
+    audioEngine.setEnvelopeLFO(index, envelopes.value[index].loop);
   };
 </script>
 
 <style scoped>
-  .param-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
+  .control-group {
+    @apply flex flex-col items-center gap-1;
   }
 
   .envelope-group {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 0.75rem;
-    border-radius: 0.5rem;
+    @apply bg-zinc-900/30 rounded-lg p-3;
   }
 </style>

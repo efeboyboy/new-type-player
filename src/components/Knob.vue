@@ -1,153 +1,145 @@
 <template>
-  <div class="knob-container" @pointerdown="startDrag">
-    <div class="knob-ring">
-      <!-- Progress arc -->
-      <svg class="knob-progress" viewBox="0 0 32 32">
-        <circle
-          class="track"
-          cx="16"
-          cy="16"
-          r="14"
-          stroke-width="2"
-          fill="none"
-        />
-        <circle
-          class="value"
-          cx="16"
-          cy="16"
-          r="14"
-          stroke-width="2"
-          fill="none"
-          :stroke-dasharray="progressArc"
-          transform="rotate(-90 16 16)"
-        />
-      </svg>
+  <div
+    class="knob"
+    @mousedown="startDrag"
+    @touchstart="startDrag"
+    @dblclick="reset"
+  >
+    <svg
+      :width="size"
+      :height="size"
+      viewBox="0 0 32 32"
+      class="transform transition-transform"
+      :style="{ transform: `rotate(${rotation}deg)` }"
+    >
+      <!-- Background -->
+      <circle
+        cx="16"
+        cy="16"
+        r="14"
+        class="fill-zinc-900 stroke-zinc-800"
+        stroke-width="1"
+      />
 
-      <!-- Indicator dot -->
-      <div
-        class="knob-indicator"
-        :style="{ transform: `rotate(${indicatorAngle}deg) translateY(-14px)` }"
-      ></div>
-    </div>
+      <!-- Value Track -->
+      <circle
+        cx="16"
+        cy="16"
+        r="12"
+        class="fill-none stroke-emerald-500/20"
+        stroke-width="1.5"
+        :stroke-dasharray="arcLength"
+        :stroke-dashoffset="arcOffset"
+        transform="rotate(-90 16 16)"
+      />
 
-    <!-- Value display -->
-    <div class="knob-value">{{ Math.round(localValue) }}</div>
+      <!-- Indicator -->
+      <circle cx="16" cy="4" r="1.5" class="fill-emerald-500" />
+    </svg>
   </div>
 </template>
 
 <script setup>
-  import { ref, computed, watch, defineProps, defineEmits } from "vue";
+  import { ref, computed } from "vue";
 
   const props = defineProps({
     modelValue: {
       type: Number,
       required: true,
     },
-    min: { type: Number, default: 0 },
-    max: { type: Number, default: 100 },
-    step: { type: Number, default: 1 },
+    min: {
+      type: Number,
+      default: 0,
+    },
+    max: {
+      type: Number,
+      default: 100,
+    },
+    step: {
+      type: Number,
+      default: 1,
+    },
+    size: {
+      type: Number,
+      default: 32,
+    },
   });
 
   const emit = defineEmits(["update:modelValue"]);
-  const localValue = ref(props.modelValue);
 
-  watch(
-    () => props.modelValue,
-    (newVal) => {
-      localValue.value = newVal;
-    }
-  );
+  // Computed values for rotation and arc
+  const rotation = computed(() => {
+    const range = props.max - props.min;
+    const normalized = (props.modelValue - props.min) / range;
+    return normalized * 270 - 135; // -135 to 135 degrees
+  });
 
+  const arcLength = computed(() => {
+    return 2 * Math.PI * 12; // Circumference of track circle
+  });
+
+  const arcOffset = computed(() => {
+    const range = props.max - props.min;
+    const normalized = (props.modelValue - props.min) / range;
+    return arcLength.value * (1 - normalized);
+  });
+
+  // Drag handling
+  let isDragging = false;
   let startY = 0;
   let startValue = 0;
 
-  const startDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.target && e.pointerId) {
-      e.target.setPointerCapture(e.pointerId);
-    }
-    startY = e.clientY;
-    startValue = localValue.value;
-    window.addEventListener("pointermove", onDrag);
-    window.addEventListener("pointerup", stopDrag);
+  const startDrag = (event) => {
+    event.preventDefault();
+    isDragging = true;
+    startY = event.pageY || event.touches?.[0].pageY;
+    startValue = props.modelValue;
+
+    document.addEventListener("mousemove", handleDrag);
+    document.addEventListener("mouseup", stopDrag);
+    document.addEventListener("touchmove", handleDrag);
+    document.addEventListener("touchend", stopDrag);
   };
 
-  const onDrag = (e) => {
-    const sensitivity = 2;
-    const dy = startY - e.clientY;
-    const delta = Math.round(dy / sensitivity) * props.step;
-    let newValue = startValue + delta;
+  const handleDrag = (event) => {
+    if (!isDragging) return;
+
+    const currentY = event.pageY || event.touches?.[0].pageY;
+    const deltaY = startY - currentY;
+    const range = props.max - props.min;
+    const sensitivity = range / 200; // Adjust for sensitivity
+
+    let newValue = startValue + deltaY * sensitivity;
+    newValue = Math.round(newValue / props.step) * props.step;
     newValue = Math.max(props.min, Math.min(props.max, newValue));
-    localValue.value = newValue;
+
     emit("update:modelValue", newValue);
   };
 
   const stopDrag = () => {
-    window.removeEventListener("pointermove", onDrag);
-    window.removeEventListener("pointerup", stopDrag);
+    isDragging = false;
+    document.removeEventListener("mousemove", handleDrag);
+    document.removeEventListener("mouseup", stopDrag);
+    document.removeEventListener("touchmove", handleDrag);
+    document.removeEventListener("touchend", stopDrag);
   };
 
-  const indicatorAngle = computed(() => {
-    const range = props.max - props.min;
-    const normalized = (localValue.value - props.min) / range;
-    return normalized * 360;
-  });
-
-  const progressArc = computed(() => {
-    const range = props.max - props.min;
-    const normalized = (localValue.value - props.min) / range;
-    const circumference = 2 * Math.PI * 14;
-    return `${normalized * circumference} ${circumference}`;
-  });
+  const reset = () => {
+    emit("update:modelValue", props.min + (props.max - props.min) / 2);
+  };
 </script>
 
 <style scoped>
-  .knob-container {
-    @apply relative flex flex-col items-center justify-center select-none;
-    width: 100%;
-    height: 100%;
+  .knob {
+    @apply cursor-pointer select-none;
+    touch-action: none;
   }
 
-  .knob-ring {
-    @apply relative rounded-full cursor-pointer;
-    width: 90%;
-    aspect-ratio: 1;
+  .knob:hover circle:last-child {
+    @apply fill-emerald-400;
   }
 
-  .knob-progress {
-    @apply absolute inset-0 w-full h-full;
-    transform: rotate(-90deg);
-  }
-
-  .knob-progress circle {
-    @apply transition-all duration-100;
-  }
-
-  .knob-progress .track {
-    @apply stroke-zinc-800;
-  }
-
-  .knob-progress .value {
-    @apply stroke-red-500/40;
-  }
-
-  .knob-indicator {
-    @apply absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-red-500 rounded-full;
-    transform-origin: center center;
-  }
-
-  .knob-value {
-    @apply mt-1 text-[10px] font-mono text-zinc-400 tabular-nums;
-  }
-
-  /* Hover state */
-  .knob-ring:hover .knob-progress .value {
-    @apply stroke-red-500/60;
-  }
-
-  /* Active state */
-  .knob-ring:active .knob-progress .value {
-    @apply stroke-red-500;
+  .knob:active circle:last-child {
+    @apply fill-emerald-300;
   }
 </style>

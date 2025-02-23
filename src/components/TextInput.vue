@@ -14,23 +14,28 @@
         <button
           v-if="!store.audioInitialized"
           @click="initializeAudio"
-          class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors whitespace-nowrap"
+          class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors whitespace-nowrap flex items-center gap-2"
         >
-          Initialize Audio
+          <IconHolder class="w-3 h-3">
+            <Power class="text-current" stroke-width="1.5" />
+          </IconHolder>
+          <span>Initialize Audio</span>
         </button>
         <button
           v-else
           @click="togglePlay"
-          class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors flex items-center gap-1 whitespace-nowrap"
+          class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors flex items-center gap-2 whitespace-nowrap"
           :class="{ 'bg-emerald-500/30': store.playing }"
         >
-          <div
-            class="w-2 h-2"
-            :class="
-              store.playing ? 'bg-current' : 'border-l-[6px] border-current'
-            "
-          ></div>
-          {{ store.playing ? "Stop" : "Play" }}
+          <IconHolder class="w-3 h-3">
+            <Pause
+              v-if="store.playing"
+              class="text-current"
+              stroke-width="1.5"
+            />
+            <Play v-else class="text-current" stroke-width="1.5" />
+          </IconHolder>
+          <span>{{ store.playing ? "Stop" : "Play" }}</span>
         </button>
       </div>
     </div>
@@ -57,6 +62,8 @@
   import MagentaService from "../services/MagentaService.js";
   import audioEngine from "../services/AudioEngine.js";
   import { debounce } from "lodash-es";
+  import { Play, Pause, Power } from "lucide-vue-next";
+  import IconHolder from "./IconHolder.vue";
 
   const magentaService = new MagentaService();
   const text = ref("");

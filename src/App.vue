@@ -14,6 +14,7 @@
   import audioEngine from "./services/AudioEngine.js";
   import { RotateCcw, Shuffle } from "lucide-vue-next";
   import AIControls from "./components/AIControls.vue";
+  import IconHolder from "./components/IconHolder.vue";
 
   const handleUpdateText = (newText) => {
     store.updateInput(newText);
@@ -134,24 +135,24 @@
                 <button
                   @click="resetAllOscillators"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Reset All Oscillators"
                 >
-                  <RotateCcw
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <RotateCcw
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
                 <button
                   @click="randomizeAllOscillators"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Randomize All Oscillators"
                 >
-                  <Shuffle
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <Shuffle
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
               </div>
             </div>
@@ -174,24 +175,24 @@
                 <button
                   @click="envelopeControls?.reset()"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Reset Envelopes"
                 >
-                  <RotateCcw
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <RotateCcw
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
                 <button
                   @click="envelopeControls?.randomize()"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Randomize Envelopes"
                 >
-                  <Shuffle
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <Shuffle
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
               </div>
             </div>
@@ -211,24 +212,24 @@
                 <button
                   @click="matrixMixer?.reset()"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Reset Matrix"
                 >
-                  <RotateCcw
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <RotateCcw
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
                 <button
                   @click="matrixMixer?.randomize()"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Randomize Matrix"
                 >
-                  <Shuffle
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <Shuffle
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
               </div>
             </div>
@@ -251,24 +252,24 @@
                 <button
                   @click="lpgControls?.reset()"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Reset LPGs"
                 >
-                  <RotateCcw
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <RotateCcw
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
                 <button
                   @click="lpgControls?.randomize()"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Randomize LPGs"
                 >
-                  <Shuffle
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <Shuffle
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
               </div>
             </div>
@@ -288,24 +289,24 @@
                 <button
                   @click="filterControls?.reset()"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Reset Filters"
                 >
-                  <RotateCcw
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <RotateCcw
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
                 <button
                   @click="filterControls?.randomize()"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Randomize Filters"
                 >
-                  <Shuffle
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <Shuffle
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
               </div>
             </div>
@@ -325,24 +326,24 @@
                 <button
                   @click="spatialControls?.reset()"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Reset Spatial"
                 >
-                  <RotateCcw
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <RotateCcw
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
                 <button
                   @click="spatialControls?.randomize()"
                   class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  title="Randomize Spatial"
                 >
-                  <Shuffle
-                    :size="14"
-                    class="text-zinc-400 group-hover:text-emerald-400"
-                    stroke-width="1.5"
-                  />
+                  <IconHolder class="w-3.5 h-3.5">
+                    <Shuffle
+                      class="text-zinc-400 group-hover:text-emerald-400"
+                      stroke-width="1.5"
+                    />
+                  </IconHolder>
                 </button>
               </div>
             </div>

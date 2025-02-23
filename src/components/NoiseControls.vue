@@ -1,26 +1,10 @@
 <template>
-  <div class="module-panel">
-    <div class="flex flex-col gap-2">
-      <!-- Title -->
-      <div class="text-center">
-        <div class="module-title">Noise</div>
-      </div>
-
-      <!-- Controls -->
-      <div class="flex justify-center">
-        <!-- Amount Control -->
-        <div class="control-group">
-          <Knob
-            v-model="volume"
-            :min="0"
-            :max="1"
-            :step="0.01"
-            class="w-10 h-10"
-          />
-          <div class="module-value">{{ formatPercent(volume) }}</div>
-          <label class="module-label">Amount</label>
-        </div>
-      </div>
+  <div class="flex justify-center">
+    <!-- Amount Control -->
+    <div class="control-group">
+      <Knob v-model="volume" :min="0" :max="1" :step="0.01" class="w-10 h-10" />
+      <div class="module-value">{{ formatPercent(volume) }}</div>
+      <label class="module-label">Amount</label>
     </div>
   </div>
 </template>
@@ -73,10 +57,6 @@
 </script>
 
 <style scoped>
-  .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-3 h-full;
-  }
-
   .control-group {
     @apply flex flex-col items-center gap-1;
   }
@@ -87,9 +67,5 @@
 
   .module-label {
     @apply text-[11px] font-medium text-zinc-400 text-center;
-  }
-
-  .module-title {
-    @apply text-sm font-medium text-zinc-300;
   }
 </style>

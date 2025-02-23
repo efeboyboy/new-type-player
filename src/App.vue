@@ -272,21 +272,49 @@
                   </button>
                 </div>
               </div>
-              <div class="grid grid-rows-2 gap-4">
+              <div class="grid grid-rows-2 gap-4 h-full">
                 <div class="grid grid-cols-2 gap-4 h-full">
-                  <div class="h-full">
-                    <OscillatorControls ref="osc1" :number="1" />
+                  <div class="bento-box">
+                    <div class="bento-title flex items-center justify-between">
+                      <div class="module-title">Sound 1</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <OscillatorControls ref="osc1" :number="1" />
+                    </div>
                   </div>
-                  <div class="h-full">
-                    <OscillatorControls ref="osc2" :number="2" />
+                  <div class="bento-box">
+                    <div class="bento-title flex items-center justify-between">
+                      <div class="module-title">Sound 2</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <OscillatorControls ref="osc2" :number="2" />
+                    </div>
                   </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4 h-full">
-                  <div class="h-full">
-                    <OscillatorControls ref="osc3" :number="3" />
+                  <div class="bento-box">
+                    <div class="bento-title flex items-center justify-between">
+                      <div class="module-title">Sound 3</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <OscillatorControls ref="osc3" :number="3" />
+                    </div>
                   </div>
-                  <div class="h-full">
-                    <NoiseControls ref="noiseControls" />
+                  <div class="bento-box">
+                    <div class="bento-title flex items-center justify-between">
+                      <div class="module-title">Noise</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <NoiseControls ref="noiseControls" />
+                    </div>
                   </div>
                 </div>
               </div>

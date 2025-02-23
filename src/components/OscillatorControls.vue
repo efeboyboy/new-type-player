@@ -1,39 +1,23 @@
 <template>
-  <div class="module-panel">
-    <div class="flex flex-col gap-2">
-      <!-- Title -->
-      <div class="text-center">
-        <div class="module-title">Sound {{ number }}</div>
-      </div>
+  <div class="flex gap-6">
+    <!-- Fine Tune Control -->
+    <div class="control-group">
+      <Knob
+        v-model="finePitch"
+        :min="-12"
+        :max="12"
+        :step="1"
+        class="w-10 h-10"
+      />
+      <div class="module-value">{{ formatPitch(finePitch) }}</div>
+      <label class="module-label">Tune</label>
+    </div>
 
-      <!-- Controls in a row -->
-      <div class="flex gap-3 justify-center">
-        <!-- Fine Tune Control -->
-        <div class="control-group">
-          <Knob
-            v-model="finePitch"
-            :min="-12"
-            :max="12"
-            :step="1"
-            class="w-10 h-10"
-          />
-          <div class="module-value">{{ formatPitch(finePitch) }}</div>
-          <label class="module-label">Tune</label>
-        </div>
-
-        <!-- Color Control -->
-        <div class="control-group">
-          <Knob
-            v-model="shape"
-            :min="0"
-            :max="1"
-            :step="0.01"
-            class="w-10 h-10"
-          />
-          <div class="module-value">{{ formatPercent(shape) }}</div>
-          <label class="module-label">Color</label>
-        </div>
-      </div>
+    <!-- Color Control -->
+    <div class="control-group">
+      <Knob v-model="shape" :min="0" :max="1" :step="0.01" class="w-10 h-10" />
+      <div class="module-value">{{ formatPercent(shape) }}</div>
+      <label class="module-label">Color</label>
     </div>
   </div>
 </template>
@@ -97,10 +81,6 @@
 </script>
 
 <style scoped>
-  .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-3 h-full;
-  }
-
   .control-group {
     @apply flex flex-col items-center gap-1;
   }
@@ -111,9 +91,5 @@
 
   .module-label {
     @apply text-[11px] font-medium text-zinc-400 text-center;
-  }
-
-  .module-title {
-    @apply text-sm font-medium text-zinc-300;
   }
 </style>

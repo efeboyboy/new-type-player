@@ -272,11 +272,23 @@
                   </button>
                 </div>
               </div>
-              <div class="grid grid-cols-4 gap-4">
-                <OscillatorControls ref="osc1" :number="1" />
-                <OscillatorControls ref="osc2" :number="2" />
-                <OscillatorControls ref="osc3" :number="3" />
-                <NoiseControls ref="noiseControls" />
+              <div class="grid grid-rows-2 gap-4">
+                <div class="grid grid-cols-2 gap-4 h-full">
+                  <div class="h-full">
+                    <OscillatorControls ref="osc1" :number="1" />
+                  </div>
+                  <div class="h-full">
+                    <OscillatorControls ref="osc2" :number="2" />
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 h-full">
+                  <div class="h-full">
+                    <OscillatorControls ref="osc3" :number="3" />
+                  </div>
+                  <div class="h-full">
+                    <NoiseControls ref="noiseControls" />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -517,7 +529,7 @@
   }
 
   .bento-box {
-    @apply bg-zinc-900/50 rounded-xl p-4 border border-zinc-800;
+    @apply bg-zinc-900/50 rounded-xl p-4 border border-zinc-800 h-full;
     backdrop-filter: blur(12px);
     position: relative;
     overflow: visible !important;
@@ -550,7 +562,7 @@
   }
 
   .module-content {
-    @apply mt-2;
+    @apply h-full;
     overflow: visible;
   }
 

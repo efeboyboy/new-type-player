@@ -1,6 +1,6 @@
 <!-- Sound Mixer -->
 <template>
-  <div class="module-panel">
+  <div class="module-panel h-full">
     <!-- Output Labels Row -->
     <div class="grid grid-cols-4 gap-x-3 mb-2 pl-10">
       <div v-for="n in 4" :key="`out-${n}`" class="text-center">
@@ -9,9 +9,9 @@
     </div>
 
     <!-- Matrix Grid -->
-    <div class="grid gap-y-2">
+    <div class="grid gap-y-2 h-full">
       <template v-for="i in 4" :key="`row-${i}`">
-        <div class="flex">
+        <div class="flex h-full">
           <!-- Input Label -->
           <div class="w-10 flex items-center">
             <div class="module-label">{{ sources[i - 1] }}</div>
@@ -112,11 +112,11 @@
   }
 
   .module-value {
-    @apply text-[10px] font-mono text-zinc-500 text-center mt-0.5;
+    @apply text-[10px] font-mono text-zinc-500;
   }
 
   .module-label {
-    @apply text-[11px] font-medium text-zinc-400 text-center;
+    @apply text-[11px] font-medium text-zinc-400;
   }
 
   .module-title {

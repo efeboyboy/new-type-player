@@ -74,7 +74,7 @@
 
 <style scoped>
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-3;
+    @apply bg-zinc-900/30 rounded-lg p-3 h-full;
   }
 
   .control-group {

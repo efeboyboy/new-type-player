@@ -109,6 +109,14 @@ class AudioEngine {
         lfo: null,
       }));
 
+    // Add global envelope control
+    this.globalEnvelope = {
+      rise: 0.1, // Global rise time
+      fall: 0.2, // Global fall time
+      level: 0.8, // Global level
+      offsets: [1, 0.8, 0.6, 0.4], // Different strengths for each channel
+    };
+
     // Create matrix mixer components
     this.matrixMixer = {
       inputs: Array(4)
@@ -229,12 +237,12 @@ class AudioEngine {
     // Create envelope generators
     this.envelopes = Array(4)
       .fill()
-      .map(() => {
+      .map((_, i) => {
         const env = new Tone.Envelope({
-          attack: 0.01,
-          decay: 0.2,
-          sustain: 0.5,
-          release: 0.5,
+          attack: this.globalEnvelope.rise * this.globalEnvelope.offsets[i],
+          decay: this.globalEnvelope.fall * this.globalEnvelope.offsets[i],
+          sustain: this.globalEnvelope.level * this.globalEnvelope.offsets[i],
+          release: this.globalEnvelope.fall * this.globalEnvelope.offsets[i],
           attackCurve: "exponential",
           releaseCurve: "exponential",
         });
@@ -242,7 +250,7 @@ class AudioEngine {
         return {
           envelope: env,
           offset: new Tone.Add(0.2),
-          multiply: new Tone.Multiply(1),
+          multiply: new Tone.Multiply(this.globalEnvelope.offsets[i]),
           isLooping: false,
           timeScale: 1,
         };
@@ -630,24 +638,27 @@ class AudioEngine {
     try {
       if (oscNumber >= 1 && oscNumber <= 3) {
         // Map 0-1 to different wave shaping functions for more timbral variety
-        const normalizedAmount = amount * 10; // Scale up the input range
+        const normalizedAmount = amount * 15; // Scale up the input range more dramatically
         let shapeFunc;
 
-        if (normalizedAmount < 3.33) {
+        if (normalizedAmount < 5) {
           // Gentle sine folding for subtle harmonics
-          const fold = 1 + normalizedAmount;
+          const fold = 1 + normalizedAmount * 0.8;
           shapeFunc = (x) => Math.sin(x * Math.PI * fold);
-        } else if (normalizedAmount < 6.66) {
+        } else if (normalizedAmount < 10) {
           // Asymmetric folding for richer harmonics
-          const fold = 1 + (normalizedAmount - 3.33) * 2;
-          shapeFunc = (x) =>
-            Math.sin(x * Math.PI * fold) * Math.cos(x * Math.PI * 0.5);
-        } else {
-          // Hard folding for aggressive timbres
-          const fold = 1 + (normalizedAmount - 6.66) * 3;
+          const fold = 1 + (normalizedAmount - 5) * 1.2;
           shapeFunc = (x) => {
             const folded = Math.sin(x * Math.PI * fold);
-            return Math.sign(folded) * Math.pow(Math.abs(folded), 0.5);
+            return folded * Math.cos(x * Math.PI * 0.7) * 1.2;
+          };
+        } else {
+          // Hard folding for aggressive timbres
+          const fold = 1 + (normalizedAmount - 10) * 1.5;
+          shapeFunc = (x) => {
+            const folded = Math.sin(x * Math.PI * fold);
+            const shaped = Math.sign(folded) * Math.pow(Math.abs(folded), 0.6);
+            return shaped * 1.5; // Increase output gain for more presence
           };
         }
 
@@ -678,20 +689,42 @@ class AudioEngine {
   // Enhanced envelope methods
   setEnvelope(channel, params) {
     if (channel >= 0 && channel < 4) {
-      const envSystem = this.envelopes[channel];
-      const env = envSystem.envelope;
+      // Update global envelope if this is channel 0 (master)
+      if (
+        channel === 0 &&
+        (params.rise !== undefined ||
+          params.fall !== undefined ||
+          params.level !== undefined)
+      ) {
+        if (params.rise !== undefined) this.globalEnvelope.rise = params.rise;
+        if (params.fall !== undefined) this.globalEnvelope.fall = params.fall;
+        if (params.level !== undefined)
+          this.globalEnvelope.level = params.level;
 
-      if (params.attack !== undefined)
-        env.attack = params.attack * envSystem.timeScale;
-      if (params.decay !== undefined)
-        env.decay = params.decay * envSystem.timeScale;
-      if (params.sustain !== undefined) env.sustain = params.sustain;
-      if (params.release !== undefined)
-        env.release = params.release * envSystem.timeScale;
-      if (params.offset !== undefined) envSystem.offset.value = params.offset;
-      if (params.scale !== undefined) envSystem.multiply.value = params.scale;
-      if (params.timeScale !== undefined)
-        envSystem.timeScale = params.timeScale;
+        // Update all channels with scaled values
+        this.envelopes.forEach((envSystem, i) => {
+          const env = envSystem.envelope;
+          env.attack =
+            this.globalEnvelope.rise * this.globalEnvelope.offsets[i];
+          env.decay = this.globalEnvelope.fall * this.globalEnvelope.offsets[i];
+          env.sustain =
+            this.globalEnvelope.level * this.globalEnvelope.offsets[i];
+          env.release =
+            this.globalEnvelope.fall * this.globalEnvelope.offsets[i];
+        });
+      } else {
+        // Individual channel updates
+        const envSystem = this.envelopes[channel];
+        const env = envSystem.envelope;
+        const offset = this.globalEnvelope.offsets[channel];
+
+        if (params.rise !== undefined) env.attack = params.rise * offset;
+        if (params.fall !== undefined) {
+          env.decay = params.fall * offset;
+          env.release = params.fall * offset;
+        }
+        if (params.level !== undefined) env.sustain = params.level * offset;
+      }
     }
   }
 
@@ -718,9 +751,10 @@ class AudioEngine {
   }
 
   // Enhanced trigger with proper timing
-  triggerEnvelope(channel, time = "+0.05", params = {}) {
+  triggerEnvelope(channel, time = "+0.01", params = {}) {
     if (channel >= 0 && channel < 4) {
       const envSystem = this.envelopes[channel];
+      const lpg = this.lpgs[channel];
 
       // Use provided duration or calculate from envelope settings
       const duration =
@@ -730,9 +764,15 @@ class AudioEngine {
 
       // Convert velocity (0-1) to appropriate envelope scaling
       if (params.velocity !== undefined) {
-        const velocityScale = Math.max(0.1, params.velocity);
+        const velocityScale = Math.max(0.2, params.velocity); // Minimum velocity of 0.2
         envSystem.multiply.value = velocityScale;
       }
+
+      // Reset filter and VCA
+      lpg.filter.frequency.cancelScheduledValues(time);
+      lpg.vca.gain.cancelScheduledValues(time);
+      lpg.filter.frequency.setValueAtTime(20, time);
+      lpg.vca.gain.setValueAtTime(0, time);
 
       // Trigger with timing consideration
       envSystem.envelope.triggerAttackRelease(duration, time);
@@ -923,22 +963,20 @@ class AudioEngine {
 
   // Initialize Tone.js and prepare audio engine
   async initialize() {
-    if (this.initialized) return this;
+    if (this.initialized) return;
 
     try {
       await Tone.start();
-      await Tone.context.resume();
-      await sleep(100); // Small delay to ensure context is ready
-
-      // Connect the master chain
+      await this.initializeComponents();
       this.connectMasterChain();
 
-      // Initialize and connect all other components
-      await this.initializeComponents();
+      // Start oscillators
+      this.osc1.start();
+      this.osc2.start();
+      this.osc3.start();
+      this.noise.start();
 
       this.initialized = true;
-      console.log("Audio engine initialized successfully");
-      return this;
     } catch (error) {
       console.error("Failed to initialize audio engine:", error);
       throw error;
@@ -950,35 +988,44 @@ class AudioEngine {
       // Initialize LPGs
       for (let i = 0; i < 4; i++) {
         const lpg = this.lpgs[i];
+        const offset = this.globalEnvelope.offsets[i];
 
-        lpg.vactrol = new Tone.Follower(0.1);
-        lpg.vca = new Tone.Gain(0);
+        lpg.vactrol = new Tone.Follower(0.01); // Faster response time
+        lpg.vca = new Tone.Gain(0); // Start closed
         lpg.filter = new Tone.Filter({
-          frequency: 2000,
+          frequency: 20, // Start fully closed
           type: "lowpass",
-          rolloff: -12,
+          rolloff: -24, // Steeper slope
         });
         lpg.envelope = new Tone.Envelope({
-          attack: 0.1,
-          decay: 0,
-          sustain: 1,
-          release: 0.2,
+          attack: this.globalEnvelope.rise * offset,
+          decay: this.globalEnvelope.fall * offset,
+          sustain: this.globalEnvelope.level * offset,
+          release: this.globalEnvelope.fall * offset,
           attackCurve: "exponential",
           releaseCurve: "exponential",
         });
         lpg.lfo = new Tone.LFO({
           frequency: 1,
-          min: 0,
+          min: 0, // Full modulation range
           max: 1,
           type: "sine",
         });
 
-        // Connect LPG components
+        // Connect LPG components with envelope integration
         lpg.envelope.connect(lpg.vactrol);
         lpg.lfo.connect(lpg.vactrol);
         lpg.vactrol.connect(lpg.vca.gain);
-        lpg.vactrol.connect(lpg.filter.frequency);
+
+        // Scale envelope to filter frequency (20Hz - 20kHz)
+        const filterScale = new Tone.Scale(20, 20000);
+        lpg.vactrol.connect(filterScale);
+        filterScale.connect(lpg.filter.frequency);
+
         lpg.filter.connect(lpg.vca);
+
+        // Start the LFO
+        lpg.lfo.start();
       }
 
       // Initialize spatial routing

@@ -17,9 +17,9 @@ export default defineConfig({
   define: {
     global: "globalThis",
     "process.env": {},
-    "process.hrtime": "(() => [0, 0])",
+    "process.hrtime": "[0, 0]",
     "process.browser": true,
-    "Buffer.isBuffer": "(() => false)",
+    "Buffer.isBuffer": "false",
   },
   optimizeDeps: {
     include: ["buffer", "process/browser", "util", "stream-browserify"],

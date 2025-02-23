@@ -107,15 +107,17 @@
   };
 
   const updateShape = () => {
-    audioEngine.setEnvelopeShape({
-      attack: attack.value,
-      release: release.value,
-      amount: amount.value,
+    audioEngine.setEnvelope(0, {
+      rise: attack.value / 1000,
+      fall: release.value / 1000,
+      level: amount.value,
     });
   };
 
   const updateBehavior = () => {
-    audioEngine.setEnvelopeBehavior(cycleStates.value);
+    cycleStates.value.forEach((isLooping, index) => {
+      audioEngine.setEnvelopeLFO(index, isLooping);
+    });
   };
 
   // Reset function

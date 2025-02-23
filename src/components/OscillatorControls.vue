@@ -1,7 +1,9 @@
 <template>
-  <div class="flex flex-col gap-2">
-    <div class="text-[10px] text-zinc-400 text-center">Sound {{ number }}</div>
-    <div class="flex gap-2">
+  <div class="flex flex-col gap-1.5">
+    <div class="text-[10px] font-medium text-zinc-400 text-center">
+      Sound {{ number }}
+    </div>
+    <div class="flex gap-1.5">
       <!-- Pitch Control -->
       <div class="control-group">
         <Knob
@@ -9,10 +11,12 @@
           :min="-24"
           :max="24"
           :step="1"
-          class="w-6 h-6"
+          class="w-7 h-7"
           @update:modelValue="updateOscillator"
         />
-        <div class="text-[10px] text-zinc-500">{{ formatPitch(pitch) }}</div>
+        <div class="text-[10px] font-medium text-zinc-500">
+          {{ formatPitch(pitch) }}
+        </div>
         <label class="text-[8px] text-zinc-400">Pitch</label>
       </div>
 
@@ -23,10 +27,12 @@
           :min="0"
           :max="10"
           :step="0.1"
-          class="w-6 h-6"
+          class="w-7 h-7"
           @update:modelValue="updateOscillator"
         />
-        <div class="text-[10px] text-zinc-500">{{ shape.toFixed(1) }}</div>
+        <div class="text-[10px] font-medium text-zinc-500">
+          {{ shape.toFixed(1) }}
+        </div>
         <label class="text-[8px] text-zinc-400">Shape</label>
       </div>
     </div>

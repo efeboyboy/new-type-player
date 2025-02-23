@@ -1,83 +1,107 @@
 <template>
-  <div class="grid grid-cols-2 gap-2">
-    <div v-for="n in 4" :key="n" class="envelope-group">
-      <div class="flex items-center justify-between mb-1">
-        <div class="text-[8px] text-zinc-500">{{ n }}</div>
-        <button
-          class="w-3 h-3 rounded bg-zinc-800 border border-zinc-700"
-          :class="{
-            'bg-emerald-500/20 border-emerald-500/50': envelopes[n - 1].loop,
-          }"
-          @click="toggleLoop(n - 1)"
-        ></button>
+  <div class="flex flex-col gap-2">
+    <!-- ADSR Controls -->
+    <div class="grid grid-cols-2 gap-2">
+      <!-- Attack -->
+      <div class="control-group">
+        <Knob
+          v-model="envelope.attack"
+          :min="0"
+          :max="1"
+          :step="0.01"
+          class="w-8 h-8"
+          @update:modelValue="updateEnvelope"
+        />
+        <div class="text-[10px] font-medium text-zinc-500">
+          {{ envelope.attack.toFixed(2) }}
+        </div>
+        <label class="text-[8px] text-zinc-400">Attack</label>
       </div>
-      <div class="flex gap-1">
-        <div class="control-group">
-          <Knob
-            v-model="envelopes[n - 1].attack"
-            :min="0.01"
-            :max="1"
-            :step="0.01"
-            class="w-6 h-6"
-            @update:modelValue="updateEnvelope(n - 1)"
-          />
-          <label class="text-[8px] text-zinc-400">Start</label>
+
+      <!-- Decay -->
+      <div class="control-group">
+        <Knob
+          v-model="envelope.decay"
+          :min="0"
+          :max="1"
+          :step="0.01"
+          class="w-8 h-8"
+          @update:modelValue="updateEnvelope"
+        />
+        <div class="text-[10px] font-medium text-zinc-500">
+          {{ envelope.decay.toFixed(2) }}
         </div>
-        <div class="control-group">
-          <Knob
-            v-model="envelopes[n - 1].sustain"
-            :min="0"
-            :max="1"
-            :step="0.01"
-            class="w-6 h-6"
-            @update:modelValue="updateEnvelope(n - 1)"
-          />
-          <label class="text-[8px] text-zinc-400">Hold</label>
+        <label class="text-[8px] text-zinc-400">Decay</label>
+      </div>
+
+      <!-- Sustain -->
+      <div class="control-group">
+        <Knob
+          v-model="envelope.sustain"
+          :min="0"
+          :max="1"
+          :step="0.01"
+          class="w-8 h-8"
+          @update:modelValue="updateEnvelope"
+        />
+        <div class="text-[10px] font-medium text-zinc-500">
+          {{ envelope.sustain.toFixed(2) }}
         </div>
-        <div class="control-group">
-          <Knob
-            v-model="envelopes[n - 1].release"
-            :min="0.01"
-            :max="1"
-            :step="0.01"
-            class="w-6 h-6"
-            @update:modelValue="updateEnvelope(n - 1)"
-          />
-          <label class="text-[8px] text-zinc-400">End</label>
+        <label class="text-[8px] text-zinc-400">Sustain</label>
+      </div>
+
+      <!-- Release -->
+      <div class="control-group">
+        <Knob
+          v-model="envelope.release"
+          :min="0"
+          :max="1"
+          :step="0.01"
+          class="w-8 h-8"
+          @update:modelValue="updateEnvelope"
+        />
+        <div class="text-[10px] font-medium text-zinc-500">
+          {{ envelope.release.toFixed(2) }}
         </div>
+        <label class="text-[8px] text-zinc-400">Release</label>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-  import { ref } from "vue";
+  import { ref, watch } from "vue";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
 
-  const envelopes = ref(
-    Array(4)
-      .fill()
-      .map(() => ({
-        attack: 0.01,
-        sustain: 0.5,
-        release: 0.5,
-        loop: false,
-      }))
-  );
+  // Initialize envelope with default values
+  const envelope = ref({
+    attack: 0.01,
+    decay: 0.2,
+    sustain: 0.5,
+    release: 0.5,
+    loop: false,
+  });
 
-  const updateEnvelope = (index) => {
-    const env = envelopes.value[index];
-    audioEngine.setEnvelope(index, {
-      attack: env.attack,
-      sustain: env.sustain,
-      release: env.release,
-    });
+  // Update envelope parameters in the audio engine
+  const updateEnvelope = () => {
+    // Update all channels with the same envelope for now
+    for (let i = 0; i < 4; i++) {
+      audioEngine.setEnvelope(i, {
+        attack: envelope.value.attack,
+        decay: envelope.value.decay,
+        sustain: envelope.value.sustain,
+        release: envelope.value.release,
+      });
+    }
   };
 
+  // Watch for changes to update the audio engine
+  watch(envelope.value, updateEnvelope, { deep: true });
+
   const toggleLoop = (index) => {
-    envelopes.value[index].loop = !envelopes.value[index].loop;
-    audioEngine.setEnvelopeLFO(index, envelopes.value[index].loop);
+    envelope.value.loop = !envelope.value.loop;
+    audioEngine.setEnvelopeLFO(index, envelope.value.loop);
   };
 </script>
 

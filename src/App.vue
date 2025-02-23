@@ -45,51 +45,61 @@
     </div>
 
     <!-- Main Grid -->
-    <div class="grid grid-rows-2 gap-4">
+    <div class="grid grid-rows-[1fr_1fr] gap-4 h-[calc(100vh-8rem)]">
       <!-- Top Row -->
       <div class="grid grid-cols-4 gap-4">
         <!-- Sound Sources -->
-        <div class="bento-box">
+        <div class="bento-box flex flex-col">
           <div class="bento-title flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
             Sound Sources
           </div>
-          <div class="grid grid-cols-3 gap-2">
+          <div class="flex-1 grid grid-cols-3 gap-2 p-2">
             <OscillatorControls v-for="n in 3" :key="n" :number="n" />
           </div>
         </div>
 
         <!-- Matrix Mixer -->
-        <div class="bento-box">
+        <div class="bento-box flex flex-col">
           <div class="bento-title">Mix</div>
-          <MatrixMixer />
+          <div class="flex-1 flex items-center justify-center">
+            <MatrixMixer />
+          </div>
         </div>
 
         <!-- Envelopes -->
-        <div class="bento-box">
+        <div class="bento-box flex flex-col">
           <div class="bento-title">Shape</div>
-          <EnvelopeControls />
+          <div class="flex-1 flex items-center justify-center">
+            <EnvelopeControls />
+          </div>
         </div>
 
         <!-- LPGs -->
-        <div class="bento-box">
+        <div class="bento-box flex flex-col">
           <div class="bento-title">Gate</div>
-          <LPGControls />
+          <div class="flex-1 flex items-center justify-center">
+            <LPGControls />
+          </div>
         </div>
       </div>
 
       <!-- Bottom Row -->
       <div class="grid grid-cols-4 gap-4">
         <!-- Filter -->
-        <div class="bento-box col-span-2">
+        <div class="bento-box col-span-2 flex flex-col">
           <div class="bento-title">Tone</div>
-          <FilterControls />
+          <div class="flex-1 flex items-center justify-center">
+            <FilterControls />
+          </div>
         </div>
 
         <!-- Spatializer -->
-        <div class="bento-box col-span-2">
+        <div class="bento-box col-span-2 flex flex-col">
           <div class="bento-title">Space</div>
-          <SpatialControls />
+          <div class="flex-1 flex items-center justify-center">
+            <SpatialControls />
+          </div>
         </div>
       </div>
     </div>
@@ -111,16 +121,16 @@
   }
 
   body {
-    @apply bg-zinc-950 text-zinc-100 antialiased;
+    @apply bg-zinc-950 text-zinc-100 antialiased overflow-hidden;
   }
 
   .bento-box {
-    @apply bg-zinc-900/50 rounded-xl p-4 border border-zinc-800;
+    @apply bg-zinc-900/50 rounded-xl p-4 border border-zinc-800 overflow-hidden;
     backdrop-filter: blur(12px);
   }
 
   .bento-title {
-    @apply text-sm text-zinc-400 mb-3 pb-2 border-b border-zinc-800/50;
+    @apply text-sm font-medium text-zinc-400 mb-2 pb-2 border-b border-zinc-800/50;
   }
 
   /* Tooltip */

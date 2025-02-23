@@ -1,26 +1,21 @@
 <template>
-  <div class="matrix-mixer">
-    <div class="grid grid-cols-5 gap-1">
-      <!-- Headers -->
-      <div></div>
-      <div v-for="n in 4" :key="`out-${n}`" class="text-center">
-        <div class="text-[8px] text-zinc-500">{{ n }}</div>
-      </div>
-
-      <!-- Matrix rows -->
-      <template v-for="i in 4" :key="`row-${i}`">
-        <div class="flex items-center justify-center">
-          <div class="text-[8px] text-zinc-500">{{ i }}</div>
-        </div>
-        <div v-for="j in 4" :key="`cell-${i}-${j}`" class="p-0.5">
+  <div class="flex flex-col gap-2">
+    <!-- Matrix Grid -->
+    <div class="grid grid-cols-4 gap-1.5">
+      <template v-for="i in 4" :key="i">
+        <div class="flex flex-col items-center gap-1">
           <Knob
-            v-model="mixerLevels[i - 1][j - 1]"
+            v-model="mixerLevels[i - 1][i - 1]"
             :min="0"
             :max="1"
             :step="0.01"
-            class="w-5 h-5"
-            @update:modelValue="updateMixerPoint(i - 1, j - 1, $event)"
+            class="w-7 h-7"
+            @update:modelValue="(v) => updateMixerPoint(i - 1, i - 1, v)"
           />
+          <div class="text-[10px] font-medium text-zinc-500">
+            {{ mixerLevels[i - 1][i - 1].toFixed(2) }}
+          </div>
+          <label class="text-[8px] text-zinc-400">{{ i }}</label>
         </div>
       </template>
     </div>
@@ -41,6 +36,7 @@
 
   // Update mixer point in the audio engine
   const updateMixerPoint = (input, output, value) => {
+    mixerLevels.value[input][output] = value;
     audioEngine.setMixerPoint(input, output, value);
   };
 
@@ -54,7 +50,7 @@
 </script>
 
 <style scoped>
-  .matrix-mixer {
-    @apply flex justify-center items-center h-full;
+  .control-group {
+    @apply flex flex-col items-center gap-0.5;
   }
 </style>

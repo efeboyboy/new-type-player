@@ -1,4 +1,4 @@
-<!-- Full 4x4 Matrix Mixer -->
+<!-- Sound Mixer -->
 <template>
   <div class="module-panel">
     <!-- Output Labels Row -->
@@ -14,7 +14,7 @@
         <div class="flex">
           <!-- Input Label -->
           <div class="w-12 flex items-center">
-            <div class="module-label">In {{ i }}</div>
+            <div class="module-label">{{ sources[i - 1] }}</div>
           </div>
 
           <!-- Knob Row -->
@@ -28,11 +28,11 @@
                 v-model="mixerLevels[i - 1][j - 1]"
                 :min="0"
                 :max="1"
-                :step="0.01"
+                :step="0.1"
                 class="w-10 h-10"
                 @update:modelValue="(v) => updateMixerPoint(i - 1, j - 1, v)"
               />
-              <div class="module-value text-[10px]">
+              <div class="module-value">
                 {{ formatLevel(mixerLevels[i - 1][j - 1]) }}
               </div>
             </div>
@@ -40,24 +40,16 @@
         </div>
       </template>
     </div>
-
-    <!-- Source Labels -->
-    <div class="grid grid-cols-4 gap-4 pl-12 mt-2">
-      <div v-for="(source, i) in sources" :key="source" class="text-center">
-        <div class="module-label">{{ source }}</div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
   import { ref, onMounted } from "vue";
-  import { RotateCcw, Shuffle } from "lucide-vue-next";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
 
   // Source labels
-  const sources = ["Osc 1", "Osc 2", "Osc 3", "Noise"];
+  const sources = ["Sound 1", "Sound 2", "Sound 3", "Texture"];
 
   // Initialize 4x4 matrix with zeros
   const mixerLevels = ref(
@@ -67,7 +59,7 @@
   );
 
   // Format level value
-  const formatLevel = (value) => `${(value * 100).toFixed(0)}`;
+  const formatLevel = (value) => `${(value * 100).toFixed(0)}%`;
 
   // Update mixer point in the audio engine
   const updateMixerPoint = (input, output, value) => {
@@ -116,15 +108,15 @@
     @apply bg-zinc-900/30 rounded-lg p-6;
   }
 
-  .module-title {
-    @apply text-sm font-medium text-zinc-400;
-  }
-
   .module-value {
-    @apply font-medium text-zinc-500 text-center mt-0.5;
+    @apply text-[11px] font-mono text-zinc-500 text-center mt-1;
   }
 
   .module-label {
-    @apply text-[10px] font-medium text-zinc-400;
+    @apply text-xs font-medium text-zinc-400 text-center;
+  }
+
+  .module-title {
+    @apply text-sm font-medium text-zinc-300 mb-2;
   }
 </style>

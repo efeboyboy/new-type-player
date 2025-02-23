@@ -3,7 +3,7 @@
     <div class="grid grid-cols-4 gap-4">
       <div v-for="n in 4" :key="n" class="flex flex-col items-center gap-4">
         <div class="text-center">
-          <div class="module-label">LPG {{ n }}</div>
+          <div class="module-label">Gate {{ n }}</div>
         </div>
 
         <!-- Response -->
@@ -12,11 +12,11 @@
             v-model="lpgs[n - 1].response"
             :min="0.1"
             :max="2"
-            :step="0.01"
+            :step="0.1"
             class="w-10 h-10"
           />
-          <div class="module-value">{{ lpgs[n - 1].response.toFixed(2) }}</div>
-          <label class="module-label">Resp</label>
+          <div class="module-value">{{ lpgs[n - 1].response.toFixed(1) }}</div>
+          <label class="module-label">Speed</label>
         </div>
 
         <!-- Level -->
@@ -25,11 +25,11 @@
             v-model="lpgs[n - 1].level"
             :min="0"
             :max="1"
-            :step="0.01"
+            :step="0.1"
             class="w-10 h-10"
           />
           <div class="module-value">{{ formatPercent(lpgs[n - 1].level) }}</div>
-          <label class="module-label">Level</label>
+          <label class="module-label">Amount</label>
         </div>
       </div>
     </div>

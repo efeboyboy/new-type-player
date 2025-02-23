@@ -163,11 +163,20 @@ class AudioEngine {
       frequency: 440,
     });
 
-    // Noise source
+    // Noise source (Buchla 265-style)
     this.noise = new Tone.Noise({
       type: "white",
-      volume: -10,
+      volume: -20,
     });
+
+    // Add noise filtering and shaping
+    this.noiseFilter = new Tone.Filter({
+      type: "bandpass",
+      frequency: 1000,
+      Q: 1,
+    });
+
+    this.noiseVCA = new Tone.Gain(0.5);
 
     // Create Low Pass Gates (LPGs) - Buchla style
     this.lpgs = Array(4)
@@ -256,8 +265,10 @@ class AudioEngine {
       this.matrixMixer.inputs[2]
     );
 
-    // Connect noise chain
+    // Connect noise chain with proper gain staging
     this.noise.chain(
+      this.noiseFilter,
+      this.noiseVCA,
       this.toneShaper,
       this.lpgs[3].input,
       this.lpgs[3].output,
@@ -277,31 +288,103 @@ class AudioEngine {
     this.randomSampleHold = new Tone.Follower(0.1);
     this.randomSource.connect(this.randomSampleHold);
 
-    // Multi-Arbitrary Function Generator (248)
+    // Add polyphonic voice management
+    this.voiceManager = {
+      maxVoices: 3,
+      activeVoices: 2,
+      voices: Array(3)
+        .fill()
+        .map(() => ({
+          frequency: 0,
+          gate: false,
+          shape: 0,
+        })),
+      sampleHold: Array(3)
+        .fill()
+        .map(() => ({
+          value: new Tone.Signal(0),
+          trigger: new Tone.Multiply(0),
+          follower: new Tone.Follower(0.01),
+        })),
+      voiceRouter: new Tone.Signal(0),
+    };
+
+    // Connect voice manager components
+    this.voiceManager.sampleHold.forEach((sh) => {
+      sh.value.connect(sh.trigger);
+      sh.trigger.connect(sh.follower);
+    });
+
+    // Enhanced source of uncertainty
+    this.uncertaintySource = {
+      smooth: new Tone.Noise("pink").start(),
+      gates: new Tone.Noise("white").start(),
+      steps: new Tone.Noise("brown").start(),
+      probability: new Tone.Multiply(1),
+      distribution: new Tone.WaveShaper((x) => Math.pow(x, 2)),
+      quantizer: new Tone.WaveShaper((x) => {
+        // Quantize to 12 steps (chromatic scale)
+        const steps = 12;
+        return Math.round(x * steps) / steps;
+      }),
+      threshold: new Tone.WaveShaper((x) => {
+        // Custom threshold implementation
+        return x > 0.5 ? 1 : 0;
+      }),
+      sampleHold: new Tone.Follower(0.01),
+    };
+
+    // Connect uncertainty sources
+    this.uncertaintySource.smooth.chain(
+      this.uncertaintySource.distribution,
+      this.uncertaintySource.probability
+    );
+    this.uncertaintySource.gates.chain(
+      this.uncertaintySource.threshold,
+      this.uncertaintySource.probability
+    );
+    this.uncertaintySource.steps.chain(
+      this.uncertaintySource.quantizer,
+      this.uncertaintySource.probability
+    );
+
+    // Add clock divisions
+    this.clockDivisions = {
+      1: new Tone.Multiply(1),
+      2: new Tone.Multiply(0.5),
+      4: new Tone.Multiply(0.25),
+      8: new Tone.Multiply(0.125),
+      16: new Tone.Multiply(0.0625),
+    };
+
+    // Initialize AFG (248-style)
     this.afg = {
-      // 16 steps with CV and trigger values
       steps: Array(16)
         .fill()
-        .map(() => new AFG248Step()),
-
-      // Two independent playheads
-      playheads: [new AFG248PlayHead(), new AFG248PlayHead()],
-
-      // Four external CV inputs
-      externalInputs: Array(4)
+        .map(() => ({
+          cv1: new Tone.Signal(0),
+          cv2: new Tone.Signal(0),
+          trig1: new Tone.Signal(0),
+          trig2: new Tone.Signal(0),
+          duration: 0.25,
+          externalMode: false,
+        })),
+      playheads: Array(2)
+        .fill()
+        .map(() => ({
+          position: 0,
+          active: false,
+          clockDiv: "4",
+          lastTrig: 0,
+        })),
+      externalCV: Array(4)
         .fill()
         .map(() => new Tone.Signal(0)),
-
-      // Clock input for each playhead
       clockInputs: Array(2)
         .fill()
         .map(() => new Tone.Signal(0)),
-
-      // Manual CV address input
-      addressCV: new Tone.Signal(0),
-
-      // Strobe input for sampling address CV
       strobeInput: new Tone.Signal(0),
+      addressCV: new Tone.Signal(0),
     };
 
     // Initialize AFG processing
@@ -359,17 +442,75 @@ class AudioEngine {
       freqScale.connect(lpg.filter.frequency);
       gainScale.connect(lpg.vca.gain);
     });
+
+    // Add sequence morphing
+    this.sequenceMorph = {
+      amount: new Tone.Multiply(1),
+      target: Array(16)
+        .fill()
+        .map(() => new Tone.Signal(0)),
+    };
+
+    // Create the interpolator after amount is initialized
+    this.sequenceMorph.interpolator = new Tone.WaveShaper((x) => {
+      const morphAmount = this.sequenceMorph.amount.value || 0;
+      const targetIndex = Math.floor(x * 16);
+      const targetValue = this.sequenceMorph.target[targetIndex]?.value || 0;
+      return x * (1 - morphAmount) + targetValue * morphAmount;
+    });
   }
 
   initializeClockSystem() {
     // Set initial tempo (2Hz = 120 BPM)
     this.clockSystem.master.frequency.value = 2;
 
-    // Create the clock tick callback
+    // Create our own pattern generator for quantization
+    this.sequenceQuantizer = {
+      values: [0, 2, 4, 5, 7, 9, 11], // Major scale
+      currentIndex: 0,
+      mode: "up",
+      next() {
+        let value = this.values[this.currentIndex];
+
+        switch (this.mode) {
+          case "up":
+            this.currentIndex = (this.currentIndex + 1) % this.values.length;
+            break;
+          case "down":
+            this.currentIndex =
+              (this.currentIndex - 1 + this.values.length) % this.values.length;
+            break;
+          case "upDown":
+            if (this.currentIndex >= this.values.length - 1) {
+              this.mode = "down";
+            } else if (this.currentIndex <= 0) {
+              this.mode = "up";
+            }
+            this.currentIndex += this.mode === "up" ? 1 : -1;
+            break;
+          case "random":
+            this.currentIndex = Math.floor(Math.random() * this.values.length);
+            break;
+        }
+
+        return value / 12; // Normalize to 0-1 range
+      },
+      setScale(scale) {
+        this.values = scale;
+      },
+      setMode(newMode) {
+        if (["up", "down", "upDown", "random"].includes(newMode)) {
+          this.mode = newMode;
+        }
+      },
+    };
+
+    // Create the clock tick callback with enhanced timing
     this.clockTick = (time) => {
-      // Update counters
+      // Update counters with improved timing precision
       this.clockSystem.counters["16n"] =
         (this.clockSystem.counters["16n"] + 1) % 4;
+
       if (this.clockSystem.counters["16n"] === 0) {
         this.clockSystem.counters["8n"] =
           (this.clockSystem.counters["8n"] + 1) % 2;
@@ -382,36 +523,56 @@ class AudioEngine {
             if (this.clockSystem.counters["2n"] === 0) {
               this.clockSystem.counters["1n"] =
                 (this.clockSystem.counters["1n"] + 1) % 2;
-              this.clockSystem.divisions["1n"].setValueAtTime(
-                this.clockSystem.counters["1n"],
-                time
-              );
             }
-            this.clockSystem.divisions["2n"].setValueAtTime(
-              this.clockSystem.counters["2n"],
-              time
-            );
           }
-          this.clockSystem.divisions["4n"].setValueAtTime(
-            this.clockSystem.counters["4n"],
-            time
-          );
         }
-        this.clockSystem.divisions["8n"].setValueAtTime(
-          this.clockSystem.counters["8n"],
-          time
-        );
       }
-      this.clockSystem.divisions["16n"].setValueAtTime(
-        this.clockSystem.counters["16n"] > 0 ? 1 : 0,
-        time
+
+      // Update clock divisions with precise timing
+      Object.entries(this.clockSystem.divisions).forEach(
+        ([division, signal]) => {
+          signal.setValueAtTime(this.clockSystem.counters[division], time);
+        }
       );
 
-      // Distribute clock pulses
+      // Process AFG playheads
+      this.afg.playheads.forEach((playhead, index) => {
+        if (playhead.active) {
+          const clockDiv = this.handleClockDivision(playhead.clockDiv);
+          const shouldTrigger =
+            time > playhead.lastTrig + (60 / this.tempo) * clockDiv;
+
+          if (shouldTrigger) {
+            playhead.lastTrig = time;
+            playhead.position = (playhead.position + 1) % 16;
+
+            // Get step values with quantization and morphing
+            const step = this.afg.steps[playhead.position];
+            let cv = step.externalMode
+              ? this.afg.externalCV[step.externalInputIndex].value
+              : step.cv1.value;
+
+            // Apply quantization
+            cv = this.sequenceQuantizer.next();
+
+            // Apply morphing
+            cv = this.sequenceMorph.interpolator.curve(cv);
+
+            // Trigger envelopes and update oscillators
+            this.triggerEnvelope(index, time);
+            this.setOscillatorParams(index + 1, {
+              frequency: Tone.Frequency(48 + cv * 24, "midi").toFrequency(),
+              waveShape: step.cv2.value,
+            });
+          }
+        }
+      });
+
+      // Distribute clock pulses with uncertainty
       this.distributeClockPulse(time);
     };
 
-    // Set the callback after it's created
+    // Set the callback
     this.clockSystem.master.callback = this.clockTick;
   }
 
@@ -571,9 +732,9 @@ class AudioEngine {
   setAFGStep(stepIndex, values) {
     if (stepIndex >= 0 && stepIndex < 16) {
       const step = this.afg.steps[stepIndex];
-      if (values.cv !== undefined) step.cv.value = values.cv;
-      if (values.trigger !== undefined) step.trigger.value = values.trigger;
-      if (values.duration !== undefined) step.stepDuration = values.duration;
+      if (values.cv !== undefined) step.cv1.value = values.cv;
+      if (values.trigger !== undefined) step.trig1.value = values.trigger;
+      if (values.duration !== undefined) step.duration = values.duration;
       if (values.externalMode !== undefined)
         step.externalMode = values.externalMode;
       if (values.externalInput !== undefined)
@@ -603,7 +764,7 @@ class AudioEngine {
     // Get CV value (either from step or external input)
     const cvValue = step.externalMode
       ? this.afg.externalInputs[step.externalInputIndex].value
-      : step.cv.value;
+      : step.cv1.value;
 
     // Update outputs
     playhead.cvOut.setValueAtTime(cvValue, time);
@@ -876,8 +1037,10 @@ class AudioEngine {
 
     // Initialize AFG
     this.afg.steps.forEach((step, i) => {
-      step.cv.value = 0;
-      step.trigger.value = 0;
+      step.cv1.value = 0;
+      step.cv2.value = 0;
+      step.trig1.value = 0;
+      step.trig2.value = 0;
       step.stepDuration = 0.25;
     });
 
@@ -1021,6 +1184,59 @@ class AudioEngine {
 
       console.log(`Updated oscillator ${oscNumber} params:`, params);
     }
+  }
+
+  // Add method for noise control
+  setNoiseParams(params) {
+    if (params.volume !== undefined) {
+      this.noiseVCA.gain.value = Math.max(0, Math.min(1, params.volume));
+    }
+    if (params.filterFreq !== undefined) {
+      this.noiseFilter.frequency.value = params.filterFreq;
+    }
+    if (params.filterQ !== undefined) {
+      this.noiseFilter.Q.value = params.filterQ;
+    }
+  }
+
+  // Enhanced sequence generation from text
+  generateSequenceFromText(text) {
+    const charCodes = text.split("").map((c) => c.charCodeAt(0));
+    const seq = [];
+
+    // Generate base sequence
+    for (let i = 0; i < 16; i++) {
+      const code = charCodes[i % charCodes.length];
+      seq[i] = {
+        cv1: (code % 12) / 12, // Quantized pitch
+        cv2: ((code >> 4) % 16) / 16, // Wave shape
+        trig1: code % 2, // Trigger probability
+        trig2: (code >> 1) % 2, // Secondary trigger
+        duration: 0.25 * (1 + (code % 4)), // Variable step duration
+      };
+    }
+
+    // Apply sequence to AFG
+    seq.forEach((step, i) => {
+      this.updateAFGStep(i, step);
+      // Store as morph target
+      this.sequenceMorph.target[i].value = step.cv1;
+    });
+
+    return seq;
+  }
+
+  // Update sequence morphing
+  setSequenceMorph(amount) {
+    this.sequenceMorph.amount.value = Math.max(0, Math.min(1, amount));
+  }
+
+  // Set active voices
+  setActiveVoices(count) {
+    this.voiceManager.activeVoices = Math.max(
+      1,
+      Math.min(this.voiceManager.maxVoices, count)
+    );
   }
 }
 

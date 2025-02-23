@@ -3,7 +3,7 @@
     <div class="grid grid-cols-4 gap-4">
       <div v-for="n in 4" :key="n" class="flex flex-col items-center gap-4">
         <div class="text-center">
-          <div class="module-label">EG {{ n }}</div>
+          <div class="module-title">Shape {{ n }}</div>
         </div>
 
         <!-- Attack -->
@@ -12,13 +12,13 @@
             v-model="envelopes[n - 1].attack"
             :min="0.001"
             :max="2"
-            :step="0.001"
+            :step="0.01"
             class="w-10 h-10"
           />
           <div class="module-value">
             {{ formatTime(envelopes[n - 1].attack) }}
           </div>
-          <label class="module-label">A</label>
+          <label class="module-label">Start</label>
         </div>
 
         <!-- Decay -->
@@ -27,13 +27,13 @@
             v-model="envelopes[n - 1].decay"
             :min="0.001"
             :max="2"
-            :step="0.001"
+            :step="0.01"
             class="w-10 h-10"
           />
           <div class="module-value">
             {{ formatTime(envelopes[n - 1].decay) }}
           </div>
-          <label class="module-label">D</label>
+          <label class="module-label">Fade</label>
         </div>
 
         <!-- Sustain -->
@@ -42,13 +42,13 @@
             v-model="envelopes[n - 1].sustain"
             :min="0"
             :max="1"
-            :step="0.01"
+            :step="0.1"
             class="w-10 h-10"
           />
           <div class="module-value">
             {{ formatPercent(envelopes[n - 1].sustain) }}
           </div>
-          <label class="module-label">S</label>
+          <label class="module-label">Hold</label>
         </div>
       </div>
     </div>
@@ -136,10 +136,14 @@
   }
 
   .module-value {
-    @apply text-[10px] font-medium text-zinc-500 text-center mt-0.5;
+    @apply text-[11px] font-mono text-zinc-500 text-center mt-1;
   }
 
   .module-label {
-    @apply text-[10px] font-medium text-zinc-400 text-center;
+    @apply text-xs font-medium text-zinc-400 text-center;
+  }
+
+  .module-title {
+    @apply text-sm font-medium text-zinc-300 mb-2;
   }
 </style>

@@ -1,41 +1,35 @@
 <template>
   <div class="module-panel">
     <div class="text-center mb-3">
-      <div class="module-title text-sm">OSC {{ number }}</div>
+      <div class="module-title text-sm">Sound {{ number }}</div>
     </div>
 
     <div class="flex flex-col items-center gap-4">
-      <!-- Frequency Control -->
+      <!-- Pitch Control -->
       <div class="control-group">
         <Knob v-model="octave" :min="-2" :max="2" :step="1" class="w-12 h-12" />
         <div class="module-value">{{ formatOctave(octave) }}</div>
-        <label class="module-label">Oct</label>
+        <label class="module-label">Pitch</label>
       </div>
 
-      <!-- Fine Pitch Control -->
+      <!-- Fine Tune Control -->
       <div class="control-group">
         <Knob
           v-model="finePitch"
           :min="-12"
           :max="12"
-          :step="0.1"
+          :step="1"
           class="w-12 h-12"
         />
         <div class="module-value">{{ formatPitch(finePitch) }}</div>
-        <label class="module-label">Fine</label>
+        <label class="module-label">Fine Tune</label>
       </div>
 
-      <!-- Timbre Control -->
+      <!-- Color Control -->
       <div class="control-group">
-        <Knob
-          v-model="shape"
-          :min="0"
-          :max="10"
-          :step="0.1"
-          class="w-12 h-12"
-        />
-        <div class="module-value">{{ shape.toFixed(1) }}</div>
-        <label class="module-label">Timbre</label>
+        <Knob v-model="shape" :min="0" :max="10" :step="1" class="w-12 h-12" />
+        <div class="module-value">{{ shape }}</div>
+        <label class="module-label">Color</label>
       </div>
     </div>
   </div>
@@ -106,19 +100,19 @@
     @apply flex flex-col items-center gap-2;
   }
 
-  .module-value {
-    @apply text-[10px] font-medium text-zinc-500 text-center;
-  }
-
-  .module-label {
-    @apply text-[10px] font-medium text-zinc-400 text-center;
-  }
-
   .module-panel {
     @apply bg-zinc-900/30 rounded-lg p-4 flex flex-col items-center;
   }
 
   .module-title {
-    @apply font-medium text-zinc-400;
+    @apply text-sm font-medium text-zinc-300 mb-2;
+  }
+
+  .module-value {
+    @apply text-[11px] font-mono text-zinc-500 text-center mt-1;
+  }
+
+  .module-label {
+    @apply text-xs font-medium text-zinc-400 text-center;
   }
 </style>

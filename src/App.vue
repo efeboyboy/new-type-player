@@ -36,6 +36,9 @@
   const randomizeAllOscillators = () => {
     [osc1.value, osc2.value, osc3.value].forEach((osc) => osc?.randomize());
   };
+
+  const matrixMixer = ref(null);
+  const envelopeControls = ref(null);
 </script>
 
 <template>
@@ -106,9 +109,40 @@
 
         <!-- Matrix Mixer -->
         <div class="bento-box">
-          <div class="bento-title">Matrix Mixer</div>
+          <div class="bento-title flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
+              <span>Matrix Mixer 292</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Reset Button -->
+              <button
+                @click="matrixMixer?.reset()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Reset Matrix"
+              >
+                <RotateCcw
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+              <!-- Randomize Button -->
+              <button
+                @click="matrixMixer?.randomize()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Randomize Matrix"
+              >
+                <Shuffle
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+            </div>
+          </div>
           <div class="module-content">
-            <MatrixMixer />
+            <MatrixMixer ref="matrixMixer" />
           </div>
         </div>
       </div>
@@ -117,9 +151,40 @@
       <div class="grid grid-cols-4 gap-4">
         <!-- Shape (Envelope Generators) -->
         <div class="bento-box">
-          <div class="bento-title">Shape</div>
+          <div class="bento-title flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
+              <span>Envelope Generator 284</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Reset Button -->
+              <button
+                @click="envelopeControls?.reset()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Reset Envelopes"
+              >
+                <RotateCcw
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+              <!-- Randomize Button -->
+              <button
+                @click="envelopeControls?.randomize()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Randomize Envelopes"
+              >
+                <Shuffle
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+            </div>
+          </div>
           <div class="module-content">
-            <EnvelopeControls />
+            <EnvelopeControls ref="envelopeControls" />
           </div>
         </div>
 

@@ -1,44 +1,51 @@
 <!-- Sound Mixer -->
 <template>
-  <div class="module-panel h-full">
-    <!-- Output Labels Row -->
-    <div class="grid grid-cols-4 gap-x-3 mb-2 pl-10">
-      <div v-for="n in 4" :key="`out-${n}`" class="text-center">
-        <div class="module-label">Out {{ n }}</div>
-      </div>
-    </div>
-
+  <div class="h-full">
     <!-- Matrix Grid -->
-    <div class="grid gap-y-2 h-full">
-      <template v-for="i in 4" :key="`row-${i}`">
-        <div class="flex h-full">
-          <!-- Input Label -->
-          <div class="w-10 flex items-center">
-            <div class="module-label">{{ sources[i - 1] }}</div>
-          </div>
+    <div class="grid grid-cols-[auto_1fr] gap-x-6">
+      <!-- Input Labels Column -->
+      <div class="flex flex-col gap-3 pt-8">
+        <div
+          v-for="i in 4"
+          :key="`label-${i}`"
+          class="h-[73px] flex items-center justify-end"
+        >
+          <div class="module-label">{{ sources[i - 1] }}</div>
+        </div>
+      </div>
 
-          <!-- Knob Row -->
-          <div class="grid grid-cols-4 gap-3 flex-1">
+      <!-- Mixer Grid -->
+      <div class="flex flex-col gap-3">
+        <!-- Output Labels Row -->
+        <div class="grid grid-cols-4 gap-3">
+          <div v-for="n in 4" :key="`out-${n}`" class="text-center">
+            <div class="module-label">Out {{ n }}</div>
+          </div>
+        </div>
+
+        <!-- Knob Grid -->
+        <div class="grid grid-rows-4 gap-3">
+          <div v-for="i in 4" :key="`row-${i}`" class="grid grid-cols-4 gap-3">
             <div
               v-for="j in 4"
               :key="`cell-${i}-${j}`"
-              class="flex flex-col items-center"
+              class="bento-box flex flex-col items-center justify-center p-4"
             >
               <Knob
                 v-model="mixerLevels[i - 1][j - 1]"
                 :min="0"
                 :max="1"
                 :step="0.1"
-                class="w-8 h-8"
+                class="w-10 h-10"
                 @update:modelValue="(v) => updateMixerPoint(i - 1, j - 1, v)"
               />
-              <div class="module-value">
+              <div class="module-value mt-2">
                 {{ formatLevel(mixerLevels[i - 1][j - 1]) }}
               </div>
             </div>
           </div>
         </div>
-      </template>
+      </div>
     </div>
   </div>
 </template>
@@ -107,8 +114,9 @@
 </script>
 
 <style scoped>
-  .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-3;
+  .bento-box {
+    @apply bg-zinc-900/50 rounded-lg border border-zinc-800/50;
+    aspect-ratio: 1;
   }
 
   .module-value {

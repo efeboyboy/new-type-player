@@ -354,8 +354,23 @@
                   </button>
                 </div>
               </div>
-              <div class="module-content">
-                <EnvelopeControls ref="envelopeControls" />
+              <div class="grid grid-rows-2 gap-4 h-full">
+                <div class="bento-box">
+                  <div class="bento-title flex items-center justify-between">
+                    <div class="module-title">Shape</div>
+                  </div>
+                  <div class="module-content flex items-center justify-center">
+                    <EnvelopeControls ref="envelopeControls" mode="shape" />
+                  </div>
+                </div>
+                <div class="bento-box">
+                  <div class="bento-title flex items-center justify-between">
+                    <div class="module-title">Behavior</div>
+                  </div>
+                  <div class="module-content flex items-center justify-center">
+                    <EnvelopeControls ref="envelopeControls" mode="behavior" />
+                  </div>
+                </div>
               </div>
             </div>
 

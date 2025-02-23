@@ -1,69 +1,70 @@
 <template>
   <div class="module-panel h-full">
-    <div class="grid grid-cols-4 gap-4 h-full">
-      <!-- Tone 1 -->
-      <div class="flex flex-col gap-2">
-        <div class="text-center">
-          <div class="module-title">Tone 1</div>
-        </div>
-
-        <!-- Color -->
+    <div class="flex flex-col gap-8">
+      <!-- Top Row - Colors and Treble -->
+      <div class="flex gap-8">
         <div class="control-group">
           <Knob
             v-model="filters[0].freq"
             :min="80"
             :max="800"
             :step="10"
-            class="w-10 h-10"
+            class="w-12 h-12"
             @update:modelValue="updateFilters"
           />
           <div class="module-value">{{ formatFreq(filters[0].freq) }}</div>
           <label class="module-label">Color</label>
         </div>
 
-        <!-- Focus -->
-        <div class="control-group">
-          <Knob
-            v-model="filters[0].q"
-            :min="1.2"
-            :max="4.8"
-            :step="0.2"
-            class="w-10 h-10"
-            @update:modelValue="updateFilters"
-          />
-          <div class="module-value">{{ formatQ(filters[0].q) }}</div>
-          <label class="module-label">Focus</label>
-        </div>
-      </div>
-
-      <!-- Tone 2 -->
-      <div class="flex flex-col gap-2">
-        <div class="text-center">
-          <div class="module-title">Tone 2</div>
-        </div>
-
-        <!-- Color -->
         <div class="control-group">
           <Knob
             v-model="filters[1].freq"
             :min="200"
             :max="2000"
             :step="10"
-            class="w-10 h-10"
+            class="w-12 h-12"
             @update:modelValue="updateFilters"
           />
           <div class="module-value">{{ formatFreq(filters[1].freq) }}</div>
           <label class="module-label">Color</label>
         </div>
 
-        <!-- Focus -->
+        <div class="control-group">
+          <Knob
+            v-model="toneShape.high"
+            :min="-4.8"
+            :max="3.6"
+            :step="0.2"
+            class="w-12 h-12"
+            @update:modelValue="updateToneShape"
+          />
+          <div class="module-value">{{ formatDb(toneShape.high) }}</div>
+          <label class="module-label">Treble</label>
+        </div>
+      </div>
+
+      <!-- Middle Row - Focus -->
+      <div class="flex gap-8">
+        <div class="control-group">
+          <Knob
+            v-model="filters[0].q"
+            :min="1.2"
+            :max="4.8"
+            :step="0.2"
+            class="w-12 h-12"
+            @update:modelValue="updateFilters"
+          />
+          <div class="module-value">{{ formatQ(filters[0].q) }}</div>
+          <label class="module-label">Focus</label>
+        </div>
+
         <div class="control-group">
           <Knob
             v-model="filters[1].q"
             :min="1.2"
             :max="4.8"
             :step="0.2"
-            class="w-10 h-10"
+            class="w-12 h-12"
             @update:modelValue="updateFilters"
           />
           <div class="module-value">{{ formatQ(filters[1].q) }}</div>
@@ -71,69 +72,41 @@
         </div>
       </div>
 
-      <!-- Mix 1 -->
-      <div class="flex flex-col gap-2">
-        <div class="text-center">
-          <div class="module-title">Mix 1</div>
-        </div>
-
-        <!-- Bass -->
+      <!-- Bottom Row - Bass, Middle, Presence -->
+      <div class="flex gap-8">
         <div class="control-group">
           <Knob
             v-model="toneShape.low"
             :min="-4.8"
             :max="3.6"
             :step="0.2"
-            class="w-10 h-10"
+            class="w-12 h-12"
             @update:modelValue="updateToneShape"
           />
           <div class="module-value">{{ formatDb(toneShape.low) }}</div>
           <label class="module-label">Bass</label>
         </div>
 
-        <!-- Middle -->
         <div class="control-group">
           <Knob
             v-model="toneShape.mid"
             :min="-2.4"
             :max="2.4"
             :step="0.2"
-            class="w-10 h-10"
+            class="w-12 h-12"
             @update:modelValue="updateToneShape"
           />
           <div class="module-value">{{ formatDb(toneShape.mid) }}</div>
           <label class="module-label">Middle</label>
         </div>
-      </div>
 
-      <!-- Mix 2 -->
-      <div class="flex flex-col gap-2">
-        <div class="text-center">
-          <div class="module-title">Mix 2</div>
-        </div>
-
-        <!-- Treble -->
-        <div class="control-group">
-          <Knob
-            v-model="toneShape.high"
-            :min="-4.8"
-            :max="3.6"
-            :step="0.2"
-            class="w-10 h-10"
-            @update:modelValue="updateToneShape"
-          />
-          <div class="module-value">{{ formatDb(toneShape.high) }}</div>
-          <label class="module-label">Treble</label>
-        </div>
-
-        <!-- Presence -->
         <div class="control-group">
           <Knob
             v-model="toneShape.presence"
             :min="0"
             :max="3.6"
             :step="0.2"
-            class="w-10 h-10"
+            class="w-12 h-12"
             @update:modelValue="updateToneShape"
           />
           <div class="module-value">
@@ -255,7 +228,7 @@
 
 <style scoped>
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-3;
+    @apply bg-zinc-900/30 rounded-lg p-4;
   }
 
   .control-group {
@@ -263,14 +236,10 @@
   }
 
   .module-value {
-    @apply text-[10px] font-mono text-zinc-500 text-center mt-0.5;
+    @apply text-[10px] font-mono text-zinc-500 text-center mt-1;
   }
 
   .module-label {
     @apply text-[11px] font-medium text-zinc-400 text-center;
-  }
-
-  .module-title {
-    @apply text-sm font-medium text-zinc-300;
   }
 </style>

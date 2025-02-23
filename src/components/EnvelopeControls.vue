@@ -1,90 +1,70 @@
 <template>
-  <div class="module-panel">
-    <div class="grid grid-cols-2 gap-3">
-      <!-- Master Envelope Controls -->
-      <div class="flex flex-col gap-2">
-        <div class="text-center">
-          <div class="module-title">Shape</div>
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <!-- Rise Time -->
-          <div class="control-group">
-            <Knob
-              v-model="masterEnvelope.rise"
-              :min="0.001"
-              :max="0.5"
-              :step="0.001"
-              class="w-10 h-10"
-              @update:modelValue="updateMasterEnvelope"
-            />
-            <div class="module-value">
-              {{ formatTime(masterEnvelope.rise) }}
-            </div>
-            <label class="module-label">Attack</label>
-          </div>
-
-          <!-- Fall Time -->
-          <div class="control-group">
-            <Knob
-              v-model="masterEnvelope.fall"
-              :min="0.01"
-              :max="2"
-              :step="0.01"
-              class="w-10 h-10"
-              @update:modelValue="updateMasterEnvelope"
-            />
-            <div class="module-value">
-              {{ formatTime(masterEnvelope.fall) }}
-            </div>
-            <label class="module-label">Release</label>
-          </div>
-
-          <!-- Level -->
-          <div class="control-group">
-            <Knob
-              v-model="masterEnvelope.level"
-              :min="0.2"
-              :max="1"
-              :step="0.01"
-              class="w-10 h-10"
-              @update:modelValue="updateMasterEnvelope"
-            />
-            <div class="module-value">
-              {{ formatPercent(masterEnvelope.level) }}
-            </div>
-            <label class="module-label">Amount</label>
-          </div>
-        </div>
+  <div class="flex flex-col gap-4" v-if="mode === 'shape'">
+    <!-- Shape Controls -->
+    <div class="flex gap-6">
+      <!-- Attack -->
+      <div class="control-group">
+        <Knob
+          v-model="attack"
+          :min="10"
+          :max="1000"
+          :step="1"
+          class="w-10 h-10"
+        />
+        <div class="module-value">{{ formatTime(attack) }}</div>
+        <label class="module-label">Attack</label>
       </div>
 
-      <!-- Channel Mode Controls -->
-      <div class="flex flex-col gap-2">
-        <div class="text-center">
-          <div class="module-title">Behavior</div>
-        </div>
+      <!-- Release -->
+      <div class="control-group">
+        <Knob
+          v-model="release"
+          :min="10"
+          :max="2000"
+          :step="1"
+          class="w-10 h-10"
+        />
+        <div class="module-value">{{ formatTime(release) }}</div>
+        <label class="module-label">Release</label>
+      </div>
 
-        <div class="flex flex-col gap-2">
-          <!-- Loop Mode Toggles -->
-          <div v-for="n in 4" :key="n" class="control-group">
-            <button
-              @click="toggleMode(n - 1)"
-              :class="[
-                'w-10 h-10 rounded-lg',
-                loopModes[n - 1]
-                  ? 'bg-emerald-500/30 border-emerald-500'
-                  : 'bg-zinc-800 border-zinc-700',
-                'border hover:bg-zinc-700 transition-colors flex items-center justify-center',
-              ]"
-            >
-              <span class="text-xs">{{ loopModes[n - 1] ? "↻" : "→" }}</span>
-            </button>
-            <div class="module-value">{{ n }}</div>
-            <label class="module-label">{{
-              loopModes[n - 1] ? "Cycle" : "Once"
-            }}</label>
-          </div>
-        </div>
+      <!-- Amount -->
+      <div class="control-group">
+        <Knob
+          v-model="amount"
+          :min="0"
+          :max="1"
+          :step="0.01"
+          class="w-10 h-10"
+        />
+        <div class="module-value">{{ formatPercent(amount) }}</div>
+        <label class="module-label">Amount</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-4" v-else>
+    <!-- Behavior Controls -->
+    <div class="flex gap-6">
+      <!-- Cycle Buttons -->
+      <div v-for="n in 4" :key="n" class="control-group">
+        <button
+          class="w-10 h-10 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center border border-zinc-700/50"
+          :class="{ 'border-emerald-500/50': cycleStates[n - 1] }"
+          @click="toggleCycle(n - 1)"
+        >
+          <IconHolder
+            class="w-4 h-4"
+            :class="{ 'text-emerald-400': cycleStates[n - 1] }"
+          >
+            <RotateCcw v-if="cycleStates[n - 1]" />
+            <ArrowRight v-else />
+          </IconHolder>
+        </button>
+        <div class="module-value">{{ n }}</div>
+        <label class="module-label">{{
+          cycleStates[n - 1] ? "Cycle" : "Once"
+        }}</label>
       </div>
     </div>
   </div>
@@ -92,100 +72,81 @@
 
 <script setup>
   import { ref, watch } from "vue";
+  import { RotateCcw, ArrowRight } from "lucide-vue-next";
   import Knob from "./Knob.vue";
+  import IconHolder from "./IconHolder.vue";
   import audioEngine from "../services/AudioEngine.js";
 
-  // Master envelope controls
-  const masterEnvelope = ref({
-    rise: 0.01,
-    fall: 0.1,
-    level: 0.8,
+  const props = defineProps({
+    mode: {
+      type: String,
+      required: true,
+      validator: (value) => ["shape", "behavior"].includes(value),
+    },
   });
 
-  // Loop mode for each channel
-  const loopModes = ref([false, false, false, false]);
+  // Shape controls
+  const attack = ref(120);
+  const release = ref(461);
+  const amount = ref(0.89);
 
-  const formatTime = (time) => {
-    if (time >= 1) return time.toFixed(1) + "s";
-    return (time * 1000).toFixed(0) + "ms";
+  // Behavior controls
+  const cycleStates = ref([true, false, false, false]);
+
+  const toggleCycle = (index) => {
+    cycleStates.value[index] = !cycleStates.value[index];
+    updateBehavior();
+  };
+
+  const formatTime = (ms) => {
+    return `${ms}ms`;
   };
 
   const formatPercent = (value) => {
-    return `${(value * 100).toFixed(0)}%`;
+    return `${Math.round(value * 100)}%`;
   };
 
-  // Update master envelope (affects all channels with their respective offsets)
-  const updateMasterEnvelope = () => {
-    audioEngine.setEnvelope(0, {
-      rise: masterEnvelope.value.rise,
-      fall: masterEnvelope.value.fall,
-      level: masterEnvelope.value.level,
+  const updateShape = () => {
+    audioEngine.setEnvelopeShape({
+      attack: attack.value,
+      release: release.value,
+      amount: amount.value,
     });
   };
 
-  // Toggle loop mode for a channel
-  const toggleMode = (index) => {
-    loopModes.value[index] = !loopModes.value[index];
-    audioEngine.setEnvelopeLFO(
-      index,
-      loopModes.value[index],
-      1 / (masterEnvelope.value.rise + masterEnvelope.value.fall)
-    );
+  const updateBehavior = () => {
+    audioEngine.setEnvelopeBehavior(cycleStates.value);
   };
 
-  // Reset to defaults
+  // Reset function
   const reset = () => {
-    masterEnvelope.value = {
-      rise: 0.01,
-      fall: 0.1,
-      level: 0.8,
-    };
-    loopModes.value = [false, false, false, false];
-    updateMasterEnvelope();
-    loopModes.value.forEach((_, i) => {
-      audioEngine.setEnvelopeLFO(i, false);
-    });
+    attack.value = 120;
+    release.value = 461;
+    amount.value = 0.89;
+    cycleStates.value = [true, false, false, false];
+    updateShape();
+    updateBehavior();
   };
 
-  // Randomize with musical constraints
+  // Randomize function
   const randomize = () => {
-    masterEnvelope.value = {
-      rise: 0.01 + Math.random() * 0.49,
-      fall: 0.01 + Math.random() * 0.49,
-      level: 0.6 + Math.random() * 0.4,
-    };
-    loopModes.value = loopModes.value.map(() => Math.random() > 0.7);
-    updateMasterEnvelope();
-    loopModes.value.forEach((mode, i) => {
-      audioEngine.setEnvelopeLFO(
-        i,
-        mode,
-        1 / (masterEnvelope.value.rise + masterEnvelope.value.fall)
-      );
-    });
+    attack.value = 10 + Math.random() * 990;
+    release.value = 10 + Math.random() * 1990;
+    amount.value = Math.random();
+    cycleStates.value = cycleStates.value.map(() => Math.random() > 0.5);
+    updateShape();
+    updateBehavior();
   };
 
-  // Expose methods for parent component
+  watch([attack, release, amount], updateShape);
+
   defineExpose({
     reset,
     randomize,
   });
-
-  // Watch for changes and update audio engine
-  watch(
-    masterEnvelope,
-    () => {
-      updateMasterEnvelope();
-    },
-    { deep: true }
-  );
 </script>
 
 <style scoped>
-  .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-3;
-  }
-
   .control-group {
     @apply flex flex-col items-center gap-1;
   }
@@ -196,9 +157,5 @@
 
   .module-label {
     @apply text-[11px] font-medium text-zinc-400 text-center;
-  }
-
-  .module-title {
-    @apply text-sm font-medium text-zinc-300;
   }
 </style>

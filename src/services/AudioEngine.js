@@ -647,6 +647,7 @@ class AudioEngine {
   triggerEnvelope(channel, time = "+0.05", params = {}) {
     if (channel >= 0 && channel < 4) {
       const envSystem = this.envelopes[channel];
+      const lpg = this.lpgs[channel];
 
       // Use provided duration or calculate from envelope settings
       const duration =
@@ -660,8 +661,15 @@ class AudioEngine {
         envSystem.multiply.value = velocityScale;
       }
 
-      // Trigger with timing consideration
+      // Trigger envelope with timing consideration
       envSystem.envelope.triggerAttackRelease(duration, time);
+
+      // If in LFO mode, ensure LFO is running
+      if (envSystem.isLooping && lpg.lfo.state !== "started") {
+        lpg.lfo.start(time);
+      } else if (!envSystem.isLooping && lpg.lfo.state === "started") {
+        lpg.lfo.stop(time);
+      }
     }
   }
 
@@ -902,6 +910,26 @@ class AudioEngine {
         lpg.vactrol.connect(lpg.vca.gain);
         lpg.vactrol.connect(lpg.filter.frequency);
         lpg.filter.connect(lpg.vca);
+
+        // Initialize envelope parameters and create proper signal chain
+        const envSystem = this.envelopes[i];
+
+        // Create a VCA for the envelope to control
+        envSystem.vca = new Tone.Gain(0);
+        envSystem.envelope.connect(envSystem.vca.gain);
+        envSystem.vca.connect(lpg.vactrol);
+
+        // Initialize envelope parameters
+        envSystem.envelope.attack = 0.01;
+        envSystem.envelope.decay = 0.2;
+        envSystem.envelope.sustain = 0.5;
+        envSystem.envelope.release = 0.5;
+        envSystem.timeScale = 1;
+
+        // Start LFO if in loop mode
+        if (envSystem.isLooping) {
+          lpg.lfo.start();
+        }
       }
 
       // Connect matrix mixer

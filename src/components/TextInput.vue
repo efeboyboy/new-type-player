@@ -1,63 +1,69 @@
 <template>
   <div class="text-input flex flex-col gap-2">
-    <div class="flex items-center gap-2">
+    <div class="flex flex-col sm:flex-row gap-2">
       <input
         type="text"
         v-model="text"
         @input="handleInput"
-        class="flex-1 h-10 bg-zinc-900/50 rounded-lg px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-colors"
+        class="w-full h-10 bg-zinc-900/50 rounded-lg px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-colors"
         :class="{ 'opacity-50 cursor-not-allowed': !isInitialized }"
         placeholder="Type something to generate music..."
         :disabled="!isInitialized"
       />
 
-      <div class="flex items-center gap-2">
-        <div class="text-[10px] text-zinc-500">{{ text.length }} chars</div>
-        <button
-          @click="handleButtonClick"
-          class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors flex items-center gap-2 whitespace-nowrap"
-          :class="{
-            'bg-emerald-500/30': store.playing,
-            'opacity-50 cursor-not-allowed': isInitialized && !text.trim(),
-          }"
-          :disabled="isInitialized && !text.trim()"
-        >
-          <IconHolder class="w-3 h-3">
-            <span
-              v-if="!isInitialized"
-              class="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full"
-              :class="{ 'animate-spin': isInitializing }"
-            ></span>
-            <Pause
-              v-else-if="store.playing"
-              class="text-current"
-              stroke-width="1.5"
-            />
-            <Play v-else class="text-current" stroke-width="1.5" />
-          </IconHolder>
-          <span>{{ buttonText }}</span>
-        </button>
-
-        <!-- Randomize Button -->
-        <button
-          @click="handleRandomize"
-          class="px-3 py-2 text-[10px] bg-indigo-500/20 text-indigo-500 rounded-lg hover:bg-indigo-500/30 transition-colors flex items-center gap-2 whitespace-nowrap group relative"
-          :class="{
-            'opacity-50 cursor-not-allowed': !isInitialized,
-          }"
-          :disabled="!isInitialized"
-        >
-          <IconHolder class="w-3 h-3">
-            <Shuffle class="text-current" stroke-width="1.5" />
-          </IconHolder>
-          <span>Random</span>
-          <!-- Tooltip -->
-          <div
-            class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-zinc-800 text-zinc-200 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
+      <div class="flex items-center gap-2 justify-between sm:justify-start">
+        <div class="text-[10px] text-zinc-500 whitespace-nowrap">
+          {{ text.length }} chars
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            @click="handleButtonClick"
+            class="h-10 px-4 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors flex items-center gap-2 whitespace-nowrap flex-1 sm:flex-none justify-center"
+            :class="{
+              'bg-emerald-500/30': store.playing,
+              'opacity-50 cursor-not-allowed': isInitialized && !text.trim(),
+            }"
+            :disabled="isInitialized && !text.trim()"
           >
-            {{ currentSeed ? `Current Seed: ${currentSeed}` : "Randomize All" }}
-          </div>
-        </button>
+            <IconHolder class="w-3 h-3">
+              <span
+                v-if="!isInitialized"
+                class="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full"
+                :class="{ 'animate-spin': isInitializing }"
+              ></span>
+              <Pause
+                v-else-if="store.playing"
+                class="text-current"
+                stroke-width="1.5"
+              />
+              <Play v-else class="text-current" stroke-width="1.5" />
+            </IconHolder>
+            <span>{{ buttonText }}</span>
+          </button>
+
+          <!-- Randomize Button -->
+          <button
+            @click="handleRandomize"
+            class="h-10 px-4 text-[10px] bg-indigo-500/20 text-indigo-500 rounded-lg hover:bg-indigo-500/30 transition-colors flex items-center gap-2 whitespace-nowrap flex-1 sm:flex-none justify-center group relative"
+            :class="{
+              'opacity-50 cursor-not-allowed': !isInitialized,
+            }"
+            :disabled="!isInitialized"
+          >
+            <IconHolder class="w-3 h-3">
+              <Shuffle class="text-current" stroke-width="1.5" />
+            </IconHolder>
+            <span>Random</span>
+            <!-- Tooltip -->
+            <div
+              class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-zinc-800 text-zinc-200 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10"
+            >
+              {{
+                currentSeed ? `Current Seed: ${currentSeed}` : "Randomize All"
+              }}
+            </div>
+          </button>
+        </div>
       </div>
     </div>
   </div>

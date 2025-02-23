@@ -39,6 +39,9 @@
 
   const matrixMixer = ref(null);
   const envelopeControls = ref(null);
+  const lpgControls = ref(null);
+  const filterControls = ref(null);
+  const spatialControls = ref(null);
 </script>
 
 <template>
@@ -190,25 +193,118 @@
 
         <!-- Gate (Low Pass Gates) -->
         <div class="bento-box">
-          <div class="bento-title">Gate</div>
+          <div class="bento-title flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
+              <span>Low Pass Gate 292</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Reset Button -->
+              <button
+                @click="lpgControls?.reset()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Reset LPGs"
+              >
+                <RotateCcw
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+              <!-- Randomize Button -->
+              <button
+                @click="lpgControls?.randomize()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Randomize LPGs"
+              >
+                <Shuffle
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+            </div>
+          </div>
           <div class="module-content">
-            <LPGControls />
+            <LPGControls ref="lpgControls" />
           </div>
         </div>
 
         <!-- Tone (Filters) -->
         <div class="bento-box">
-          <div class="bento-title">Tone</div>
+          <div class="bento-title flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
+              <span>Dual Filter 291</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Reset Button -->
+              <button
+                @click="filterControls?.reset()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Reset Filters"
+              >
+                <RotateCcw
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+              <!-- Randomize Button -->
+              <button
+                @click="filterControls?.randomize()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Randomize Filters"
+              >
+                <Shuffle
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+            </div>
+          </div>
           <div class="module-content">
-            <FilterControls />
+            <FilterControls ref="filterControls" />
           </div>
         </div>
 
         <!-- Space (Spatial Director) -->
         <div class="bento-box">
-          <div class="bento-title">Space</div>
+          <div class="bento-title flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
+              <span>Spatial Director 227</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Reset Button -->
+              <button
+                @click="spatialControls?.reset()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Reset Spatial"
+              >
+                <RotateCcw
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+              <!-- Randomize Button -->
+              <button
+                @click="spatialControls?.randomize()"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Randomize Spatial"
+              >
+                <Shuffle
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+            </div>
+          </div>
           <div class="module-content">
-            <SpatialControls />
+            <SpatialControls ref="spatialControls" />
           </div>
         </div>
       </div>

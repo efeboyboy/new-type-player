@@ -1,35 +1,5 @@
 <template>
   <div class="module-panel">
-    <div class="flex items-center justify-between mb-3">
-      <div class="module-title">Dual Filter 291</div>
-      <div class="flex items-center gap-2">
-        <!-- Reset Button -->
-        <button
-          @click="resetFilters"
-          class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-          title="Reset to Default"
-        >
-          <RotateCcw
-            :size="14"
-            class="text-zinc-400 group-hover:text-emerald-400"
-            stroke-width="1.5"
-          />
-        </button>
-        <!-- Randomize Button -->
-        <button
-          @click="randomizeFilters"
-          class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-          title="Randomize Values"
-        >
-          <Shuffle
-            :size="14"
-            class="text-zinc-400 group-hover:text-emerald-400"
-            stroke-width="1.5"
-          />
-        </button>
-      </div>
-    </div>
-
     <div class="grid grid-cols-4 gap-2">
       <!-- Dual Bandpass Filters -->
       <div v-for="n in 2" :key="n" class="flex flex-col gap-2">
@@ -44,7 +14,7 @@
             :min="20"
             :max="20000"
             :step="1"
-            class="w-8 h-8"
+            class="w-10 h-10"
             @update:modelValue="updateFilters"
           />
           <div class="module-value">{{ formatFreq(filters[n - 1].freq) }}</div>
@@ -58,7 +28,7 @@
             :min="0.1"
             :max="10"
             :step="0.1"
-            class="w-8 h-8"
+            class="w-10 h-10"
             @update:modelValue="updateFilters"
           />
           <div class="module-value">{{ filters[n - 1].q.toFixed(1) }}</div>
@@ -79,7 +49,7 @@
             :min="-12"
             :max="12"
             :step="0.1"
-            class="w-8 h-8"
+            class="w-10 h-10"
             @update:modelValue="updateToneShape"
           />
           <div class="module-value">
@@ -95,7 +65,7 @@
             :min="-12"
             :max="12"
             :step="0.1"
-            class="w-8 h-8"
+            class="w-10 h-10"
             @update:modelValue="updateToneShape"
           />
           <div class="module-value">{{ formatDb(toneShape.mid) }}</div>
@@ -108,7 +78,6 @@
 
 <script setup>
   import { ref } from "vue";
-  import { RotateCcw, Shuffle } from "lucide-vue-next";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
 
@@ -157,7 +126,7 @@
   };
 
   // Reset to defaults
-  const resetFilters = () => {
+  const reset = () => {
     filters.value = defaultFilters.map((filter) => ({ ...filter }));
     toneShape.value = { ...defaultToneShape };
     updateFilters();
@@ -165,7 +134,7 @@
   };
 
   // Randomize values
-  const randomizeFilters = () => {
+  const randomize = () => {
     filters.value = filters.value.map(() => ({
       freq: Math.exp(Math.random() * Math.log(20000 / 20)) * 20,
       q: 0.1 + Math.random() * 9.9,
@@ -178,26 +147,28 @@
     updateFilters();
     updateToneShape();
   };
+
+  // Expose methods for parent component
+  defineExpose({
+    reset,
+    randomize,
+  });
 </script>
 
 <style scoped>
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-3;
-  }
-
-  .module-title {
-    @apply text-sm font-medium text-zinc-400;
-  }
-
-  .module-value {
-    @apply text-[10px] font-medium text-zinc-500;
-  }
-
-  .module-label {
-    @apply text-[10px] font-medium text-zinc-400;
+    @apply bg-zinc-900/30 rounded-lg p-6;
   }
 
   .control-group {
     @apply flex flex-col items-center gap-1;
+  }
+
+  .module-value {
+    @apply text-[10px] font-medium text-zinc-500 text-center mt-0.5;
+  }
+
+  .module-label {
+    @apply text-[10px] font-medium text-zinc-400 text-center;
   }
 </style>

@@ -90,7 +90,7 @@
   const randomize = () => {
     volume.value = Math.random();
     filterFreq.value = Math.exp(Math.random() * Math.log(20000 / 20)) * 20;
-    filterQ.value = 0.1 + Math.random() * 9.9;
+    filterQ.value = Math.random() * 9.9 + 0.1;
     updateNoise();
   };
 

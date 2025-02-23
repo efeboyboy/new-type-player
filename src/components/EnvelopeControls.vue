@@ -103,8 +103,8 @@
   // Randomize all envelope parameters
   const randomize = () => {
     envelopes.value = envelopes.value.map(() => ({
-      attack: Math.random() * 0.5,
-      decay: 0.1 + Math.random() * 0.9,
+      attack: Math.random() * 1.999 + 0.001,
+      decay: Math.random() * 1.999 + 0.001,
       sustain: Math.random(),
     }));
     updateAllEnvelopes();

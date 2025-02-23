@@ -87,8 +87,8 @@
     },
     randomize: () => {
       octave.value = Math.floor(Math.random() * 5) - 2;
-      finePitch.value = Math.round((Math.random() * 24 - 12) * 10) / 10;
-      shape.value = Math.round(Math.random() * 100) / 10;
+      finePitch.value = Math.random() * 24 - 12;
+      shape.value = Math.random() * 10;
     },
   });
 

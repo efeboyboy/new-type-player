@@ -158,25 +158,15 @@
     }
   };
 
-  // Reset all LPGs to default values
-  const reset = async () => {
-    lpgs.value = lpgs.value.map(() => ({ ...defaultLPG }));
-    for (let i = 0; i < lpgs.value.length; i++) {
-      await updateLPG(i);
-    }
-  };
-
-  // Randomize all LPG parameters
-  const randomize = async () => {
+  // Randomize values
+  const randomize = () => {
     lpgs.value = lpgs.value.map(() => ({
-      rise: 0.01 + Math.random() * 0.99,
-      fall: 0.01 + Math.random() * 0.99,
-      level: Math.random(),
-      loopMode: Math.random() > 0.7, // 30% chance of LFO mode
+      rise: Math.random() * 0.99 + 0.01, // 0.01 to 1
+      fall: Math.random() * 0.99 + 0.01, // 0.01 to 1
+      level: Math.random(), // 0 to 1
+      loopMode: Math.random() > 0.5, // Random mode
     }));
-    for (let i = 0; i < lpgs.value.length; i++) {
-      await updateLPG(i);
-    }
+    lpgs.value.forEach((_, index) => updateLPG(index));
   };
 
   // Watch for changes and update audio engine
@@ -214,7 +204,17 @@
 
   // Expose methods for parent component
   defineExpose({
-    reset,
+    reset: () => {
+      lpgs.value = Array(4)
+        .fill()
+        .map((_, index) => ({
+          rise: index === 3 ? 0.08 : 0.05,
+          fall: index === 3 ? 0.2 : 0.15,
+          level: index === 3 ? 0.7 : 0.85,
+          loopMode: false,
+        }));
+      lpgs.value.forEach((_, index) => updateLPG(index));
+    },
     randomize,
   });
 </script>

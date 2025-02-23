@@ -61,32 +61,35 @@
   // Format level value
   const formatLevel = (value) => `${(value * 100).toFixed(0)}%`;
 
-  // Update mixer point in the audio engine
-  const updateMixerPoint = (input, output, value) => {
-    mixerLevels.value[input][output] = value;
-    audioEngine.setMixerPoint(input, output, value);
+  // Update mixer point
+  const updateMixerPoint = (i, j, value) => {
+    audioEngine.setMixerPoint(i, j, value);
   };
 
-  // Reset mixer to default state (diagonal connections)
+  // Reset to default values
   const reset = () => {
-    mixerLevels.value = mixerLevels.value.map((row, i) =>
-      row.map((_, j) => (i === j ? 0.7 : 0))
-    );
-    mixerLevels.value.forEach((row, i) => {
-      row.forEach((value, j) => {
-        audioEngine.setMixerPoint(i, j, value);
-      });
+    mixerLevels.value = Array(4)
+      .fill()
+      .map(() => Array(4).fill(0));
+    mixerLevels.value.forEach((_, i) => {
+      mixerLevels.value[i][i] = 0.7; // Set diagonal to 0.7
+      updateMixerPoint(i, i, 0.7);
     });
   };
 
-  // Randomize mixer values
+  // Randomize all mixer points
   const randomize = () => {
-    mixerLevels.value = mixerLevels.value.map((row) =>
-      row.map(() => Math.random() * 0.8)
-    );
+    mixerLevels.value = Array(4)
+      .fill()
+      .map(
+        () =>
+          Array(4)
+            .fill()
+            .map(() => Math.random()) // 0 to 1
+      );
     mixerLevels.value.forEach((row, i) => {
       row.forEach((value, j) => {
-        audioEngine.setMixerPoint(i, j, value);
+        updateMixerPoint(i, j, value);
       });
     });
   };
@@ -97,8 +100,8 @@
     randomize,
   });
 
+  // Initialize default values
   onMounted(() => {
-    // Set initial diagonal connections (1:1 routing)
     reset();
   });
 </script>

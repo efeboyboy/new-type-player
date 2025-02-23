@@ -1,24 +1,24 @@
 <template>
   <div class="matrix-mixer">
-    <div class="grid grid-cols-5 gap-2">
+    <div class="grid grid-cols-5 gap-1">
       <!-- Headers -->
       <div></div>
       <div v-for="n in 4" :key="`out-${n}`" class="text-center">
-        <div class="text-[10px] text-zinc-500">{{ n }}</div>
+        <div class="text-[8px] text-zinc-500">{{ n }}</div>
       </div>
 
       <!-- Matrix rows -->
       <template v-for="i in 4" :key="`row-${i}`">
         <div class="flex items-center justify-center">
-          <div class="text-[10px] text-zinc-500">{{ i }}</div>
+          <div class="text-[8px] text-zinc-500">{{ i }}</div>
         </div>
-        <div v-for="j in 4" :key="`cell-${i}-${j}`" class="p-1">
+        <div v-for="j in 4" :key="`cell-${i}-${j}`" class="p-0.5">
           <Knob
             v-model="mixerLevels[i - 1][j - 1]"
             :min="0"
             :max="1"
             :step="0.01"
-            class="w-8 h-8"
+            class="w-5 h-5"
             @update:modelValue="updateMixerPoint(i - 1, j - 1, $event)"
           />
         </div>
@@ -55,6 +55,6 @@
 
 <style scoped>
   .matrix-mixer {
-    @apply flex justify-center;
+    @apply flex justify-center items-center h-full;
   }
 </style>

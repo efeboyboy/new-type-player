@@ -23,9 +23,10 @@
           Initialize Audio
         </button>
         <button
-          v-if="store.audioInitialized && text.length > 0"
+          v-else
           @click="togglePlay"
           class="px-2 py-1 text-[10px] bg-emerald-500/20 text-emerald-500 rounded hover:bg-emerald-500/30 transition-colors flex items-center gap-1"
+          :class="{ 'bg-emerald-500/30': store.playing }"
         >
           <div
             class="w-2 h-2"
@@ -36,7 +37,7 @@
           {{ store.playing ? "Stop" : "Play" }}
         </button>
         <div
-          v-else-if="store.audioInitialized"
+          v-if="store.audioInitialized && text.length === 0"
           class="text-[10px] text-zinc-600"
         >
           <div class="flex items-center gap-1">

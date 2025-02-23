@@ -16,9 +16,6 @@
     store.updateInput(newText);
   };
 
-  const playing = computed(() => store.playing);
-  const togglePlay = () => store.togglePlaying();
-
   const tempo = computed({
     get: () => store.tempo,
     set: (val) => {
@@ -31,83 +28,64 @@
 <template>
   <div class="min-h-screen w-screen bg-zinc-950 p-4 font-instrument">
     <!-- Main Control Panel -->
-    <div class="bento-box mb-4">
-      <div class="flex items-center justify-between">
-        <h1 class="text-xl text-zinc-100">Text to Sound Explorer</h1>
-        <div class="flex items-center gap-4">
-          <button
-            @click="togglePlay"
-            class="w-10 h-10 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 flex items-center justify-center transition-all"
-            :title="playing ? 'Stop' : 'Play'"
-          >
-            <div
-              class="w-4 h-4"
-              :class="playing ? 'bg-current' : 'border-l-[10px] border-current'"
-            ></div>
-          </button>
-          <div
-            class="flex items-center gap-3 bg-zinc-900/50 rounded-lg px-4 py-2"
-          >
-            <span class="text-sm text-zinc-400">Speed</span>
-            <Knob
-              v-model="tempo"
-              :min="40"
-              :max="200"
-              :step="1"
-              class="w-8 h-8"
-            />
-            <span class="text-sm font-mono text-zinc-300">{{ tempo }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Text Input -->
-      <div class="mt-4">
-        <TextInput @update:text="handleUpdateText" />
+    <div class="flex flex-row items-center justify-between mb-4">
+      <h1 class="text-xl text-zinc-100">Type Player</h1>
+      <div class="flex items-center gap-3 bg-zinc-900/50 rounded-lg px-4 py-2">
+        <span class="text-sm text-zinc-400">Speed</span>
+        <Knob v-model="tempo" :min="40" :max="200" :step="1" class="w-8 h-8" />
+        <span class="text-sm font-mono text-zinc-300">{{ tempo }}</span>
       </div>
     </div>
 
+    <!-- Text Input -->
+    <div class="mb-4">
+      <TextInput @update:text="handleUpdateText" />
+    </div>
+
     <!-- Main Grid -->
-    <div class="grid grid-cols-12 gap-4">
-      <!-- Oscillators -->
-      <div class="col-span-12 grid grid-cols-3 gap-4">
-        <div v-for="n in 3" :key="n" class="bento-box">
+    <div class="grid grid-rows-2 gap-4">
+      <!-- Top Row -->
+      <div class="grid grid-cols-4 gap-4">
+        <!-- Sound Sources -->
+        <div class="bento-box">
           <div class="bento-title flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-            Sound {{ n }}
+            Sound Sources
           </div>
-          <OscillatorControls :number="n" />
+          <div class="grid grid-cols-3 gap-2">
+            <OscillatorControls v-for="n in 3" :key="n" :number="n" />
+          </div>
         </div>
-      </div>
 
-      <!-- Matrix Mixer -->
-      <div class="col-span-6 bento-box">
-        <div class="bento-title">Mix</div>
-        <MatrixMixer />
-      </div>
+        <!-- Matrix Mixer -->
+        <div class="bento-box">
+          <div class="bento-title">Mix</div>
+          <MatrixMixer />
+        </div>
 
-      <!-- Envelopes -->
-      <div class="col-span-6 bento-box">
-        <div class="bento-title">Shape</div>
-        <EnvelopeControls />
-      </div>
+        <!-- Envelopes -->
+        <div class="bento-box">
+          <div class="bento-title">Shape</div>
+          <EnvelopeControls />
+        </div>
 
-      <!-- Bottom Row -->
-      <div class="col-span-12 grid grid-cols-3 gap-4">
         <!-- LPGs -->
-        <div class="bento-box col-span-1">
+        <div class="bento-box">
           <div class="bento-title">Gate</div>
           <LPGControls />
         </div>
+      </div>
 
+      <!-- Bottom Row -->
+      <div class="grid grid-cols-4 gap-4">
         <!-- Filter -->
-        <div class="bento-box col-span-1">
+        <div class="bento-box col-span-2">
           <div class="bento-title">Tone</div>
           <FilterControls />
         </div>
 
         <!-- Spatializer -->
-        <div class="bento-box col-span-1">
+        <div class="bento-box col-span-2">
           <div class="bento-title">Space</div>
           <SpatialControls />
         </div>

@@ -1,31 +1,34 @@
 <template>
-  <div class="grid grid-cols-2 gap-4">
-    <!-- Pitch Control -->
-    <div class="control-group">
-      <label class="text-[10px] text-zinc-400">Pitch</label>
-      <Knob
-        v-model="pitch"
-        :min="-24"
-        :max="24"
-        :step="1"
-        class="w-8 h-8"
-        @update:modelValue="updateOscillator"
-      />
-      <div class="text-[10px] text-zinc-500">{{ formatPitch(pitch) }}</div>
-    </div>
+  <div class="flex flex-col gap-2">
+    <div class="text-[10px] text-zinc-400 text-center">Sound {{ number }}</div>
+    <div class="flex gap-2">
+      <!-- Pitch Control -->
+      <div class="control-group">
+        <Knob
+          v-model="pitch"
+          :min="-24"
+          :max="24"
+          :step="1"
+          class="w-6 h-6"
+          @update:modelValue="updateOscillator"
+        />
+        <div class="text-[10px] text-zinc-500">{{ formatPitch(pitch) }}</div>
+        <label class="text-[8px] text-zinc-400">Pitch</label>
+      </div>
 
-    <!-- Wave Shape Control -->
-    <div class="control-group">
-      <label class="text-[10px] text-zinc-400">Shape</label>
-      <Knob
-        v-model="shape"
-        :min="0"
-        :max="10"
-        :step="0.1"
-        class="w-8 h-8"
-        @update:modelValue="updateOscillator"
-      />
-      <div class="text-[10px] text-zinc-500">{{ shape.toFixed(1) }}</div>
+      <!-- Wave Shape Control -->
+      <div class="control-group">
+        <Knob
+          v-model="shape"
+          :min="0"
+          :max="10"
+          :step="0.1"
+          class="w-6 h-6"
+          @update:modelValue="updateOscillator"
+        />
+        <div class="text-[10px] text-zinc-500">{{ shape.toFixed(1) }}</div>
+        <label class="text-[8px] text-zinc-400">Shape</label>
+      </div>
     </div>
   </div>
 </template>
@@ -46,10 +49,12 @@
   const shape = ref(0);
 
   const updateOscillator = () => {
+    const frequency = 440 * Math.pow(2, pitch.value / 12); // Convert semitones to frequency
     audioEngine.setOscillatorParams(props.number, {
-      pitch: pitch.value,
-      shape: shape.value,
+      frequency: frequency,
+      waveShape: shape.value / 10, // Normalize to 0-1 range
     });
+    console.log(`OSC${props.number}:`, { frequency, shape: shape.value / 10 });
   };
 
   // Format pitch in semitones
@@ -63,6 +68,6 @@
 
 <style scoped>
   .control-group {
-    @apply flex flex-col items-center gap-1;
+    @apply flex flex-col items-center gap-0.5;
   }
 </style>

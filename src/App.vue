@@ -26,6 +26,7 @@
   import AIControls from "./components/AIControls.vue";
   import IconHolder from "./components/IconHolder.vue";
   import HelpModal from "./components/HelpModal.vue";
+  import InitModal from "./components/InitModal.vue";
   import { Teleport } from "vue";
 
   const tempo = computed({
@@ -95,6 +96,7 @@
   const currentSequence = ref(null);
 
   const showHelp = ref(false);
+  const showInitModal = ref(true);
 
   // Handle text changes
   const handleTextChange = (text) => {
@@ -488,6 +490,13 @@
     <!-- Help Modal (moved to root level) -->
     <Teleport to="body">
       <HelpModal v-if="showHelp" @close="showHelp = false" />
+    </Teleport>
+
+    <!-- Init Modal (moved to root level) -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <InitModal v-if="showInitModal" @close="showInitModal = false" />
+      </Transition>
     </Teleport>
   </div>
 </template>

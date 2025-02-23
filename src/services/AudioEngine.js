@@ -629,10 +629,29 @@ class AudioEngine {
 
     try {
       if (oscNumber >= 1 && oscNumber <= 3) {
-        const fold = 1 + amount * 4; // Map 0-1 to 1-5 folds
-        this.waveFolders[oscNumber - 1].setMap((x) => {
-          return Math.sin(x * Math.PI * fold);
-        });
+        // Map 0-1 to different wave shaping functions for more timbral variety
+        const normalizedAmount = amount * 10; // Scale up the input range
+        let shapeFunc;
+
+        if (normalizedAmount < 3.33) {
+          // Gentle sine folding for subtle harmonics
+          const fold = 1 + normalizedAmount;
+          shapeFunc = (x) => Math.sin(x * Math.PI * fold);
+        } else if (normalizedAmount < 6.66) {
+          // Asymmetric folding for richer harmonics
+          const fold = 1 + (normalizedAmount - 3.33) * 2;
+          shapeFunc = (x) =>
+            Math.sin(x * Math.PI * fold) * Math.cos(x * Math.PI * 0.5);
+        } else {
+          // Hard folding for aggressive timbres
+          const fold = 1 + (normalizedAmount - 6.66) * 3;
+          shapeFunc = (x) => {
+            const folded = Math.sin(x * Math.PI * fold);
+            return Math.sign(folded) * Math.pow(Math.abs(folded), 0.5);
+          };
+        }
+
+        this.waveFolders[oscNumber - 1].setMap(shapeFunc);
       }
     } catch (error) {
       console.warn(

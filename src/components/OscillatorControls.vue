@@ -27,8 +27,14 @@
 
       <!-- Color Control -->
       <div class="control-group">
-        <Knob v-model="shape" :min="0" :max="10" :step="1" class="w-12 h-12" />
-        <div class="module-value">{{ shape }}</div>
+        <Knob
+          v-model="shape"
+          :min="0"
+          :max="1"
+          :step="0.01"
+          class="w-12 h-12"
+        />
+        <div class="module-value">{{ formatPercent(shape) }}</div>
         <label class="module-label">Color</label>
       </div>
     </div>
@@ -51,7 +57,7 @@
   const defaultValues = {
     octave: 0,
     finePitch: 0,
-    shape: 5,
+    shape: 0.5,
   };
 
   const octave = ref(defaultValues.octave);
@@ -66,7 +72,7 @@
 
     audioEngine.setOscillatorParams(props.number, {
       frequency: frequency,
-      waveShape: shape.value / 10,
+      waveShape: shape.value,
     });
   };
 
@@ -76,6 +82,10 @@
 
   const formatPitch = (p) => {
     return p > 0 ? `+${p.toFixed(1)}` : p.toFixed(1);
+  };
+
+  const formatPercent = (value) => {
+    return `${Math.round(value * 100)}%`;
   };
 
   // Expose methods for parent component
@@ -88,7 +98,7 @@
     randomize: () => {
       octave.value = Math.floor(Math.random() * 7) - 3;
       finePitch.value = Math.random() * 24 - 12;
-      shape.value = Math.random() * 10;
+      shape.value = Math.random();
     },
   });
 

@@ -59,6 +59,7 @@
       }
       store.volume = 0;
       audioEngine.setMasterVolume(0, 0.5); // 500ms fade out
+      isPlaying.value = false;
     } else if (volume.value === 0) {
       // If adding text and currently muted, restore previous volume with quick fade
       store.volume = previousVolume.value;
@@ -107,16 +108,19 @@
 
   // Playback controls
   const togglePlay = () => {
+    if (!store.audioInitialized) return;
+
     if (isPlaying.value) {
-      audioEngine.stop();
+      audioEngine.stopPlayback();
+      isPlaying.value = false;
     } else {
-      audioEngine.play(currentSequence.value);
+      audioEngine.startPlayback(currentSequence.value);
+      isPlaying.value = true;
     }
-    isPlaying.value = !isPlaying.value;
   };
 
   const resetSequence = () => {
-    audioEngine.stop();
+    audioEngine.stopPlayback();
     isPlaying.value = false;
     currentSequence.value = null;
   };

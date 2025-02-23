@@ -96,7 +96,14 @@
       await Tone.context.resume();
     }
 
-    store.togglePlaying();
+    if (store.playing) {
+      audioEngine.stopPlayback();
+      store.playing = false;
+    } else {
+      if (text.value.trim()) {
+        generatePattern(text.value);
+      }
+    }
   };
 
   // Debounced function for generating patterns
@@ -112,6 +119,7 @@
       // Update the audio engine with the new sequence
       if (result && result.notes && result.notes.length > 0) {
         audioEngine.startPlayback(result);
+        store.playing = true;
       }
     } catch (err) {
       console.error("Failed to generate pattern:", err);
@@ -131,6 +139,7 @@
       generatePattern(newText);
     } else {
       audioEngine.stopPlayback();
+      store.playing = false;
     }
   };
 </script>

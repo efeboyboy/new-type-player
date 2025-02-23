@@ -24,29 +24,19 @@ export default defineConfig({
     include: [
       "buffer",
       "process/browser",
-      "util",
       "stream-browserify",
       "@magenta/music",
     ],
   },
   build: {
     rollupOptions: {
-      external: ["stream-browserify", "util", "@magenta/music"],
+      external: ["@magenta/music"],
       output: {
         globals: {
-          "stream-browserify": "Stream",
-          util: "util",
           "@magenta/music": "mm",
         },
         manualChunks: {
-          vendor: [
-            "tone",
-            "buffer",
-            "process/browser",
-            "util",
-            "stream-browserify",
-            "@magenta/music",
-          ],
+          vendor: ["tone", "buffer", "process/browser", "stream-browserify"],
         },
       },
     },

@@ -2,18 +2,32 @@
   <div class="module-panel">
     <div class="module-title text-center">Sound {{ number }}</div>
     <div class="grid grid-cols-1 gap-1.5">
-      <!-- Pitch Control -->
+      <!-- Octave Control -->
       <div class="control-group">
         <Knob
-          v-model="pitch"
-          :min="-24"
-          :max="24"
+          v-model="octave"
+          :min="-2"
+          :max="2"
           :step="1"
           class="w-full aspect-square max-w-[28px]"
           @update:modelValue="updateOscillator"
         />
-        <div class="module-value">{{ formatPitch(pitch) }}</div>
-        <label class="module-label">Pitch</label>
+        <div class="module-value">{{ formatOctave(octave) }}</div>
+        <label class="module-label">Octave</label>
+      </div>
+
+      <!-- Fine Pitch Control -->
+      <div class="control-group">
+        <Knob
+          v-model="finePitch"
+          :min="-12"
+          :max="12"
+          :step="0.1"
+          class="w-full aspect-square max-w-[28px]"
+          @update:modelValue="updateOscillator"
+        />
+        <div class="module-value">{{ formatPitch(finePitch) }}</div>
+        <label class="module-label">Fine</label>
       </div>
 
       <!-- Wave Shape Control -->
@@ -45,22 +59,32 @@
     },
   });
 
-  const pitch = ref(0);
+  const octave = ref(0);
+  const finePitch = ref(0);
   const shape = ref(0);
 
   const updateOscillator = () => {
-    const frequency = 440 * Math.pow(2, pitch.value / 12);
+    // Calculate frequency with both octave and fine pitch
+    const baseFreq = 440; // A4
+    const octaveMultiplier = Math.pow(2, octave.value);
+    const semitoneFactor = Math.pow(2, finePitch.value / 12);
+    const frequency = baseFreq * octaveMultiplier * semitoneFactor;
+
     audioEngine.setOscillatorParams(props.number, {
       frequency: frequency,
       waveShape: shape.value / 10,
     });
   };
 
-  const formatPitch = (p) => {
-    return p > 0 ? `+${p}` : p;
+  const formatOctave = (oct) => {
+    return oct > 0 ? `+${oct}` : oct;
   };
 
-  watch([pitch, shape], updateOscillator);
+  const formatPitch = (p) => {
+    return p > 0 ? `+${p.toFixed(1)}` : p.toFixed(1);
+  };
+
+  watch([octave, finePitch, shape], updateOscillator);
 </script>
 
 <style scoped>

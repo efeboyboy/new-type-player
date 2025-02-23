@@ -12,7 +12,6 @@
             :max="1"
             :step="0.01"
             class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateSpatial"
           />
           <div class="module-value">
             {{ (frontMix.level * 100).toFixed(0) }}
@@ -28,7 +27,6 @@
             :max="1"
             :step="0.01"
             class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateSpatial"
           />
           <div class="module-value">{{ formatPan(frontMix.pan) }}</div>
           <label class="module-label">Pan</label>
@@ -48,7 +46,6 @@
             :max="1"
             :step="0.01"
             class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateSpatial"
           />
           <div class="module-value">{{ (rearMix.level * 100).toFixed(0) }}</div>
           <label class="module-label">Level</label>
@@ -62,7 +59,6 @@
             :max="1"
             :step="0.01"
             class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateSpatial"
           />
           <div class="module-value">{{ formatPan(rearMix.pan) }}</div>
           <label class="module-label">Pan</label>
@@ -70,68 +66,34 @@
       </div>
     </div>
 
-    <!-- Spatial Movement -->
+    <!-- Reverb -->
     <div class="module-panel col-span-2">
-      <div class="module-title">Movement</div>
-      <div class="grid grid-cols-4 gap-1.5">
-        <!-- Rate -->
+      <div class="module-title">Space</div>
+      <div class="grid grid-cols-2 gap-1.5">
+        <!-- Decay -->
         <div class="control-group">
           <Knob
-            v-model="movement.rate"
+            v-model="reverb.decay"
             :min="0.1"
             :max="10"
             :step="0.1"
             class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateSpatial"
           />
-          <div class="module-value">{{ movement.rate.toFixed(1) }}Hz</div>
-          <label class="module-label">Rate</label>
+          <div class="module-value">{{ reverb.decay.toFixed(1) }}s</div>
+          <label class="module-label">Decay</label>
         </div>
 
-        <!-- Depth -->
+        <!-- Mix -->
         <div class="control-group">
           <Knob
-            v-model="movement.depth"
+            v-model="reverb.mix"
             :min="0"
             :max="1"
             :step="0.01"
             class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateSpatial"
           />
-          <div class="module-value">
-            {{ (movement.depth * 100).toFixed(0) }}
-          </div>
-          <label class="module-label">Depth</label>
-        </div>
-
-        <!-- Spread -->
-        <div class="control-group">
-          <Knob
-            v-model="movement.spread"
-            :min="0"
-            :max="1"
-            :step="0.01"
-            class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateSpatial"
-          />
-          <div class="module-value">
-            {{ (movement.spread * 100).toFixed(0) }}
-          </div>
-          <label class="module-label">Spread</label>
-        </div>
-
-        <!-- Phase -->
-        <div class="control-group">
-          <Knob
-            v-model="movement.phase"
-            :min="0"
-            :max="360"
-            :step="1"
-            class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateSpatial"
-          />
-          <div class="module-value">{{ movement.phase }}°</div>
-          <label class="module-label">Phase</label>
+          <div class="module-value">{{ (reverb.mix * 100).toFixed(0) }}%</div>
+          <label class="module-label">Mix</label>
         </div>
       </div>
     </div>
@@ -142,6 +104,14 @@
   import { ref, watch } from "vue";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
+
+  // Add props for channel
+  const props = defineProps({
+    channel: {
+      type: Number,
+      default: 0, // Default to first channel
+    },
+  });
 
   // Initialize spatial controls
   const frontMix = ref({
@@ -161,6 +131,12 @@
     phase: 90,
   });
 
+  // Add reverb controls
+  const reverb = ref({
+    decay: 2,
+    mix: 0.2,
+  });
+
   // Format pan value
   const formatPan = (pan) => {
     if (pan === 0) return "C";
@@ -171,26 +147,30 @@
 
   // Update spatial parameters
   const updateSpatial = () => {
-    audioEngine.setSpatialControls({
-      front: {
-        level: frontMix.value.level,
-        pan: frontMix.value.pan,
-      },
-      rear: {
-        level: rearMix.value.level,
-        pan: rearMix.value.pan,
-      },
-      movement: {
-        rate: movement.value.rate,
-        depth: movement.value.depth,
-        spread: movement.value.spread,
-        phase: movement.value.phase,
-      },
-    });
+    // Calculate front/back balance
+    const frontAmount = frontMix.value.level;
+    const rearAmount = rearMix.value.level;
+    const totalAmount = frontAmount + rearAmount;
+
+    // Normalize to get a -1 to 1 range for y-axis (front/back)
+    const y = totalAmount > 0 ? (rearAmount - frontAmount) / totalAmount : 0;
+
+    // Average the pan values, weighted by their levels
+    const x =
+      totalAmount > 0
+        ? (frontMix.value.pan * frontAmount + rearMix.value.pan * rearAmount) /
+          totalAmount
+        : 0;
+
+    // Update spatial position for all channels (since we're controlling the master position)
+    for (let i = 0; i < 4; i++) {
+      audioEngine.setSpatialPosition(i, x, y);
+      audioEngine.setSpatialReverb(i, reverb.value.decay, reverb.value.mix);
+    }
   };
 
   // Watch for changes
-  watch([frontMix, rearMix, movement], updateSpatial, { deep: true });
+  watch([frontMix, rearMix, movement, reverb], updateSpatial, { deep: true });
 </script>
 
 <style scoped>

@@ -57,7 +57,7 @@
   const defaultValues = {
     octave: 0,
     finePitch: 0,
-    shape: 0.5,
+    shape: 0.33, // Start with gentle folding
   };
 
   const octave = ref(defaultValues.octave);
@@ -85,7 +85,13 @@
   };
 
   const formatPercent = (value) => {
-    return `${Math.round(value * 100)}%`;
+    // Add descriptive text based on the wave folding range
+    const percent = Math.round(value * 100);
+    let desc = "";
+    if (value < 0.33) desc = " (Gentle)";
+    else if (value < 0.66) desc = " (Rich)";
+    else desc = " (Hard)";
+    return `${percent}%${desc}`;
   };
 
   // Expose methods for parent component
@@ -98,7 +104,8 @@
     randomize: () => {
       octave.value = Math.floor(Math.random() * 7) - 3;
       finePitch.value = Math.random() * 24 - 12;
-      shape.value = Math.random();
+      // Favor the middle range for more musical results
+      shape.value = 0.33 + Math.random() * 0.34;
     },
   });
 

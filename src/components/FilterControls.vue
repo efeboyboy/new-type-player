@@ -11,9 +11,9 @@
         <div class="control-group">
           <Knob
             v-model="filters[n - 1].freq"
-            :min="20"
-            :max="20000"
-            :step="100"
+            :min="[80, 200][n - 1]"
+            :max="[800, 2000][n - 1]"
+            :step="10"
             class="w-10 h-10"
             @update:modelValue="updateFilters"
           />
@@ -25,9 +25,9 @@
         <div class="control-group">
           <Knob
             v-model="filters[n - 1].q"
-            :min="0.1"
-            :max="10"
-            :step="0.5"
+            :min="0.5"
+            :max="8"
+            :step="0.1"
             class="w-10 h-10"
             @update:modelValue="updateFilters"
           />
@@ -46,9 +46,9 @@
         <div class="control-group">
           <Knob
             v-model="toneShape[n === 1 ? 'low' : 'high']"
-            :min="-12"
-            :max="12"
-            :step="1"
+            :min="-6"
+            :max="6"
+            :step="0.5"
             class="w-10 h-10"
             @update:modelValue="updateToneShape"
           />
@@ -62,9 +62,9 @@
         <div class="control-group">
           <Knob
             v-model="toneShape.mid"
-            :min="-12"
-            :max="12"
-            :step="1"
+            :min="-3"
+            :max="3"
+            :step="0.5"
             class="w-10 h-10"
             @update:modelValue="updateToneShape"
           />

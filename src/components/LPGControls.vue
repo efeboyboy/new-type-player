@@ -11,7 +11,7 @@
           <Knob
             v-model="lpgs[n - 1].rise"
             :min="0.01"
-            :max="1"
+            :max="0.5"
             :step="0.01"
             class="w-10 h-10"
           />
@@ -23,7 +23,7 @@
         <div class="control-group">
           <Knob
             v-model="lpgs[n - 1].fall"
-            :min="0.01"
+            :min="0.1"
             :max="1"
             :step="0.01"
             class="w-10 h-10"
@@ -36,8 +36,8 @@
         <div class="control-group">
           <Knob
             v-model="lpgs[n - 1].level"
-            :min="0"
-            :max="1"
+            :min="0.7"
+            :max="0.9"
             :step="0.01"
             class="w-10 h-10"
           />
@@ -69,10 +69,10 @@
 
   // Default values for each LPG
   const defaultLPG = {
-    rise: 0.05, // 50ms rise time - faster attack for better transients
+    rise: 0.05, // 50ms rise time - optimal for percussive attacks
     fall: 0.15, // 150ms fall time - natural decay
     level: 0.85, // 85% level for good presence
-    loopMode: false, // Start in envelope mode
+    loopMode: false,
   };
 
   const lpgs = ref(

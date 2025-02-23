@@ -28,10 +28,6 @@
   import HelpModal from "./components/HelpModal.vue";
   import { Teleport } from "vue";
 
-  const handleUpdateText = (newText) => {
-    store.updateInput(newText);
-  };
-
   const tempo = computed({
     get: () => store.tempo,
     set: (val) => {
@@ -39,6 +35,36 @@
       audioEngine.setTempo(val);
     },
   });
+
+  // Add volume state management
+  const previousVolume = ref(0.75); // Default volume
+  const volume = computed({
+    get: () => store.volume,
+    set: (val) => {
+      // Clamp value between 0 and 1
+      const clampedValue = Math.max(0, Math.min(1, val));
+      store.volume = clampedValue;
+      audioEngine.setMasterVolume(clampedValue);
+    },
+  });
+
+  // Update handleUpdateText to manage volume based on text content
+  const handleUpdateText = (newText) => {
+    store.updateInput(newText);
+
+    // If text is empty, store current volume and mute with longer fade
+    if (!newText.trim()) {
+      if (store.volume > 0) {
+        previousVolume.value = store.volume;
+      }
+      store.volume = 0;
+      audioEngine.setMasterVolume(0, 0.5); // 500ms fade out
+    } else if (volume.value === 0) {
+      // If adding text and currently muted, restore previous volume with quick fade
+      store.volume = previousVolume.value;
+      audioEngine.setMasterVolume(previousVolume.value, 0.1); // 100ms fade in
+    }
+  };
 
   const osc1 = ref(null);
   const osc2 = ref(null);
@@ -126,6 +152,19 @@
             <Knob v-model="tempo" :min="40" :max="200" :step="1" />
           </div>
           <span class="text-[10px] font-mono text-zinc-300">{{ tempo }}</span>
+        </div>
+
+        <!-- Add Volume Control -->
+        <div
+          class="flex items-center gap-3 bg-zinc-900/50 rounded-lg px-4 py-2 whitespace-nowrap"
+        >
+          <span class="text-[10px] font-medium text-zinc-400">Volume</span>
+          <div class="w-8 h-8 flex items-center justify-center">
+            <Knob v-model="volume" :min="0" :max="1" :step="0.01" />
+          </div>
+          <span class="text-[10px] font-mono text-zinc-300"
+            >{{ Math.round(volume * 100) }}%</span
+          >
         </div>
 
         <div class="flex-1">

@@ -22,6 +22,9 @@ class AFG248PlayHead {
 
 class AudioEngine {
   constructor() {
+    // Add master volume control
+    this.masterVolume = new Tone.Volume(0).toDestination();
+
     // Add clock system before other components
     this.clockSystem = {
       // Master clock source (frequency in Hz for 120 BPM quarter notes)
@@ -56,10 +59,10 @@ class AudioEngine {
 
     // Create quad outputs first (Front L/R, Rear L/R)
     this.quadOutputs = {
-      frontLeft: new Tone.Gain().toDestination(),
-      frontRight: new Tone.Gain().toDestination(),
-      rearLeft: new Tone.Gain().toDestination(),
-      rearRight: new Tone.Gain().toDestination(),
+      frontLeft: new Tone.Gain().connect(this.masterVolume),
+      frontRight: new Tone.Gain().connect(this.masterVolume),
+      rearLeft: new Tone.Gain().connect(this.masterVolume),
+      rearRight: new Tone.Gain().connect(this.masterVolume),
     };
 
     // Spatial director (227) - one per mixer output
@@ -1371,6 +1374,33 @@ class AudioEngine {
     });
 
     return magentaSequence;
+  }
+
+  // Add volume control method
+  setMasterVolume(value, rampTime = 0.1) {
+    // Ensure value is a valid number and clamp between 0 and 1
+    const safeValue = Math.max(0, Math.min(1, Number(value) || 0));
+
+    // Convert linear 0-1 to decibels (-60 to 0)
+    // Use -60dB as the minimum instead of -Infinity for better volume control
+    const db =
+      safeValue === 0 ? -60 : Math.max(-60, 20 * Math.log10(safeValue));
+
+    // Ensure we have a valid ramp time
+    const safeRampTime = Math.max(0, Number(rampTime) || 0.1);
+
+    // Use linear ramping for values near silence to prevent exponential ramp errors
+    if (db <= -55) {
+      this.masterVolume.volume.linearRampToValueAtTime(
+        -60,
+        Tone.now() + safeRampTime
+      );
+    } else {
+      this.masterVolume.volume.exponentialRampToValueAtTime(
+        db,
+        Tone.now() + safeRampTime
+      );
+    }
   }
 }
 

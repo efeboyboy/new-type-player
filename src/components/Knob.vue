@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-  import { ref, computed } from "vue";
+  import { ref, computed, watch, onUnmounted } from "vue";
 
   const props = defineProps({
     modelValue: {
@@ -50,90 +50,161 @@
       type: Number,
       default: 1,
     },
+    sensitivity: {
+      type: Number,
+      default: 1,
+    },
   });
 
   const emit = defineEmits(["update:modelValue"]);
 
-  // Computed values for rotation
-  const rotation = computed(() => {
+  // Internal state
+  const internalValue = ref(props.modelValue);
+  const isDragging = ref(false);
+  const dragStart = ref({ y: 0, value: 0 });
+  const lastEmittedValue = ref(props.modelValue);
+
+  // Watch for external value changes
+  watch(
+    () => props.modelValue,
+    (newVal) => {
+      if (!isDragging.value) {
+        internalValue.value = clampValue(newVal);
+        lastEmittedValue.value = internalValue.value;
+      }
+    }
+  );
+
+  // Utility functions
+  const clampValue = (value) => {
+    const numValue = Number(value);
+    if (isNaN(numValue)) return props.min;
+    return Math.min(Math.max(numValue, props.min), props.max);
+  };
+
+  const quantizeValue = (value) => {
+    if (props.step <= 0) return value;
+    // More precise step calculation
+    const normalized = (value - props.min) / props.step;
+    const rounded = Math.round(normalized);
+    return props.min + rounded * props.step;
+  };
+
+  const normalizeValue = (value) => {
     const range = props.max - props.min;
-    const normalized = (props.modelValue - props.min) / range;
+    if (range === 0) return 0;
+    return (clampValue(value) - props.min) / range;
+  };
+
+  // Computed values
+  const rotation = computed(() => {
+    const normalized = normalizeValue(internalValue.value);
     return normalized * 270 - 135; // -135 to 135 degrees
   });
 
-  // Drag handling with improved precision
-  let isDragging = false;
-  let lastY = 0;
-  let currentValue = 0;
-
+  // Event handlers
   const startDrag = (event) => {
     event.preventDefault();
-    isDragging = true;
-    lastY = event.pageY || event.touches?.[0].pageY;
-    currentValue = props.modelValue;
+    const pageY = event.touches ? event.touches[0].pageY : event.pageY;
 
-    document.addEventListener("mousemove", handleDrag, { capture: true });
-    document.addEventListener("mouseup", stopDrag, { capture: true });
-    document.addEventListener("touchmove", handleDrag, {
-      capture: true,
-      passive: false,
-    });
-    document.addEventListener("touchend", stopDrag, { capture: true });
+    isDragging.value = true;
+    dragStart.value = {
+      y: pageY,
+      value: internalValue.value,
+    };
+
+    // Add event listeners based on event type
+    if (event.touches) {
+      document.addEventListener("touchmove", handleDrag, { passive: false });
+      document.addEventListener("touchend", stopDrag);
+      document.addEventListener("touchcancel", stopDrag);
+    } else {
+      document.addEventListener("mousemove", handleDrag);
+      document.addEventListener("mouseup", stopDrag);
+    }
   };
 
   const handleDrag = (event) => {
-    if (!isDragging) return;
+    if (!isDragging.value) return;
+    event.preventDefault();
 
-    const currentY = event.pageY || event.touches?.[0].pageY;
-    const deltaY = lastY - currentY;
-    lastY = currentY;
+    const pageY = event.touches ? event.touches[0].pageY : event.pageY;
 
+    // More precise delta calculation
+    const pixelDelta = dragStart.value.y - pageY;
     const range = props.max - props.min;
-    const sensitivity = range / 50; // Much higher sensitivity
 
-    let newValue = currentValue + deltaY * sensitivity;
-
-    // Apply step quantization
+    // Adjust sensitivity based on range and step size
+    let sensitivity;
     if (props.step > 0) {
-      newValue = Math.round(newValue / props.step) * props.step;
+      // For stepped values, make sure we move at least one step with reasonable movement
+      const pixelsPerStep = Math.max(1, 100 / (range / props.step));
+      sensitivity = props.step / pixelsPerStep;
+    } else {
+      // For continuous values, use a finer sensitivity
+      sensitivity = range / 400;
     }
 
-    // Clamp value
-    newValue = Math.max(props.min, Math.min(props.max, newValue));
+    // Calculate new value with higher precision
+    const delta = pixelDelta * sensitivity;
+    const rawValue = dragStart.value.value + delta;
 
-    if (newValue !== props.modelValue) {
-      currentValue = newValue;
+    // Apply quantization and clamping
+    const newValue = quantizeValue(clampValue(rawValue));
+
+    // Only update if the quantized value has changed
+    if (newValue !== lastEmittedValue.value) {
+      internalValue.value = newValue;
+      lastEmittedValue.value = newValue;
       emit("update:modelValue", newValue);
     }
   };
 
   const handleWheel = (event) => {
     event.preventDefault();
-    const deltaY = event.deltaY;
+
     const range = props.max - props.min;
-    const sensitivity = range / 200; // Much higher wheel sensitivity
+    // Adjust wheel sensitivity based on range and step
+    const sensitivity =
+      props.step > 0
+        ? props.step / 2 // Move by half a step per wheel tick
+        : range / 2000; // Very fine control for continuous values
 
-    let newValue = props.modelValue - deltaY * sensitivity;
+    const delta = -event.deltaY * sensitivity;
+    const rawValue = internalValue.value + delta;
+    const newValue = quantizeValue(clampValue(rawValue));
 
-    if (props.step > 0) {
-      newValue = Math.round(newValue / props.step) * props.step;
+    if (newValue !== lastEmittedValue.value) {
+      internalValue.value = newValue;
+      lastEmittedValue.value = newValue;
+      emit("update:modelValue", newValue);
     }
-
-    newValue = Math.max(props.min, Math.min(props.max, newValue));
-    emit("update:modelValue", newValue);
   };
 
   const stopDrag = () => {
-    isDragging = false;
-    document.removeEventListener("mousemove", handleDrag, { capture: true });
-    document.removeEventListener("mouseup", stopDrag, { capture: true });
-    document.removeEventListener("touchmove", handleDrag, { capture: true });
-    document.removeEventListener("touchend", stopDrag, { capture: true });
+    isDragging.value = false;
+
+    // Remove all event listeners
+    document.removeEventListener("mousemove", handleDrag);
+    document.removeEventListener("mouseup", stopDrag);
+    document.removeEventListener("touchmove", handleDrag);
+    document.removeEventListener("touchend", stopDrag);
+    document.removeEventListener("touchcancel", stopDrag);
   };
 
   const reset = () => {
-    emit("update:modelValue", props.min + (props.max - props.min) / 2);
+    const defaultValue = quantizeValue(props.min + (props.max - props.min) / 2);
+    internalValue.value = defaultValue;
+    lastEmittedValue.value = defaultValue;
+    emit("update:modelValue", defaultValue);
   };
+
+  // Cleanup
+  onUnmounted(() => {
+    if (isDragging.value) {
+      stopDrag();
+    }
+  });
 </script>
 
 <style scoped>

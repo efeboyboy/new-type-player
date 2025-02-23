@@ -861,12 +861,21 @@ class AudioEngine {
   }
 
   // Enhanced trigger with proper timing
-  triggerEnvelope(channel, time = "+0.05") {
+  triggerEnvelope(channel, time = "+0.05", params = {}) {
     if (channel >= 0 && channel < 4) {
       const envSystem = this.envelopes[channel];
+
+      // Use provided duration or calculate from envelope settings
       const duration =
+        params.duration ||
         (envSystem.envelope.attack + envSystem.envelope.decay) *
-        envSystem.timeScale;
+          envSystem.timeScale;
+
+      // Convert velocity (0-1) to appropriate envelope scaling
+      if (params.velocity !== undefined) {
+        const velocityScale = Math.max(0.1, params.velocity);
+        envSystem.multiply.value = velocityScale;
+      }
 
       // Trigger with timing consideration
       envSystem.envelope.triggerAttackRelease(duration, time);
@@ -898,7 +907,10 @@ class AudioEngine {
 
   // Start playback of the sequence
   startPlayback(sequence) {
-    if (!sequence || sequence.length === 0) return;
+    if (!sequence || !sequence.notes || sequence.notes.length === 0) {
+      console.warn("Invalid sequence format:", sequence);
+      return;
+    }
 
     // Stop any existing playback
     this.stopPlayback();
@@ -909,53 +921,96 @@ class AudioEngine {
     this.osc3.start();
     this.noise.start();
 
-    const channels = sequence.length;
+    // Sort notes by start time
+    const sortedNotes = [...sequence.notes].sort(
+      (a, b) => a.startTime - b.startTime
+    );
 
-    for (let i = 0; i < channels; i++) {
-      // Create a Tone.Sequence for each channel
-      const seq = new Tone.Sequence(
-        (time, note) => {
-          // Route through matrix mixer
+    // Calculate time divisions
+    const minTime = Math.min(...sortedNotes.map((n) => n.startTime));
+    const maxTime = Math.max(...sortedNotes.map((n) => n.endTime));
+    const duration = maxTime - minTime;
+    const stepSize = duration / 16; // Divide into 16 steps
+
+    // Create sequences for each channel
+    const channels = [[], [], [], []];
+
+    sortedNotes.forEach((note) => {
+      const pitch = note.pitch;
+      let channel;
+
+      // Distribute notes across channels based on pitch
+      if (pitch < 48) channel = 0; // Low range to osc1
+      else if (pitch < 72) channel = 1; // Mid range to osc2
+      else if (pitch < 96) channel = 2; // High range to osc3
+      else channel = 3; // Highest to noise
+
+      // Calculate step index
+      const step = Math.floor((note.startTime - minTime) / stepSize);
+
+      // Ensure we have arrays for each step
+      while (channels[channel].length <= step) {
+        channels[channel].push(null);
+      }
+
+      channels[channel][step] = {
+        frequency: Tone.Frequency(note.pitch, "midi").toFrequency(),
+        velocity: note.velocity / 127, // Convert MIDI velocity to 0-1
+        duration: Math.max(0.1, note.endTime - note.startTime),
+      };
+    });
+
+    // Fill any gaps with nulls to maintain timing
+    channels.forEach((channel) => {
+      while (channel.length < 16) {
+        channel.push(null);
+      }
+    });
+
+    // Create sequences for each channel
+    this.activeSequences = channels.map((channel, i) => {
+      return new Tone.Sequence(
+        (time, event) => {
+          if (!event) return;
+
+          const { frequency, velocity, duration } = event;
+
+          // Handle each channel differently
           switch (i) {
-            case 0:
-              this.osc1.frequency.setValueAtTime(
-                Tone.Frequency(note, "midi"),
-                time
-              );
-              this.triggerEnvelope(0, time);
+            case 0: // Osc1
+              this.osc1.frequency.setValueAtTime(frequency, time);
+              this.triggerEnvelope(0, time, { duration, velocity });
               break;
-            case 1:
-              this.osc2.frequency.setValueAtTime(
-                Tone.Frequency(note, "midi"),
-                time
-              );
-              this.triggerEnvelope(1, time);
+            case 1: // Osc2
+              this.osc2.frequency.setValueAtTime(frequency, time);
+              this.triggerEnvelope(1, time, { duration, velocity });
               break;
-            case 2:
-              this.osc3.frequency.setValueAtTime(
-                Tone.Frequency(note, "midi"),
-                time
-              );
-              this.triggerEnvelope(2, time);
+            case 2: // Osc3
+              this.osc3.frequency.setValueAtTime(frequency, time);
+              this.triggerEnvelope(2, time, { duration, velocity });
               break;
-            case 3:
-              // For noise channel, we'll just modulate the volume based on the note value
-              const volume = (note / 127) * 10 - 20; // Convert MIDI to dB range -20 to -10
-              this.noise.volume.setValueAtTime(volume, time);
-              this.triggerEnvelope(3, time);
+            case 3: // Noise
+              if (frequency) {
+                const volume = velocity * 20 - 20; // Convert to dB range -20 to 0
+                this.noise.volume.setValueAtTime(volume, time);
+                this.triggerEnvelope(3, time, { duration, velocity });
+              }
               break;
           }
         },
-        sequence[i],
-        "8n"
-      );
+        channel,
+        "16n"
+      ).start(0);
+    });
 
-      seq.loop = true;
-      this.activeSequences.push(seq);
-      seq.start(0);
+    // Set tempo based on sequence
+    if (sequence.tempos && sequence.tempos[0]) {
+      Tone.Transport.bpm.value = sequence.tempos[0].qpm;
+    } else {
+      Tone.Transport.bpm.value = 120; // Default tempo
     }
 
-    // Start the transport if it's not already running
+    // Start transport if not already running
     if (Tone.Transport.state !== "started") {
       Tone.Transport.start();
     }

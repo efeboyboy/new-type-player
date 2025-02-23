@@ -62,7 +62,7 @@ class MagentaService {
     // Model URLs
     this.modelUrls = {
       musicRNN:
-        "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/basic_rnn",
+        "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn",
       musicVAE:
         "https://storage.googleapis.com/magentadata/js/checkpoints/music_vae/mel_4bar_small_q2",
       grooveVAE:
@@ -200,68 +200,68 @@ class MagentaService {
       throw new Error("MagentaService not initialized");
     }
 
-    // Analyze text characteristics
-    const complexity = textToTemplateMapping.getComplexityFromText(text);
-    const emotionalChars =
-      textToTemplateMapping.getEmotionalCharacteristics(text);
-    const musicalParams = textToTemplateMapping.getMusicalParameters(text);
+    try {
+      // Analyze text characteristics
+      const complexity = textToTemplateMapping.getComplexityFromText(text);
+      const emotionalChars =
+        textToTemplateMapping.getEmotionalCharacteristics(text);
+      const musicalParams = textToTemplateMapping.getMusicalParameters(text);
 
-    // Select and combine templates based on text characteristics
-    const selectedTemplates = [];
-    const weights = [];
+      // Get scale and base note
+      const baseNote = musicalParams.baseNote || 60;
+      const scale =
+        buchlaTemplates.emotional[musicalParams.scaleType || "bright"].scale;
 
-    // Add basic template
-    selectedTemplates.push(buchlaTemplates.basic.melodic[0]);
-    weights.push(0.4);
+      // Create sequence directly from text
+      const notes = [];
+      const chars = text.split("");
 
-    // Add emotional template based on text
-    const emotionalType = musicalParams.scaleType;
-    if (buchlaTemplates.emotional[emotionalType]) {
-      selectedTemplates.push(buchlaTemplates.emotional[emotionalType]);
-      weights.push(0.3);
+      // Calculate total sequence length (16 steps)
+      const totalSteps = 16;
+      const stepsPerChar = Math.max(1, Math.floor(totalSteps / chars.length));
+
+      chars.forEach((char, i) => {
+        if (i * stepsPerChar >= totalSteps) return; // Don't exceed total steps
+
+        const charCode = char.charCodeAt(0);
+        const scaleIndex = charCode % scale.length;
+        const octave = Math.floor(charCode / scale.length) % 2;
+        const pitch = baseNote + scale[scaleIndex] + octave * 12;
+
+        // Create a note for this character
+        notes.push({
+          pitch: Math.min(108, Math.max(21, pitch)),
+          startTime: i * stepsPerChar * 0.25,
+          endTime: i * stepsPerChar * 0.25 + 0.25,
+          velocity: Math.min(127, Math.max(40, 80 + (charCode % 47))),
+        });
+      });
+
+      // Add some variation notes based on the original sequence
+      const variationNotes = notes
+        .map((note) => ({
+          pitch: note.pitch + (Math.random() > 0.5 ? 12 : -12),
+          startTime: note.startTime + 2,
+          endTime: note.endTime + 2,
+          velocity: Math.max(40, note.velocity - 20),
+        }))
+        .filter((note) => note.pitch >= 21 && note.pitch <= 108);
+
+      // Combine original and variation notes
+      const allNotes = [...notes, ...variationNotes].sort(
+        (a, b) => a.startTime - b.startTime
+      );
+
+      return {
+        notes: allNotes,
+        totalTime: 4.0,
+        tempos: [{ time: 0, qpm: 120 }],
+        timeSignatures: [{ time: 0, numerator: 4, denominator: 4 }],
+      };
+    } catch (err) {
+      console.error("Failed to generate sequence from text:", err);
+      throw err;
     }
-
-    // Add complex template if text is complex
-    if (complexity > 0.6) {
-      selectedTemplates.push(buchlaTemplates.complex.melodic[0]);
-      weights.push(0.3);
-    }
-
-    // Combine templates and modify based on characteristics
-    let baseTemplate = templateUtils.combineTemplates(
-      selectedTemplates,
-      weights
-    );
-    baseTemplate = templateUtils.modifyTemplate(baseTemplate, emotionalChars);
-
-    // Convert to Magenta format
-    const sequence = templateUtils.toMagentaFormat(baseTemplate);
-
-    // Enhance with MusicRNN
-    const rnnSteps = 32;
-    const rnnTemp = 1.0;
-    const enhancedSequence = await this.musicRNN.continueSequence(
-      sequence,
-      rnnSteps,
-      rnnTemp
-    );
-
-    // Generate variations with MusicVAE
-    const vaeTemp = 0.5;
-    const z = await this.musicVAE.encode([enhancedSequence]);
-    const variations = await this.musicVAE.decode(z, vaeTemp);
-
-    // Add groove variations
-    const grooveTemp = 0.7;
-    const grooveZ = await this.grooveVAE.encode([enhancedSequence]);
-    const grooveVariations = await this.grooveVAE.decode(grooveZ, grooveTemp);
-
-    return {
-      original: sequence,
-      enhanced: enhancedSequence,
-      variations: variations,
-      grooveVariations: grooveVariations,
-    };
   }
 
   // Clean up resources

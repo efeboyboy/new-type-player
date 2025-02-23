@@ -111,16 +111,17 @@ export const textToTemplateMapping = {
 
 // Helper functions for template manipulation
 export const templateUtils = {
-  // Combine multiple templates
+  // Combine multiple templates with weights
   combineTemplates: (templates, weights) => {
-    if (!templates.length || !weights.length) return null;
+    if (templates.length === 0) return null;
+    if (templates.length === 1) return templates[0];
 
     // Normalize weights
     const totalWeight = weights.reduce((sum, w) => sum + w, 0);
     const normalizedWeights = weights.map((w) => w / totalWeight);
 
-    // Initialize result structure
-    const result = {
+    // Initialize combined template
+    const combined = {
       notes: [],
       durations: [],
       velocities: [],
@@ -128,71 +129,70 @@ export const templateUtils = {
       accents: [],
     };
 
-    // Combine melodic elements
+    // Combine each property
     templates.forEach((template, i) => {
       const weight = normalizedWeights[i];
+
       if (template.notes) {
-        template.notes.forEach((note, j) => {
-          result.notes[j] = (result.notes[j] || 0) + note * weight;
-        });
+        combined.notes.push(...template.notes);
+        combined.durations.push(
+          ...(template.durations || Array(template.notes.length).fill(1))
+        );
+        combined.velocities.push(
+          ...(template.velocities || Array(template.notes.length).fill(0.8))
+        );
       }
-      if (template.durations) {
-        template.durations.forEach((dur, j) => {
-          result.durations[j] = (result.durations[j] || 0) + dur * weight;
-        });
-      }
-      if (template.velocities) {
-        template.velocities.forEach((vel, j) => {
-          result.velocities[j] = (result.velocities[j] || 0) + vel * weight;
-        });
-      }
+
       if (template.gates) {
-        template.gates.forEach((gate, j) => {
-          result.gates[j] = (result.gates[j] || 0) + gate * weight;
-        });
-      }
-      if (template.accents) {
-        template.accents.forEach((accent, j) => {
-          result.accents[j] = (result.accents[j] || 0) + accent * weight;
-        });
+        combined.gates.push(...template.gates);
+        combined.accents.push(
+          ...(template.accents || Array(template.gates.length).fill(0.8))
+        );
       }
     });
 
-    // Round notes to nearest MIDI note
-    if (result.notes.length) {
-      result.notes = result.notes.map((note) => Math.round(note));
-    }
-
-    return result;
+    return combined;
   },
 
-  // Modify template based on text characteristics
-  modifyTemplate: (template, characteristics) => {
-    const { intensity, articulation, complexity } = characteristics;
+  // Modify template based on emotional characteristics
+  modifyTemplate: (template, emotionalChars) => {
+    if (!template) return template;
 
     const modified = { ...template };
 
-    // Modify velocities based on intensity
-    if (modified.velocities) {
+    // Adjust velocities based on intensity
+    if (modified.velocities && emotionalChars.intensity !== undefined) {
       modified.velocities = modified.velocities.map((v) =>
-        Math.min(1, Math.max(0, v * (1 + (intensity - 0.5))))
+        Math.min(1, Math.max(0.2, v * (1 + emotionalChars.intensity)))
       );
     }
 
-    // Modify durations based on articulation
-    if (modified.durations) {
+    // Adjust durations based on articulation
+    if (modified.durations && emotionalChars.articulation !== undefined) {
       modified.durations = modified.durations.map(
-        (d) => d * (1 + (articulation - 0.5) * 0.5)
+        (d) => d * (1 - emotionalChars.articulation * 0.5)
       );
     }
 
     // Add complexity through note variations
-    if (modified.notes && complexity > 0.5) {
+    if (modified.notes && emotionalChars.complexity !== undefined) {
       modified.notes = modified.notes.map((note) => {
-        const variation =
-          Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0;
-        return note + variation;
+        const variation = (Math.random() - 0.5) * emotionalChars.complexity * 4;
+        return Math.round(note + variation);
       });
+    }
+
+    // Adjust gates and accents if present
+    if (modified.gates && emotionalChars.intensity !== undefined) {
+      modified.gates = modified.gates.map((g) =>
+        Math.min(1, Math.max(0.2, g * (1 + emotionalChars.intensity * 0.5)))
+      );
+    }
+
+    if (modified.accents && emotionalChars.articulation !== undefined) {
+      modified.accents = modified.accents.map((a) =>
+        Math.min(1, Math.max(0.2, a * (1 + emotionalChars.articulation)))
+      );
     }
 
     return modified;
@@ -205,6 +205,10 @@ export const templateUtils = {
       totalTime: 4.0,
       tempos: [{ time: 0, qpm: 120 }],
       timeSignatures: [{ time: 0, numerator: 4, denominator: 4 }],
+      quantizationInfo: {
+        stepsPerQuarter: 4,
+        qpm: 120,
+      },
     };
 
     let currentTime = 0;
@@ -212,19 +216,24 @@ export const templateUtils = {
     // Convert notes, durations, and velocities to Magenta note format
     if (template.notes) {
       template.notes.forEach((note, i) => {
-        const duration = template.durations?.[i] || 0.25;
+        // Ensure duration is quantized to the nearest 16th note
+        const rawDuration = template.durations?.[i] || 0.25;
+        const quantizedDuration = Math.round(rawDuration * 4) / 4;
         const velocity = Math.round((template.velocities?.[i] || 0.8) * 127);
 
         sequence.notes.push({
           pitch: note,
-          startTime: currentTime,
-          endTime: currentTime + duration,
+          startTime: Math.round(currentTime * 4) / 4, // Quantize start time
+          endTime: Math.round((currentTime + quantizedDuration) * 4) / 4,
           velocity: velocity,
           program: 0,
           isDrum: false,
+          quantizedStartStep: Math.round(currentTime * 4),
+          quantizedEndStep: Math.round((currentTime + quantizedDuration) * 4),
+          quantizedVelocity: velocity,
         });
 
-        currentTime += duration;
+        currentTime += quantizedDuration;
       });
     }
 
@@ -235,21 +244,23 @@ export const templateUtils = {
           const accent = template.accents?.[i] || 1;
           sequence.controlChanges = sequence.controlChanges || [];
           sequence.controlChanges.push({
-            time: i * 0.25,
+            time: Math.round(i * 0.25 * 4) / 4, // Quantize control change times
             controlNumber: 64, // Hold pedal for gates
-            value: gate * 127,
-            program: 0,
+            value: Math.round(gate * 127),
+            quantizedStep: i * 1, // Each gate is one 16th note
           });
           sequence.controlChanges.push({
-            time: i * 0.25,
+            time: Math.round(i * 0.25 * 4) / 4,
             controlNumber: 11, // Expression for accents
-            value: accent * 127,
-            program: 0,
+            value: Math.round(accent * 127),
+            quantizedStep: i * 1,
           });
         }
       });
     }
 
+    // Ensure total time is quantized to the nearest bar
+    sequence.totalTime = Math.ceil(currentTime / 4) * 4;
     return sequence;
   },
 };

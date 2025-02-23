@@ -164,11 +164,11 @@
     event.preventDefault();
 
     const range = props.max - props.min;
-    // Adjust wheel sensitivity based on range and step
+    // Make wheel sensitivity much lower
     const sensitivity =
       props.step > 0
-        ? props.step / 2 // Move by half a step per wheel tick
-        : range / 2000; // Very fine control for continuous values
+        ? props.step * 0.05 // Move by 1/20th of a step per wheel tick
+        : range * 0.0005; // Very fine control for continuous values (1/2000th of range)
 
     const delta = -event.deltaY * sensitivity;
     const rawValue = internalValue.value + delta;

@@ -6,17 +6,30 @@
           <div class="module-label">Gate {{ n }}</div>
         </div>
 
-        <!-- Response -->
+        <!-- Response (Rise) -->
         <div class="control-group">
           <Knob
-            v-model="lpgs[n - 1].response"
-            :min="0.1"
-            :max="2"
-            :step="0.1"
+            v-model="lpgs[n - 1].rise"
+            :min="0.01"
+            :max="1"
+            :step="0.01"
             class="w-10 h-10"
           />
-          <div class="module-value">{{ lpgs[n - 1].response.toFixed(1) }}</div>
-          <label class="module-label">Speed</label>
+          <div class="module-value">{{ formatTime(lpgs[n - 1].rise) }}</div>
+          <label class="module-label">Rise</label>
+        </div>
+
+        <!-- Fall -->
+        <div class="control-group">
+          <Knob
+            v-model="lpgs[n - 1].fall"
+            :min="0.01"
+            :max="1"
+            :step="0.01"
+            class="w-10 h-10"
+          />
+          <div class="module-value">{{ formatTime(lpgs[n - 1].fall) }}</div>
+          <label class="module-label">Fall</label>
         </div>
 
         <!-- Level -->
@@ -25,26 +38,41 @@
             v-model="lpgs[n - 1].level"
             :min="0"
             :max="1"
-            :step="0.1"
+            :step="0.01"
             class="w-10 h-10"
           />
           <div class="module-value">{{ formatPercent(lpgs[n - 1].level) }}</div>
-          <label class="module-label">Amount</label>
+          <label class="module-label">Level</label>
         </div>
+
+        <!-- Mode Toggle -->
+        <button
+          @click="toggleMode(n - 1)"
+          :class="{
+            'bg-emerald-500/20 text-emerald-500': lpgs[n - 1].loopMode,
+            'bg-zinc-800/50 text-zinc-400': !lpgs[n - 1].loopMode,
+          }"
+          class="px-2 py-1 text-[10px] rounded transition-colors"
+        >
+          {{ lpgs[n - 1].loopMode ? "LFO" : "Env" }}
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-  import { ref, watch } from "vue";
+  import { ref, watch, onMounted } from "vue";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
+  import * as Tone from "tone";
 
   // Default values for each LPG
   const defaultLPG = {
-    response: 0.5,
-    level: 0.7,
+    rise: 0.1, // 100ms rise time
+    fall: 0.2, // 200ms fall time
+    level: 0.7, // 70% level
+    loopMode: false, // Start in envelope mode
   };
 
   const lpgs = ref(
@@ -57,43 +85,133 @@
     return `${(value * 100).toFixed(0)}%`;
   };
 
-  const updateLPG = (index) => {
-    const lpg = lpgs.value[index];
-    audioEngine.setEnvelope(index, {
-      timeScale: lpg.response,
-      scale: lpg.level,
-    });
+  const formatTime = (value) => {
+    return `${(value * 1000).toFixed(0)}ms`;
+  };
+
+  const toggleMode = (index) => {
+    lpgs.value[index].loopMode = !lpgs.value[index].loopMode;
+    updateLPG(index);
+  };
+
+  const updateLPG = async (index) => {
+    try {
+      // Ensure audio context is running
+      if (Tone.context.state !== "running") {
+        await Tone.start();
+        await Tone.context.resume();
+      }
+
+      // Wait for audio engine initialization
+      if (!audioEngine.initialized) {
+        await audioEngine.initialize();
+      }
+
+      const lpg = lpgs.value[index];
+      if (!lpg) return;
+
+      // Add a small delay to ensure nodes are ready
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Set envelope parameters first
+      await audioEngine.setEnvelope(index, {
+        attack: lpg.rise,
+        release: lpg.fall,
+        sustain: lpg.level,
+        timeScale: 1,
+      });
+
+      // Set LPG mode (envelope or LFO)
+      await audioEngine.setEnvelopeLFO(
+        index,
+        lpg.loopMode,
+        1 / (lpg.rise + lpg.fall)
+      );
+
+      // Set the LPG parameters with retries
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          await audioEngine.setLPGParams(index, {
+            response: lpg.rise,
+            level: lpg.level,
+          });
+          break;
+        } catch (error) {
+          retries--;
+          if (retries === 0) {
+            console.warn(
+              `Failed to set LPG ${index} parameters after 3 attempts`
+            );
+          } else {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Error updating LPG ${index}:`, error);
+    }
   };
 
   // Reset all LPGs to default values
-  const reset = () => {
+  const reset = async () => {
     lpgs.value = lpgs.value.map(() => ({ ...defaultLPG }));
-    lpgs.value.forEach((_, index) => updateLPG(index));
+    for (let i = 0; i < lpgs.value.length; i++) {
+      await updateLPG(i);
+    }
   };
 
   // Randomize all LPG parameters
-  const randomize = () => {
+  const randomize = async () => {
     lpgs.value = lpgs.value.map(() => ({
-      response: 0.1 + Math.random() * 1.9,
+      rise: 0.01 + Math.random() * 0.99,
+      fall: 0.01 + Math.random() * 0.99,
       level: Math.random(),
+      loopMode: Math.random() > 0.7, // 30% chance of LFO mode
     }));
-    lpgs.value.forEach((_, index) => updateLPG(index));
+    for (let i = 0; i < lpgs.value.length; i++) {
+      await updateLPG(i);
+    }
   };
+
+  // Watch for changes and update audio engine
+  watch(
+    lpgs,
+    async () => {
+      for (let i = 0; i < lpgs.value.length; i++) {
+        await updateLPG(i);
+      }
+    },
+    { deep: true }
+  );
+
+  // Initialize on mount with default values and proper sequencing
+  onMounted(async () => {
+    try {
+      // First ensure audio context is started
+      await Tone.start();
+
+      // Then initialize audio engine
+      await audioEngine.initialize();
+
+      // Wait a bit for everything to settle
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Initialize each LPG with a delay between them
+      for (let i = 0; i < lpgs.value.length; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        await updateLPG(i);
+      }
+    } catch (error) {
+      console.warn("Error during LPG initialization:", error);
+    }
+  });
 
   // Expose methods for parent component
   defineExpose({
     reset,
     randomize,
   });
-
-  // Watch for changes and update audio engine
-  watch(
-    lpgs.value,
-    () => {
-      lpgs.value.forEach((_, index) => updateLPG(index));
-    },
-    { deep: true }
-  );
 </script>
 
 <style scoped>

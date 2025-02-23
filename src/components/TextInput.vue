@@ -6,24 +6,12 @@
         v-model="text"
         @input="handleInput"
         class="flex-1 h-10 bg-zinc-900/50 rounded-lg px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-        placeholder="Enter text to generate sounds..."
-        :disabled="!store.audioInitialized"
+        placeholder="Beats Per Plant"
       />
 
       <div class="flex items-center gap-2">
         <div class="text-[10px] text-zinc-500">{{ text.length }} chars</div>
         <button
-          v-if="!store.audioInitialized"
-          @click="initializeAudio"
-          class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors whitespace-nowrap flex items-center gap-2"
-        >
-          <IconHolder class="w-3 h-3">
-            <Power class="text-current" stroke-width="1.5" />
-          </IconHolder>
-          <span>Initialize Audio</span>
-        </button>
-        <button
-          v-else
           @click="togglePlay"
           class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors flex items-center gap-2 whitespace-nowrap"
           :class="{ 'bg-emerald-500/30': store.playing }"
@@ -57,13 +45,13 @@
 </template>
 
 <script setup>
-  import { ref, watch, watchEffect } from "vue";
+  import { ref, watch, onMounted } from "vue";
   import { store } from "../store.js";
   import * as Tone from "tone";
   import MagentaService from "../services/MagentaService.js";
   import audioEngine from "../services/AudioEngine.js";
   import { debounce } from "lodash-es";
-  import { Play, Pause, Power } from "lucide-vue-next";
+  import { Play, Pause } from "lucide-vue-next";
   import IconHolder from "./IconHolder.vue";
 
   const magentaService = new MagentaService();
@@ -72,44 +60,49 @@
   const error = ref(null);
   const emit = defineEmits(["update:text"]);
 
-  // Initialize Magenta on component mount
-  magentaService.initialize().catch((err) => {
-    console.error("Failed to initialize Magenta:", err);
-    error.value = "Failed to initialize AI models";
+  // Initialize with default text
+  onMounted(async () => {
+    try {
+      // Start audio context
+      await Tone.start();
+      await audioEngine.initialize();
+
+      // Set default text and generate initial pattern
+      text.value = "Beats Per Plant";
+      await handleInput({ target: { value: text.value } });
+
+      // Initialize Magenta
+      await magentaService.initialize();
+    } catch (err) {
+      console.error("Failed to initialize:", err);
+      error.value = "Failed to initialize audio system";
+    }
   });
 
-  const initializeAudio = async () => {
-    try {
-      await store.initializeAudio();
-      console.log("Audio initialized successfully");
-    } catch (error) {
-      console.error("Failed to initialize audio:", error);
-    }
-  };
-
   const togglePlay = async () => {
-    if (!store.audioInitialized) {
-      await initializeAudio();
-    }
-
-    // Ensure Tone.js context is running
-    if (Tone.context.state !== "running") {
-      await Tone.context.resume();
-    }
-
-    if (store.playing) {
-      audioEngine.stopPlayback();
-      store.playing = false;
-    } else {
-      if (text.value.trim()) {
-        generatePattern(text.value);
+    try {
+      // Ensure audio context is running
+      if (Tone.context.state !== "running") {
+        await Tone.start();
+        await Tone.context.resume();
       }
+
+      if (store.playing) {
+        audioEngine.stopPlayback();
+        store.playing = false;
+      } else {
+        if (text.value.trim()) {
+          generatePattern(text.value);
+        }
+      }
+    } catch (error) {
+      console.error("Playback error:", error);
     }
   };
 
   // Debounced function for generating patterns
   const generatePattern = debounce(async (inputText) => {
-    if (!store.audioInitialized || !inputText) return;
+    if (!inputText) return;
 
     isProcessing.value = true;
     error.value = null;
@@ -150,5 +143,10 @@
     font-family: theme("fontFamily.mono");
     letter-spacing: -0.5px;
     line-height: 1;
+  }
+
+  .text-input input::placeholder {
+    color: theme("colors.zinc.600");
+    opacity: 1;
   }
 </style>

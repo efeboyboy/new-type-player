@@ -22,108 +22,37 @@ class AFG248PlayHead {
 
 class AudioEngine {
   constructor() {
-    // Add master volume control
-    this.masterVolume = new Tone.Volume(0).toDestination();
+    this.initialized = false;
 
-    // Add clock system before other components
-    this.clockSystem = {
-      // Master clock source (frequency in Hz for 120 BPM quarter notes)
-      master: new Tone.Clock(),
+    // Create nodes without connecting them
+    this.masterVolume = new Tone.Volume(0);
 
-      // Clock divisions (whole, half, quarter, eighth, sixteenth)
-      divisions: {
-        "1n": new Tone.Signal(0),
-        "2n": new Tone.Signal(0),
-        "4n": new Tone.Signal(0),
-        "8n": new Tone.Signal(0),
-        "16n": new Tone.Signal(0),
-      },
-
-      // Division counters
-      counters: {
-        "1n": 0,
-        "2n": 0,
-        "4n": 0,
-        "8n": 0,
-        "16n": 0,
-      },
-
-      // Distribution buses
-      buses: Array(4)
-        .fill()
-        .map(() => new Tone.Signal(0)),
-    };
-
-    // Initialize clock processing
-    this.initializeClockSystem();
-
-    // Create quad outputs first (Front L/R, Rear L/R)
+    // Create quad outputs
     this.quadOutputs = {
-      frontLeft: new Tone.Gain().connect(this.masterVolume),
-      frontRight: new Tone.Gain().connect(this.masterVolume),
-      rearLeft: new Tone.Gain().connect(this.masterVolume),
-      rearRight: new Tone.Gain().connect(this.masterVolume),
+      frontLeft: new Tone.Gain(),
+      frontRight: new Tone.Gain(),
+      rearLeft: new Tone.Gain(),
+      rearRight: new Tone.Gain(),
     };
 
-    // Spatial director (227) - one per mixer output
-    this.spatialDirectors = Array(4)
-      .fill()
-      .map(() => {
-        // Create all nodes first
-        const director = {
-          panner: new Tone.Panner(0),
-          reverb: new Tone.Reverb({
-            decay: 2,
-            wet: 0.2,
-            preDelay: 0.01,
-          }),
-          frontGain: new Tone.Gain(0.7),
-          rearGain: new Tone.Gain(0.3),
-          outputs: {
-            fl: new Tone.Gain(),
-            fr: new Tone.Gain(),
-            rl: new Tone.Gain(),
-            rr: new Tone.Gain(),
-          },
-        };
+    // Create oscillators and basic components
+    this.osc1 = new Tone.Oscillator({ type: "sine", frequency: 440 });
+    this.osc2 = new Tone.Oscillator({ type: "sine", frequency: 440 });
+    this.osc3 = new Tone.Oscillator({ type: "sine", frequency: 440 });
+    this.noise = new Tone.Noise({ type: "white", volume: -20 });
 
-        // Wait for reverb to initialize
-        director.reverb.generate().then(() => {
-          // Connect the spatial routing
-          director.panner.connect(director.frontGain);
-          director.panner.connect(director.rearGain);
-
-          director.frontGain.connect(director.reverb);
-          director.rearGain.connect(director.reverb);
-
-          director.reverb.connect(director.outputs.fl);
-          director.reverb.connect(director.outputs.fr);
-          director.reverb.connect(director.outputs.rl);
-          director.reverb.connect(director.outputs.rr);
-
-          director.outputs.fl.connect(this.quadOutputs.frontLeft);
-          director.outputs.fr.connect(this.quadOutputs.frontRight);
-          director.outputs.rl.connect(this.quadOutputs.rearLeft);
-          director.outputs.rr.connect(this.quadOutputs.rearRight);
-        });
-
-        return director;
-      });
-
-    // Create all audio components first
-    // Wave folders and shapers for each oscillator
+    // Create wave folders
     this.waveFolders = Array(3)
       .fill()
       .map(
         () =>
           new Tone.WaveShaper((x) => {
-            // Buchla-style wave folding
             const fold = 2;
             return Math.sin(x * Math.PI * fold);
           })
       );
 
-    // Dual band pass filters (one per oscillator)
+    // Create filters
     this.bandpassFilters = Array(3)
       .fill()
       .map(
@@ -135,81 +64,18 @@ class AudioEngine {
           })
       );
 
-    // Tone shaper (simplified 10-channel cam filter using EQ)
-    this.toneShaper = new Tone.EQ3({
-      low: 0,
-      mid: 0,
-      high: 0,
-      lowFrequency: 200,
-      highFrequency: 2000,
-    });
-
-    // Frequency Shifter implementation (Buchla 285)
-    this.freqShifter = new Tone.FrequencyShifter({
-      frequency: 0,
-      wet: 1,
-    });
-
-    // Primary oscillators
-    this.osc1 = new Tone.Oscillator({
-      type: "sine",
-      frequency: 440,
-    });
-
-    this.osc2 = new Tone.Oscillator({
-      type: "sine",
-      frequency: 440,
-    });
-
-    this.osc3 = new Tone.Oscillator({
-      type: "sine",
-      frequency: 440,
-    });
-
-    // Noise source (Buchla 265-style)
-    this.noise = new Tone.Noise({
-      type: "white",
-      volume: -20,
-    });
-
-    // Add noise filtering and shaping
-    this.noiseFilter = new Tone.Filter({
-      type: "bandpass",
-      frequency: 1000,
-      Q: 1,
-    });
-
-    this.noiseVCA = new Tone.Gain(0.5);
-
-    // Create Low Pass Gates (LPGs) - Buchla style
+    // Create LPGs (but don't connect yet)
     this.lpgs = Array(4)
       .fill()
-      .map(() => {
-        const lpg = {
-          vactrol: new Tone.Follower(0.1),
-          filter: new Tone.Filter({
-            type: "lowpass",
-            frequency: 2000,
-            Q: 0.5,
-            rolloff: -24,
-          }),
-          vca: new Tone.Gain(0), // Start closed
-          response: new Tone.WaveShaper((x) => {
-            return Math.pow(Math.max(0, x), 1.5); // More dramatic curve
-          }),
-          input: new Tone.Gain(1), // Input stage
-          output: new Tone.Gain(1), // Output stage
-        };
+      .map(() => ({
+        vactrol: null,
+        vca: null,
+        filter: null,
+        envelope: null,
+        lfo: null,
+      }));
 
-        // Proper signal flow within LPG
-        lpg.input.connect(lpg.filter);
-        lpg.filter.connect(lpg.vca);
-        lpg.vca.connect(lpg.output);
-
-        return lpg;
-      });
-
-    // Create a proper 4x4 matrix mixer with direct connections
+    // Create matrix mixer components
     this.matrixMixer = {
       inputs: Array(4)
         .fill()
@@ -226,179 +92,103 @@ class AudioEngine {
         ),
     };
 
-    // Connect matrix crosspoints properly
-    this.matrixMixer.inputs.forEach((input, i) => {
-      this.matrixMixer.outputs.forEach((output, j) => {
-        // Connect input to crosspoint
-        input.connect(this.matrixMixer.matrix[i][j]);
-        // Connect crosspoint to output
-        this.matrixMixer.matrix[i][j].connect(this.matrixMixer.outputs[j]);
-      });
+    // Create spatial directors
+    this.spatialDirectors = Array(4)
+      .fill()
+      .map(() => ({
+        panner: new Tone.Panner(0),
+        reverb: new Tone.Reverb({
+          decay: 2,
+          wet: 0.2,
+          preDelay: 0.01,
+        }),
+        frontGain: new Tone.Gain(0.7),
+        rearGain: new Tone.Gain(0.3),
+        outputs: {
+          fl: new Tone.Gain(),
+          fr: new Tone.Gain(),
+          rl: new Tone.Gain(),
+          rr: new Tone.Gain(),
+        },
+      }));
+
+    // Create other components
+    this.noiseFilter = new Tone.Filter({
+      type: "bandpass",
+      frequency: 1000,
+      Q: 1,
     });
 
-    // Connect matrix outputs to spatial directors
-    this.matrixMixer.outputs.forEach((output, i) => {
-      output.connect(this.spatialDirectors[i].panner);
-    });
+    this.noiseVCA = new Tone.Gain(0.5);
+    this.toneShaper = new Tone.EQ3();
+    this.freqShifter = new Tone.FrequencyShifter();
 
-    // Now connect all the signal chains
-    // Connect oscillator chains to use new LPG structure
-    this.osc1.chain(
-      this.waveFolders[0],
-      this.bandpassFilters[0],
-      this.lpgs[0].input,
-      this.lpgs[0].output,
-      this.matrixMixer.inputs[0]
-    );
-
-    this.osc2.chain(
-      this.waveFolders[1],
-      this.bandpassFilters[1],
-      this.lpgs[1].input,
-      this.lpgs[1].output,
-      this.matrixMixer.inputs[1]
-    );
-
-    this.osc3.chain(
-      this.waveFolders[2],
-      this.freqShifter,
-      this.bandpassFilters[2],
-      this.lpgs[2].input,
-      this.lpgs[2].output,
-      this.matrixMixer.inputs[2]
-    );
-
-    // Connect noise chain with proper gain staging
-    this.noise.chain(
-      this.noiseFilter,
-      this.noiseVCA,
-      this.toneShaper,
-      this.lpgs[3].input,
-      this.lpgs[3].output,
-      this.matrixMixer.inputs[3]
-    );
-
-    // Set default mixer settings
-    for (let i = 0; i < 4; i++) {
-      this.setMixerPoint(i, i, 0.7); // Diagonal connections at 70%
-    }
-
-    // Initialize sequences array
-    this.activeSequences = [];
-
-    // Random voltage source (source of uncertainty)
-    this.randomSource = new Tone.Noise("pink").start();
-    this.randomSampleHold = new Tone.Follower(0.1);
-    this.randomSource.connect(this.randomSampleHold);
-
-    // Add polyphonic voice management
-    this.voiceManager = {
-      maxVoices: 3,
-      activeVoices: 2,
-      voices: Array(3)
+    // Initialize clock system with missing buses added
+    this.clockSystem = {
+      master: {
+        frequency: {
+          get value() {
+            return Tone.Transport.bpm.value / 60;
+          },
+          set value(f) {
+            Tone.Transport.bpm.value = f * 60;
+          },
+        },
+        start: () => Tone.Transport.start(),
+        stop: () => Tone.Transport.stop(),
+        set callback(fn) {
+          if (this._repeatEventId) {
+            Tone.Transport.clear(this._repeatEventId);
+          }
+          this._repeatEventId = Tone.Transport.scheduleRepeat(fn, "4n");
+        },
+      },
+      counters: {
+        "16n": 0,
+        "8n": 0,
+        "4n": 0,
+        "2n": 0,
+        "1n": 0,
+      },
+      divisions: {
+        "16n": new Tone.Signal(0),
+        "8n": new Tone.Signal(0),
+        "4n": new Tone.Signal(0),
+        "2n": new Tone.Signal(0),
+        "1n": new Tone.Signal(0),
+      },
+      buses: Array(4)
         .fill()
-        .map(() => ({
-          frequency: 0,
-          gate: false,
-          shape: 0,
-        })),
-      sampleHold: Array(3)
-        .fill()
-        .map(() => ({
-          value: new Tone.Signal(0),
-          trigger: new Tone.Multiply(0),
-          follower: new Tone.Follower(0.01),
-        })),
-      voiceRouter: new Tone.Signal(0),
+        .map(() => new Tone.Signal(0)),
     };
 
-    // Connect voice manager components
-    this.voiceManager.sampleHold.forEach((sh) => {
-      sh.value.connect(sh.trigger);
-      sh.trigger.connect(sh.follower);
-    });
+    this.initializeClockSystem();
 
-    // Enhanced source of uncertainty
-    this.uncertaintySource = {
-      smooth: new Tone.Noise("pink").start(),
-      gates: new Tone.Noise("white").start(),
-      steps: new Tone.Noise("brown").start(),
-      probability: new Tone.Multiply(1),
-      distribution: new Tone.WaveShaper((x) => Math.pow(x, 2)),
-      quantizer: new Tone.WaveShaper((x) => {
-        // Quantize to 12 steps (chromatic scale)
-        const steps = 12;
-        return Math.round(x * steps) / steps;
-      }),
-      threshold: new Tone.WaveShaper((x) => {
-        // Custom threshold implementation
-        return x > 0.5 ? 1 : 0;
-      }),
-      sampleHold: new Tone.Follower(0.01),
-    };
-
-    // Connect uncertainty sources
-    this.uncertaintySource.smooth.chain(
-      this.uncertaintySource.distribution,
-      this.uncertaintySource.probability
-    );
-    this.uncertaintySource.gates.chain(
-      this.uncertaintySource.threshold,
-      this.uncertaintySource.probability
-    );
-    this.uncertaintySource.steps.chain(
-      this.uncertaintySource.quantizer,
-      this.uncertaintySource.probability
-    );
-
-    // Add clock divisions
-    this.clockDivisions = {
-      1: new Tone.Multiply(1),
-      2: new Tone.Multiply(0.5),
-      4: new Tone.Multiply(0.25),
-      8: new Tone.Multiply(0.125),
-      16: new Tone.Multiply(0.0625),
-    };
-
-    // Initialize AFG (248-style)
+    // Initialize AFG system properties
     this.afg = {
+      playheads: [new AFG248PlayHead(), new AFG248PlayHead()],
       steps: Array(16)
-        .fill()
-        .map(() => ({
-          cv1: new Tone.Signal(0),
-          cv2: new Tone.Signal(0),
-          trig1: new Tone.Signal(0),
-          trig2: new Tone.Signal(0),
-          duration: 0.25,
-          externalMode: false,
-        })),
-      playheads: Array(2)
-        .fill()
-        .map(() => ({
-          position: 0,
-          active: false,
-          clockDiv: "4",
-          lastTrig: 0,
-        })),
-      externalCV: Array(4)
-        .fill()
-        .map(() => new Tone.Signal(0)),
-      clockInputs: Array(2)
-        .fill()
-        .map(() => new Tone.Signal(0)),
+        .fill(null)
+        .map(() => new AFG248Step()),
+      clockInputs: [new Tone.Signal(0), new Tone.Signal(0)],
       strobeInput: new Tone.Signal(0),
       addressCV: new Tone.Signal(0),
+      externalInputs: Array(4)
+        .fill(null)
+        .map(() => new Tone.Signal(0)),
+      externalCV: Array(4)
+        .fill(null)
+        .map(() => new Tone.Signal(0)),
     };
 
-    // Initialize AFG processing
     this.initializeAFG();
 
-    // Create envelope generators (Buchla 284-style) with proper timing
+    // Create envelope generators
     this.envelopes = Array(4)
       .fill()
       .map(() => {
         const env = new Tone.Envelope({
-          attack: 0.01, // Faster attack
+          attack: 0.01,
           decay: 0.2,
           sustain: 0.5,
           release: 0.5,
@@ -406,61 +196,18 @@ class AudioEngine {
           releaseCurve: "exponential",
         });
 
-        // Add offset capability with initial values
-        const offset = new Tone.Add(0.2); // Small positive offset
-        const multiply = new Tone.Multiply(1);
-
-        env.chain(offset, multiply);
-
         return {
           envelope: env,
-          offset: offset,
-          multiply: multiply,
+          offset: new Tone.Add(0.2),
+          multiply: new Tone.Multiply(1),
           isLooping: false,
           timeScale: 1,
         };
       });
 
-    // Connect envelopes to LPGs with proper gain staging
-    this.envelopes.forEach((envSystem, i) => {
-      const lpg = this.lpgs[i];
-
-      // Connect envelope through vactrol simulation
-      envSystem.envelope.chain(
-        envSystem.offset,
-        envSystem.multiply,
-        lpg.vactrol
-      );
-
-      // Connect vactrol to response shaper
-      lpg.vactrol.connect(lpg.response);
-
-      // Create proper scaling for filter and VCA
-      const freqScale = new Tone.Scale(20, 8000); // Wider frequency range
-      const gainScale = new Tone.Scale(0, 1);
-
-      lpg.response.connect(freqScale);
-      lpg.response.connect(gainScale);
-
-      freqScale.connect(lpg.filter.frequency);
-      gainScale.connect(lpg.vca.gain);
-    });
-
-    // Add sequence morphing
-    this.sequenceMorph = {
-      amount: new Tone.Multiply(1),
-      target: Array(16)
-        .fill()
-        .map(() => new Tone.Signal(0)),
-    };
-
-    // Create the interpolator after amount is initialized
-    this.sequenceMorph.interpolator = new Tone.WaveShaper((x) => {
-      const morphAmount = this.sequenceMorph.amount.value || 0;
-      const targetIndex = Math.floor(x * 16);
-      const targetValue = this.sequenceMorph.target[targetIndex]?.value || 0;
-      return x * (1 - morphAmount) + targetValue * morphAmount;
-    });
+    // Initialize other properties
+    this.activeSequences = [];
+    this.clockRoutings = {};
   }
 
   initializeClockSystem() {
@@ -580,6 +327,9 @@ class AudioEngine {
   }
 
   distributeClockPulse(time) {
+    // Add safety check to ensure buses is defined
+    if (!this.clockSystem || !this.clockSystem.buses) return;
+
     // Distribute clock to buses based on current routing
     this.clockSystem.buses.forEach((bus, i) => {
       if (this.clockRoutings && this.clockRoutings[i]) {
@@ -1074,35 +824,140 @@ class AudioEngine {
 
   // Initialize Tone.js and prepare audio engine
   async initialize() {
-    // Start audio context
-    await Tone.start();
+    if (this.initialized) return this;
 
-    // Set initial volume
-    Tone.Destination.volume.value = -12; // Start at a safe level
+    try {
+      // Start audio context
+      await Tone.start();
+      await Tone.context.resume();
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-    // Initialize all components
-    await Promise.all(
-      this.spatialDirectors.map((director) => director.reverb.generate())
-    );
+      // Connect master volume to destination
+      this.masterVolume.toDestination();
 
-    // Set default spatial positions
-    for (let i = 0; i < 4; i++) {
-      this.setSpatialPosition(i, i % 2 ? 0.5 : -0.5, i < 2 ? -0.5 : 0.5);
+      // Connect quad outputs to master volume
+      Object.values(this.quadOutputs).forEach((output) => {
+        output.connect(this.masterVolume);
+      });
+
+      // Initialize LPGs
+      for (let i = 0; i < 4; i++) {
+        const lpg = this.lpgs[i];
+
+        lpg.vactrol = new Tone.Follower(0.1);
+        lpg.vca = new Tone.Gain(0);
+        lpg.filter = new Tone.Filter({
+          frequency: 2000,
+          type: "lowpass",
+          rolloff: -12,
+        });
+        lpg.envelope = new Tone.Envelope({
+          attack: 0.1,
+          decay: 0,
+          sustain: 1,
+          release: 0.2,
+          attackCurve: "exponential",
+          releaseCurve: "exponential",
+        });
+        lpg.lfo = new Tone.LFO({
+          frequency: 1,
+          min: 0,
+          max: 1,
+          type: "sine",
+        });
+
+        // Connect LPG components
+        lpg.envelope.connect(lpg.vactrol);
+        lpg.lfo.connect(lpg.vactrol);
+        lpg.vactrol.connect(lpg.vca.gain);
+        lpg.vactrol.connect(lpg.filter.frequency);
+        lpg.filter.connect(lpg.vca);
+      }
+
+      // Connect matrix mixer
+      this.matrixMixer.inputs.forEach((input, i) => {
+        this.matrixMixer.outputs.forEach((output, j) => {
+          input.connect(this.matrixMixer.matrix[i][j]);
+          this.matrixMixer.matrix[i][j].connect(output);
+        });
+      });
+
+      // Connect matrix outputs to spatial directors
+      this.matrixMixer.outputs.forEach((output, i) => {
+        if (this.spatialDirectors[i]?.panner) {
+          output.connect(this.spatialDirectors[i].panner);
+        }
+      });
+
+      // Initialize spatial routing
+      await Promise.all(
+        this.spatialDirectors.map(async (director) => {
+          await director.reverb.generate();
+
+          director.panner.connect(director.frontGain);
+          director.panner.connect(director.rearGain);
+          director.frontGain.connect(director.reverb);
+          director.rearGain.connect(director.reverb);
+          director.reverb.connect(director.outputs.fl);
+          director.reverb.connect(director.outputs.fr);
+          director.reverb.connect(director.outputs.rl);
+          director.reverb.connect(director.outputs.rr);
+
+          director.outputs.fl.connect(this.quadOutputs.frontLeft);
+          director.outputs.fr.connect(this.quadOutputs.frontRight);
+          director.outputs.rl.connect(this.quadOutputs.rearLeft);
+          director.outputs.rr.connect(this.quadOutputs.rearRight);
+        })
+      );
+
+      // Connect signal chains
+      this.osc1.chain(
+        this.waveFolders[0],
+        this.bandpassFilters[0],
+        this.lpgs[0].filter,
+        this.lpgs[0].vca,
+        this.matrixMixer.inputs[0]
+      );
+
+      this.osc2.chain(
+        this.waveFolders[1],
+        this.bandpassFilters[1],
+        this.lpgs[1].filter,
+        this.lpgs[1].vca,
+        this.matrixMixer.inputs[1]
+      );
+
+      this.osc3.chain(
+        this.waveFolders[2],
+        this.bandpassFilters[2],
+        this.lpgs[2].filter,
+        this.lpgs[2].vca,
+        this.matrixMixer.inputs[2]
+      );
+
+      this.noise.chain(
+        this.noiseFilter,
+        this.noiseVCA,
+        this.lpgs[3].filter,
+        this.lpgs[3].vca,
+        this.matrixMixer.inputs[3]
+      );
+
+      // Set default mixer settings
+      for (let i = 0; i < 4; i++) {
+        this.setMixerPoint(i, i, 0.7);
+      }
+
+      // Final delay to ensure everything is ready
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      this.initialized = true;
+      console.log("Audio engine initialized with Buchla-style LPGs");
+      return this;
+    } catch (error) {
+      console.error("Failed to initialize audio engine:", error);
+      throw error;
     }
-
-    // Ensure clock system is ready
-    this.clockSystem.master.frequency.value = 2; // 120 BPM
-
-    // Initialize AFG
-    this.afg.steps.forEach((step, i) => {
-      step.cv1.value = 0;
-      step.cv2.value = 0;
-      step.trig1.value = 0;
-      step.trig2.value = 0;
-      step.stepDuration = 0.25;
-    });
-
-    return this;
   }
 
   // Test direct signal path
@@ -1160,7 +1015,6 @@ class AudioEngine {
 
       this.osc3.chain(
         this.waveFolders[2],
-        this.freqShifter,
         this.bandpassFilters[2],
         this.lpgs[2].filter,
         this.lpgs[2].vca,
@@ -1400,6 +1254,31 @@ class AudioEngine {
         db,
         Tone.now() + safeRampTime
       );
+    }
+  }
+
+  // Set LPG parameters
+  async setLPGParams(index, { response, level }) {
+    if (!this.initialized || !this.lpgs[index]) return;
+
+    try {
+      const lpg = this.lpgs[index];
+
+      // Set vactrol response time
+      lpg.vactrol.smoothing = response;
+
+      // Set VCA maximum gain
+      lpg.vca.gain.value = level;
+
+      // Adjust filter frequency range based on level
+      lpg.filter.frequency.value = 200 + level * 10000;
+
+      // Retrigger envelope if not in LFO mode
+      if (!lpg.lfo.state === "started") {
+        lpg.envelope.triggerAttackRelease(0.01);
+      }
+    } catch (error) {
+      console.warn(`Error setting LPG ${index} params:`, error);
     }
   }
 }

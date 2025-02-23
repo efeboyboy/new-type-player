@@ -1,47 +1,74 @@
 <template>
-  <div class="text-input flex items-center gap-2">
-    <textarea
-      v-model="text"
-      @input="handleInput"
-      class="flex-1 h-10 bg-zinc-900/50 rounded-lg px-3 py-2 text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-      placeholder="Enter text to generate sounds..."
-      :disabled="!store.audioInitialized"
-    ></textarea>
-
+  <div class="text-input flex flex-col gap-2">
     <div class="flex items-center gap-2">
-      <div class="text-[10px] text-zinc-500">{{ text.length }} chars</div>
-      <button
-        v-if="!store.audioInitialized"
-        @click="initializeAudio"
-        class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors whitespace-nowrap"
-      >
-        Initialize Audio
-      </button>
-      <button
-        v-else
-        @click="togglePlay"
-        class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors flex items-center gap-1 whitespace-nowrap"
-        :class="{ 'bg-emerald-500/30': store.playing }"
-      >
-        <div
-          class="w-2 h-2"
-          :class="
-            store.playing ? 'bg-current' : 'border-l-[6px] border-current'
-          "
-        ></div>
-        {{ store.playing ? "Stop" : "Play" }}
-      </button>
+      <textarea
+        v-model="text"
+        @input="handleInput"
+        class="flex-1 h-10 bg-zinc-900/50 rounded-lg px-3 py-2 text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+        placeholder="Enter text to generate sounds..."
+        :disabled="!store.audioInitialized"
+      ></textarea>
+
+      <div class="flex items-center gap-2">
+        <div class="text-[10px] text-zinc-500">{{ text.length }} chars</div>
+        <button
+          v-if="!store.audioInitialized"
+          @click="initializeAudio"
+          class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors whitespace-nowrap"
+        >
+          Initialize Audio
+        </button>
+        <button
+          v-else
+          @click="togglePlay"
+          class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors flex items-center gap-1 whitespace-nowrap"
+          :class="{ 'bg-emerald-500/30': store.playing }"
+        >
+          <div
+            class="w-2 h-2"
+            :class="
+              store.playing ? 'bg-current' : 'border-l-[6px] border-current'
+            "
+          ></div>
+          {{ store.playing ? "Stop" : "Play" }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Status indicators -->
+    <div
+      v-if="isProcessing || error"
+      class="flex items-center gap-2 text-[10px]"
+    >
+      <div v-if="isProcessing" class="text-emerald-500">
+        Generating music pattern...
+      </div>
+      <div v-if="error" class="text-red-500">
+        {{ error }}
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-  import { ref, watch } from "vue";
+  import { ref, watch, watchEffect } from "vue";
   import { store } from "../store.js";
   import * as Tone from "tone";
+  import MagentaService from "../services/MagentaService.js";
+  import audioEngine from "../services/AudioEngine.js";
+  import { debounce } from "lodash-es";
 
+  const magentaService = new MagentaService();
   const text = ref("");
+  const isProcessing = ref(false);
+  const error = ref(null);
   const emit = defineEmits(["update:text"]);
+
+  // Initialize Magenta on component mount
+  magentaService.initialize().catch((err) => {
+    console.error("Failed to initialize Magenta:", err);
+    error.value = "Failed to initialize AI models";
+  });
 
   const initializeAudio = async () => {
     try {
@@ -65,19 +92,40 @@
     store.togglePlaying();
   };
 
-  const handleInput = () => {
-    if (!store.audioInitialized) {
-      return;
-    }
-    emit("update:text", text.value);
-  };
+  // Debounced function for generating patterns
+  const generatePattern = debounce(async (inputText) => {
+    if (!store.audioInitialized || !inputText) return;
 
-  // Watch for changes
-  watch(text, (newValue) => {
-    if (store.audioInitialized) {
-      handleInput();
+    isProcessing.value = true;
+    error.value = null;
+
+    try {
+      const result = await magentaService.generateFromText(inputText);
+
+      // Update the audio engine with the new sequence
+      if (result && result.notes && result.notes.length > 0) {
+        audioEngine.startPlayback(result);
+      }
+    } catch (err) {
+      console.error("Failed to generate pattern:", err);
+      error.value = "Failed to generate music pattern";
+    } finally {
+      isProcessing.value = false;
     }
-  });
+  }, 500); // 500ms debounce
+
+  const handleInput = async (event) => {
+    const newText = event.target.value;
+    text.value = newText;
+    emit("update:text", newText);
+
+    // Generate new pattern if text is not empty
+    if (newText.trim()) {
+      generatePattern(newText);
+    } else {
+      audioEngine.stopPlayback();
+    }
+  };
 </script>
 
 <style scoped>

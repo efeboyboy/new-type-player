@@ -1,101 +1,105 @@
 <template>
-  <div class="w-full h-full grid grid-cols-2 gap-2">
-    <!-- Dual Bandpass Section -->
-    <div class="module-panel">
-      <div class="module-title">Band Pass</div>
-      <div class="grid grid-cols-2 gap-1.5">
-        <!-- Filter 1 -->
-        <div class="control-group">
-          <Knob
-            v-model="filter1.freq"
-            :min="20"
-            :max="20000"
-            :step="1"
-            class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateFilters"
+  <div class="module-panel">
+    <div class="flex items-center justify-between mb-3">
+      <div class="module-title">Dual Filter 291</div>
+      <div class="flex items-center gap-2">
+        <!-- Reset Button -->
+        <button
+          @click="resetFilters"
+          class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+          title="Reset to Default"
+        >
+          <RotateCcw
+            :size="14"
+            class="text-zinc-400 group-hover:text-emerald-400"
+            stroke-width="1.5"
           />
-          <div class="module-value">{{ formatFreq(filter1.freq) }}</div>
-          <label class="module-label">Freq 1</label>
-        </div>
-        <div class="control-group">
-          <Knob
-            v-model="filter1.q"
-            :min="0.1"
-            :max="10"
-            :step="0.1"
-            class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateFilters"
+        </button>
+        <!-- Randomize Button -->
+        <button
+          @click="randomizeFilters"
+          class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+          title="Randomize Values"
+        >
+          <Shuffle
+            :size="14"
+            class="text-zinc-400 group-hover:text-emerald-400"
+            stroke-width="1.5"
           />
-          <div class="module-value">{{ filter1.q.toFixed(1) }}</div>
-          <label class="module-label">Q 1</label>
-        </div>
-        <!-- Filter 2 -->
-        <div class="control-group">
-          <Knob
-            v-model="filter2.freq"
-            :min="20"
-            :max="20000"
-            :step="1"
-            class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateFilters"
-          />
-          <div class="module-value">{{ formatFreq(filter2.freq) }}</div>
-          <label class="module-label">Freq 2</label>
-        </div>
-        <div class="control-group">
-          <Knob
-            v-model="filter2.q"
-            :min="0.1"
-            :max="10"
-            :step="0.1"
-            class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateFilters"
-          />
-          <div class="module-value">{{ filter2.q.toFixed(1) }}</div>
-          <label class="module-label">Q 2</label>
-        </div>
+        </button>
       </div>
     </div>
 
-    <!-- Tone Shaper Section -->
-    <div class="module-panel">
-      <div class="module-title">Tone Shape</div>
-      <div class="grid grid-cols-3 gap-1.5">
+    <div class="grid grid-cols-4 gap-2">
+      <!-- Dual Bandpass Filters -->
+      <div v-for="n in 2" :key="n" class="flex flex-col gap-2">
+        <div class="text-center">
+          <div class="module-label">Filter {{ n }}</div>
+        </div>
+
+        <!-- Frequency -->
         <div class="control-group">
           <Knob
-            v-model="toneShape.low"
+            v-model="filters[n - 1].freq"
+            :min="20"
+            :max="20000"
+            :step="1"
+            class="w-8 h-8"
+            @update:modelValue="updateFilters"
+          />
+          <div class="module-value">{{ formatFreq(filters[n - 1].freq) }}</div>
+          <label class="module-label">Freq</label>
+        </div>
+
+        <!-- Resonance -->
+        <div class="control-group">
+          <Knob
+            v-model="filters[n - 1].q"
+            :min="0.1"
+            :max="10"
+            :step="0.1"
+            class="w-8 h-8"
+            @update:modelValue="updateFilters"
+          />
+          <div class="module-value">{{ filters[n - 1].q.toFixed(1) }}</div>
+          <label class="module-label">Res</label>
+        </div>
+      </div>
+
+      <!-- Tone Shaper -->
+      <div v-for="n in 2" :key="n + 2" class="flex flex-col gap-2">
+        <div class="text-center">
+          <div class="module-label">EQ {{ n }}</div>
+        </div>
+
+        <!-- Low/High -->
+        <div class="control-group">
+          <Knob
+            v-model="toneShape[n === 1 ? 'low' : 'high']"
             :min="-12"
             :max="12"
             :step="0.1"
-            class="w-full aspect-square max-w-[24px]"
+            class="w-8 h-8"
             @update:modelValue="updateToneShape"
           />
-          <div class="module-value">{{ formatDb(toneShape.low) }}</div>
-          <label class="module-label">Low</label>
+          <div class="module-value">
+            {{ formatDb(toneShape[n === 1 ? "low" : "high"]) }}
+          </div>
+          <label class="module-label">{{ n === 1 ? "Low" : "High" }}</label>
         </div>
+
+        <!-- Mid -->
         <div class="control-group">
           <Knob
             v-model="toneShape.mid"
             :min="-12"
             :max="12"
             :step="0.1"
-            class="w-full aspect-square max-w-[24px]"
+            class="w-8 h-8"
             @update:modelValue="updateToneShape"
           />
           <div class="module-value">{{ formatDb(toneShape.mid) }}</div>
           <label class="module-label">Mid</label>
-        </div>
-        <div class="control-group">
-          <Knob
-            v-model="toneShape.high"
-            :min="-12"
-            :max="12"
-            :step="0.1"
-            class="w-full aspect-square max-w-[24px]"
-            @update:modelValue="updateToneShape"
-          />
-          <div class="module-value">{{ formatDb(toneShape.high) }}</div>
-          <label class="module-label">High</label>
         </div>
       </div>
     </div>
@@ -103,14 +107,26 @@
 </template>
 
 <script setup>
-  import { ref, watch } from "vue";
+  import { ref } from "vue";
+  import { RotateCcw, Shuffle } from "lucide-vue-next";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
 
-  // Initialize filter states
-  const filter1 = ref({ freq: 1000, q: 1 });
-  const filter2 = ref({ freq: 2000, q: 1 });
-  const toneShape = ref({ low: 0, mid: 0, high: 0 });
+  // Default values
+  const defaultFilters = [
+    { freq: 1000, q: 1 },
+    { freq: 2000, q: 1 },
+  ];
+
+  const defaultToneShape = {
+    low: 0,
+    mid: 0,
+    high: 0,
+  };
+
+  // Initialize states
+  const filters = ref(defaultFilters.map((filter) => ({ ...filter })));
+  const toneShape = ref({ ...defaultToneShape });
 
   // Format frequency in Hz or kHz
   const formatFreq = (freq) => {
@@ -126,11 +142,9 @@
 
   // Update filter parameters
   const updateFilters = () => {
-    // Update all oscillator filters
-    for (let i = 1; i <= 3; i++) {
-      audioEngine.setFilter(i, filter1.value.freq, filter1.value.q);
-      audioEngine.setFilter(i + 3, filter2.value.freq, filter2.value.q);
-    }
+    filters.value.forEach((filter, i) => {
+      audioEngine.setFilter(i + 1, filter.freq, filter.q);
+    });
   };
 
   // Update tone shaper
@@ -142,29 +156,48 @@
     );
   };
 
-  // Watch for changes
-  watch([filter1, filter2], updateFilters, { deep: true });
-  watch(toneShape, updateToneShape, { deep: true });
+  // Reset to defaults
+  const resetFilters = () => {
+    filters.value = defaultFilters.map((filter) => ({ ...filter }));
+    toneShape.value = { ...defaultToneShape };
+    updateFilters();
+    updateToneShape();
+  };
+
+  // Randomize values
+  const randomizeFilters = () => {
+    filters.value = filters.value.map(() => ({
+      freq: Math.exp(Math.random() * Math.log(20000 / 20)) * 20,
+      q: 0.1 + Math.random() * 9.9,
+    }));
+    toneShape.value = {
+      low: -12 + Math.random() * 24,
+      mid: -12 + Math.random() * 24,
+      high: -12 + Math.random() * 24,
+    };
+    updateFilters();
+    updateToneShape();
+  };
 </script>
 
 <style scoped>
   .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-2;
+    @apply bg-zinc-900/30 rounded-lg p-3;
   }
 
   .module-title {
-    @apply text-xs font-medium text-zinc-400 mb-2;
-  }
-
-  .control-group {
-    @apply flex flex-col items-center gap-0.5;
+    @apply text-sm font-medium text-zinc-400;
   }
 
   .module-value {
-    @apply text-xs font-medium text-zinc-500;
+    @apply text-[10px] font-medium text-zinc-500;
   }
 
   .module-label {
-    @apply text-xs text-zinc-400;
+    @apply text-[10px] font-medium text-zinc-400;
+  }
+
+  .control-group {
+    @apply flex flex-col items-center gap-1;
   }
 </style>

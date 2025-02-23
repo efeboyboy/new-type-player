@@ -2,38 +2,40 @@
   <div class="module-panel">
     <div class="flex items-center justify-between mb-3">
       <div class="module-title">Quad Spatial Director 227</div>
-      <button
-        @click="randomize"
-        class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          class="text-zinc-400 group-hover:text-emerald-400"
+      <div class="flex items-center gap-2">
+        <!-- Reset Button -->
+        <button
+          @click="resetSpatial"
+          class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+          title="Reset to Default"
         >
-          <rect
-            x="4"
-            y="4"
-            width="16"
-            height="16"
-            rx="2"
-            stroke="currentColor"
-            stroke-width="2"
+          <RotateCcw
+            :size="14"
+            class="text-zinc-400 group-hover:text-emerald-400"
+            stroke-width="1.5"
           />
-          <circle cx="9" cy="9" r="1.5" fill="currentColor" />
-          <circle cx="15" cy="9" r="1.5" fill="currentColor" />
-          <circle cx="9" cy="15" r="1.5" fill="currentColor" />
-          <circle cx="15" cy="15" r="1.5" fill="currentColor" />
-        </svg>
-      </button>
+        </button>
+        <!-- Randomize Button -->
+        <button
+          @click="randomize"
+          class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+          title="Randomize Values"
+        >
+          <Shuffle
+            :size="14"
+            class="text-zinc-400 group-hover:text-emerald-400"
+            stroke-width="1.5"
+          />
+        </button>
+      </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-4 gap-3">
       <!-- Channel Controls -->
       <div v-for="n in 4" :key="n" class="flex flex-col gap-2">
-        <div class="text-sm text-zinc-400 mb-1">Channel {{ n }}</div>
+        <div class="text-center">
+          <div class="module-label">Channel {{ n }}</div>
+        </div>
 
         <!-- XY Pad -->
         <div
@@ -53,10 +55,10 @@
 
           <!-- Position Indicator -->
           <div
-            class="absolute w-3 h-3 bg-emerald-500/50 rounded-full -translate-x-1/2 -translate-y-1/2"
+            class="absolute w-2 h-2 bg-emerald-500/50 rounded-full -translate-x-1/2 -translate-y-1/2"
             :style="{
-              left: `${(channels[n - 1].x + 1) * 50}%`,
-              top: `${(channels[n - 1].y + 1) * 50}%`,
+              left: (channels[n - 1].x + 1) * 50 + '%',
+              top: (channels[n - 1].y + 1) * 50 + '%',
             }"
           ></div>
 
@@ -64,7 +66,7 @@
           <div
             class="absolute inset-0 flex items-center justify-center pointer-events-none"
           >
-            <div class="text-[10px] text-zinc-500">
+            <div class="text-[8px] text-zinc-500">
               {{ formatPan(channels[n - 1].x) }} /
               {{ formatPan(channels[n - 1].y) }}
             </div>
@@ -78,19 +80,18 @@
             :min="0"
             :max="1"
             :step="0.01"
-            class="w-full aspect-square max-w-[32px]"
+            class="w-6 h-6"
           />
-          <div class="module-value text-sm">
+          <div class="module-value">
             {{ formatPercent(channels[n - 1].reverb) }}
           </div>
-          <label class="module-label text-xs">Reverb</label>
+          <label class="module-label">Reverb</label>
         </div>
       </div>
     </div>
 
     <!-- Global Reverb Controls -->
-    <div class="mt-4 border-t border-zinc-800 pt-4">
-      <div class="text-sm text-zinc-400 mb-2">Reverb</div>
+    <div class="mt-3 pt-3 border-t border-zinc-800">
       <div class="grid grid-cols-2 gap-4">
         <div class="control-group">
           <Knob
@@ -98,12 +99,12 @@
             :min="0.1"
             :max="10"
             :step="0.1"
-            class="w-full aspect-square max-w-[32px]"
+            class="w-8 h-8"
           />
-          <div class="module-value text-sm">
+          <div class="module-value">
             {{ formatTime(reverbParams.decay) }}
           </div>
-          <label class="module-label text-xs">Decay</label>
+          <label class="module-label">Decay</label>
         </div>
 
         <div class="control-group">
@@ -112,12 +113,12 @@
             :min="0"
             :max="1"
             :step="0.01"
-            class="w-full aspect-square max-w-[32px]"
+            class="w-8 h-8"
           />
-          <div class="module-value text-sm">
+          <div class="module-value">
             {{ formatPercent(reverbParams.diffusion) }}
           </div>
-          <label class="module-label text-xs">Diffusion</label>
+          <label class="module-label">Diffusion</label>
         </div>
       </div>
     </div>
@@ -126,25 +127,31 @@
 
 <script setup>
   import { ref, watch } from "vue";
+  import { RotateCcw, Shuffle } from "lucide-vue-next";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
+
+  // Default values
+  const defaultChannel = {
+    x: 0,
+    y: 0,
+    reverb: 0.2,
+  };
+
+  const defaultReverbParams = {
+    decay: 2.0,
+    diffusion: 0.7,
+  };
 
   // Initialize channels with default values
   const channels = ref(
     Array(4)
       .fill()
-      .map(() => ({
-        x: 0,
-        y: 0,
-        reverb: 0.2,
-      }))
+      .map(() => ({ ...defaultChannel }))
   );
 
   // Initialize reverb parameters
-  const reverbParams = ref({
-    decay: 2.0,
-    diffusion: 0.7,
-  });
+  const reverbParams = ref({ ...defaultReverbParams });
 
   // XY Pad drag handling
   let activeChannel = -1;
@@ -210,37 +217,30 @@
   const formatPan = (value) => {
     if (Math.abs(value) < 0.05) return "C";
     return value > 0
-      ? `R${(value * 100).toFixed(0)}`
-      : `L${(Math.abs(value) * 100).toFixed(0)}`;
+      ? "R" + (value * 100).toFixed(0)
+      : "L" + (Math.abs(value) * 100).toFixed(0);
   };
 
-  const formatPercent = (value) => `${(value * 100).toFixed(0)}%`;
+  const formatPercent = (value) => (value * 100).toFixed(0) + "%";
   const formatTime = (value) => value.toFixed(1) + "s";
 
   // Update spatial position and reverb for a channel
   const updateChannel = (index) => {
     const channel = channels.value[index];
     audioEngine.setSpatialPosition(index, channel.x, channel.y);
-    audioEngine.setReverbSend(index, channel.reverb);
+    audioEngine.setSpatialReverb(
+      index,
+      reverbParams.value.decay,
+      channel.reverb
+    );
   };
 
-  // Update global reverb parameters
-  watch(
-    reverbParams,
-    (newParams) => {
-      audioEngine.setReverbParams(newParams);
-    },
-    { deep: true }
-  );
-
-  // Watch for changes in channel parameters
-  watch(
-    channels.value,
-    (newValues) => {
-      newValues.forEach((_, index) => updateChannel(index));
-    },
-    { deep: true }
-  );
+  // Reset to defaults
+  const resetSpatial = () => {
+    channels.value = channels.value.map(() => ({ ...defaultChannel }));
+    reverbParams.value = { ...defaultReverbParams };
+    channels.value.forEach((_, index) => updateChannel(index));
+  };
 
   // Randomize all parameters
   const randomize = () => {
@@ -254,24 +254,39 @@
       decay: Math.random() * 9.9 + 0.1,
       diffusion: Math.random(),
     };
+
+    channels.value.forEach((_, index) => updateChannel(index));
   };
+
+  // Watch for changes in parameters
+  watch(
+    [channels, reverbParams],
+    () => {
+      channels.value.forEach((_, index) => updateChannel(index));
+    },
+    { deep: true }
+  );
 </script>
 
 <style scoped>
-  .control-group {
-    @apply flex flex-col items-center gap-1;
+  .module-panel {
+    @apply bg-zinc-900/30 rounded-lg p-3;
+  }
+
+  .module-title {
+    @apply text-sm font-medium text-zinc-400;
   }
 
   .module-value {
-    @apply font-medium text-zinc-300;
+    @apply text-[10px] font-medium text-zinc-500;
   }
 
   .module-label {
-    @apply font-medium text-zinc-500;
+    @apply text-[10px] font-medium text-zinc-400;
   }
 
-  .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-3;
+  .control-group {
+    @apply flex flex-col items-center gap-1;
   }
 
   .xy-pad {

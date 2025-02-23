@@ -7,29 +7,13 @@
       <button
         @click="randomize"
         class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+        title="Randomize Parameters"
       >
-        <!-- Dice icon (simplified) -->
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
+        <Shuffle
+          :size="14"
           class="text-zinc-400 group-hover:text-emerald-400"
-        >
-          <rect
-            x="4"
-            y="4"
-            width="16"
-            height="16"
-            rx="2"
-            stroke="currentColor"
-            stroke-width="2"
-          />
-          <circle cx="9" cy="9" r="1.5" fill="currentColor" />
-          <circle cx="15" cy="9" r="1.5" fill="currentColor" />
-          <circle cx="9" cy="15" r="1.5" fill="currentColor" />
-          <circle cx="15" cy="15" r="1.5" fill="currentColor" />
-        </svg>
+          stroke-width="1.5"
+        />
       </button>
     </div>
 
@@ -78,6 +62,7 @@
 
 <script setup>
   import { ref, watch } from "vue";
+  import { Shuffle } from "lucide-vue-next";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
 

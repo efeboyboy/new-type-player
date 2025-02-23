@@ -21,15 +21,22 @@ export default defineConfig({
     "Buffer.isBuffer": "false",
   },
   optimizeDeps: {
-    include: ["buffer", "process/browser", "util", "stream-browserify"],
+    include: [
+      "buffer",
+      "process/browser",
+      "util",
+      "stream-browserify",
+      "@magenta/music",
+    ],
   },
   build: {
     rollupOptions: {
-      external: ["stream-browserify", "util"],
+      external: ["stream-browserify", "util", "@magenta/music"],
       output: {
         globals: {
           "stream-browserify": "Stream",
           util: "util",
+          "@magenta/music": "mm",
         },
         manualChunks: {
           vendor: [
@@ -38,6 +45,7 @@ export default defineConfig({
             "process/browser",
             "util",
             "stream-browserify",
+            "@magenta/music",
           ],
         },
       },

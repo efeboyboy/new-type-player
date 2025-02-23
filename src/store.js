@@ -13,7 +13,7 @@ export const store = reactive({
   tempo: 120,
   currentStep: 0,
   audioInitialized: false,
-  volume: 0.75,
+  volume: 0.6,
   currentSeed: DEFAULT_PATCH_SEED,
 
   // Component refs (set by parent App.vue)

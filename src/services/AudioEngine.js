@@ -1,5 +1,8 @@
 import * as Tone from "tone";
 
+// Utility function for sleep
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 class AFG248Step {
   constructor() {
     this.cv = new Tone.Signal(0);
@@ -857,7 +860,7 @@ class AudioEngine {
       // Start audio context
       await Tone.start();
       await Tone.context.resume();
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await sleep(100);
 
       // Connect master volume to destination
       this.masterVolume.toDestination();
@@ -976,7 +979,7 @@ class AudioEngine {
       }
 
       // Final delay to ensure everything is ready
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await sleep(100);
 
       this.initialized = true;
       console.log("Audio engine initialized with Buchla-style LPGs");
@@ -989,7 +992,8 @@ class AudioEngine {
 
   // Test direct signal path
   async testDirectPath() {
-    await this.initialize();
+    await Tone.start();
+    await sleep(100);
 
     console.log("Testing direct signal path...");
 
@@ -1056,7 +1060,8 @@ class AudioEngine {
 
   // Test sound output with proper initialization
   async testSound() {
-    await this.initialize();
+    await Tone.start();
+    await sleep(100);
 
     console.log("Testing full signal path...");
 

@@ -8,16 +8,16 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      buffer: "buffer/",
       process: "process/browser",
-      buffer: "buffer",
-      util: "util",
+      util: "util/",
       stream: "stream-browserify",
     },
   },
   define: {
     global: "globalThis",
     "process.env": {},
-    "process.hrtime": "[0, 0]",
+    "process.hrtime": "(() => [0, 0])",
     "process.browser": true,
     "Buffer.isBuffer": "false",
   },
@@ -26,14 +26,23 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: ["stream-browserify", "buffer", "util"],
+      external: ["stream-browserify", "util"],
       output: {
         globals: {
           "stream-browserify": "Stream",
-          buffer: "Buffer",
           util: "util",
+        },
+        manualChunks: {
+          vendor: [
+            "tone",
+            "buffer",
+            "process/browser",
+            "util",
+            "stream-browserify",
+          ],
         },
       },
     },
+    chunkSizeWarningLimit: 3000,
   },
 });

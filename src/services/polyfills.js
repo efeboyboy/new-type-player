@@ -7,7 +7,14 @@ if (typeof global === "undefined") {
 if (typeof process === "undefined") {
   window.process = {
     env: {},
-    hrtime: [0, 0],
+    hrtime: function (previousTimestamp) {
+      const now = performance.now();
+      const prev = previousTimestamp
+        ? previousTimestamp[0] * 1e3 + previousTimestamp[1] / 1e6
+        : 0;
+      const diff = now - prev;
+      return [Math.floor(diff / 1000), (diff % 1000) * 1e6];
+    },
     browser: true,
   };
 }

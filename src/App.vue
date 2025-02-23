@@ -1,5 +1,5 @@
 <script setup>
-  import { computed } from "vue";
+  import { computed, ref } from "vue";
   import TextInput from "./components/TextInput.vue";
   import Sequencer from "./components/Sequencer.vue";
   import OscillatorControls from "./components/OscillatorControls.vue";
@@ -11,6 +11,7 @@
   import Knob from "./components/Knob.vue";
   import { store } from "./store.js";
   import audioEngine from "./services/AudioEngine.js";
+  import { RotateCcw, Shuffle } from "lucide-vue-next";
 
   const handleUpdateText = (newText) => {
     store.updateInput(newText);
@@ -23,6 +24,18 @@
       audioEngine.setTempo(val);
     },
   });
+
+  const osc1 = ref(null);
+  const osc2 = ref(null);
+  const osc3 = ref(null);
+
+  const resetAllOscillators = () => {
+    [osc1.value, osc2.value, osc3.value].forEach((osc) => osc?.reset());
+  };
+
+  const randomizeAllOscillators = () => {
+    [osc1.value, osc2.value, osc3.value].forEach((osc) => osc?.randomize());
+  };
 </script>
 
 <template>
@@ -52,14 +65,42 @@
       <div class="grid grid-cols-2 gap-4">
         <!-- Sound Sources (Sun Path) -->
         <div class="bento-box">
-          <div class="bento-title flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
-            Complex Oscillators 258
+          <div class="bento-title flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
+              <span>Complex Oscillators 258</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Reset Button -->
+              <button
+                @click="resetAllOscillators"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Reset All Oscillators"
+              >
+                <RotateCcw
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+              <!-- Randomize Button -->
+              <button
+                @click="randomizeAllOscillators"
+                class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                title="Randomize All Oscillators"
+              >
+                <Shuffle
+                  :size="14"
+                  class="text-zinc-400 group-hover:text-emerald-400"
+                  stroke-width="1.5"
+                />
+              </button>
+            </div>
           </div>
           <div class="grid grid-cols-3 gap-4">
-            <OscillatorControls :number="1" />
-            <OscillatorControls :number="2" />
-            <OscillatorControls :number="3" />
+            <OscillatorControls ref="osc1" :number="1" />
+            <OscillatorControls ref="osc2" :number="2" />
+            <OscillatorControls ref="osc3" :number="3" />
           </div>
         </div>
 

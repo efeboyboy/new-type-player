@@ -1,9 +1,7 @@
 <template>
-  <div class="flex flex-col gap-1.5">
-    <div class="text-[10px] font-medium text-zinc-400 text-center">
-      Sound {{ number }}
-    </div>
-    <div class="flex gap-1.5">
+  <div class="module-panel">
+    <div class="module-title text-center">Sound {{ number }}</div>
+    <div class="grid grid-cols-1 gap-1.5">
       <!-- Pitch Control -->
       <div class="control-group">
         <Knob
@@ -11,13 +9,11 @@
           :min="-24"
           :max="24"
           :step="1"
-          class="w-7 h-7"
+          class="w-full aspect-square max-w-[28px]"
           @update:modelValue="updateOscillator"
         />
-        <div class="text-[10px] font-medium text-zinc-500">
-          {{ formatPitch(pitch) }}
-        </div>
-        <label class="text-[8px] text-zinc-400">Pitch</label>
+        <div class="module-value">{{ formatPitch(pitch) }}</div>
+        <label class="module-label">Pitch</label>
       </div>
 
       <!-- Wave Shape Control -->
@@ -27,13 +23,11 @@
           :min="0"
           :max="10"
           :step="0.1"
-          class="w-7 h-7"
+          class="w-full aspect-square max-w-[28px]"
           @update:modelValue="updateOscillator"
         />
-        <div class="text-[10px] font-medium text-zinc-500">
-          {{ shape.toFixed(1) }}
-        </div>
-        <label class="text-[8px] text-zinc-400">Shape</label>
+        <div class="module-value">{{ shape.toFixed(1) }}</div>
+        <label class="module-label">Shape</label>
       </div>
     </div>
   </div>
@@ -55,20 +49,17 @@
   const shape = ref(0);
 
   const updateOscillator = () => {
-    const frequency = 440 * Math.pow(2, pitch.value / 12); // Convert semitones to frequency
+    const frequency = 440 * Math.pow(2, pitch.value / 12);
     audioEngine.setOscillatorParams(props.number, {
       frequency: frequency,
-      waveShape: shape.value / 10, // Normalize to 0-1 range
+      waveShape: shape.value / 10,
     });
-    console.log(`OSC${props.number}:`, { frequency, shape: shape.value / 10 });
   };
 
-  // Format pitch in semitones
   const formatPitch = (p) => {
     return p > 0 ? `+${p}` : p;
   };
 
-  // Watch for changes
   watch([pitch, shape], updateOscillator);
 </script>
 

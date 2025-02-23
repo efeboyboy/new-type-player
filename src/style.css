@@ -38,38 +38,40 @@
 
 @layer components {
   .bento-box {
-    @apply bg-zinc-900/50 rounded-xl p-4 border border-zinc-800 overflow-hidden;
+    @apply bg-zinc-900/50 rounded-xl p-4 border border-zinc-800 overflow-hidden flex flex-col;
     backdrop-filter: blur(12px);
   }
 
   .bento-title {
-    @apply text-sm font-medium text-zinc-400 mb-2 pb-2 border-b border-zinc-800/50;
+    @apply text-sm font-semibold text-zinc-300 mb-3 pb-2 border-b border-zinc-800/50;
+  }
+
+  .module-title {
+    @apply text-[10px] font-medium text-zinc-400 mb-2;
+  }
+
+  .module-value {
+    @apply text-[8px] font-medium text-zinc-500;
+  }
+
+  .module-label {
+    @apply text-[8px] font-normal text-zinc-400;
   }
 
   .control-group {
-    @apply flex flex-col items-center gap-0.5;
+    @apply flex flex-col items-center gap-0.5 flex-1;
   }
 
   .module-panel {
-    @apply bg-zinc-700/50 rounded-lg p-3 border border-zinc-600/30 shadow-lg;
-    background-image:
-      linear-gradient(45deg, rgba(0, 0, 0, 0.1) 25%, transparent 25%),
-      linear-gradient(-45deg, rgba(0, 0, 0, 0.1) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, 0.1) 75%),
-      linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, 0.1) 75%);
-    background-size: 20px 20px;
-    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    @apply bg-zinc-900/30 rounded-lg p-2 flex flex-col flex-1;
   }
 
-  .module-header {
-    @apply text-lg font-medium mb-3 text-center text-zinc-200 border-b border-zinc-600/30 pb-2;
+  .module-content {
+    @apply flex-1 flex items-center justify-center;
   }
 
-  .rack-rail {
-    @apply h-4 bg-gradient-to-r from-zinc-700 to-zinc-800 shadow-inner;
-    background-image:
-      radial-gradient(circle at center, #4a4a4a 1px, transparent 1px);
-    background-size: 16px 16px;
+  .module-grid {
+    @apply grid gap-2 flex-1 w-full;
   }
 }
 

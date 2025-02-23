@@ -29,12 +29,14 @@
   <div class="min-h-screen w-screen bg-zinc-950 p-4 font-instrument">
     <!-- Main Control Panel -->
     <div class="flex flex-row items-center justify-between gap-4 mb-4">
-      <h1 class="text-xl text-zinc-100 whitespace-nowrap">Type Player</h1>
+      <h1 class="text-xl font-semibold text-zinc-100 whitespace-nowrap">
+        Type Player
+      </h1>
 
       <div
         class="flex items-center gap-3 bg-zinc-900/50 rounded-lg px-4 py-2 whitespace-nowrap"
       >
-        <span class="text-sm text-zinc-400">Speed</span>
+        <span class="text-sm font-medium text-zinc-400">Speed</span>
         <Knob v-model="tempo" :min="40" :max="200" :step="1" class="w-8 h-8" />
         <span class="text-sm font-mono text-zinc-300">{{ tempo }}</span>
       </div>
@@ -49,36 +51,36 @@
       <!-- Top Row -->
       <div class="grid grid-cols-4 gap-4">
         <!-- Sound Sources -->
-        <div class="bento-box flex flex-col">
+        <div class="bento-box">
           <div class="bento-title flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-emerald-500/40"></div>
             Sound Sources
           </div>
-          <div class="flex-1 grid grid-cols-3 gap-2 p-2">
+          <div class="module-grid grid-cols-3">
             <OscillatorControls v-for="n in 3" :key="n" :number="n" />
           </div>
         </div>
 
         <!-- Matrix Mixer -->
-        <div class="bento-box flex flex-col">
+        <div class="bento-box">
           <div class="bento-title">Mix</div>
-          <div class="flex-1 flex items-center justify-center">
+          <div class="module-content">
             <MatrixMixer />
           </div>
         </div>
 
         <!-- Envelopes -->
-        <div class="bento-box flex flex-col">
+        <div class="bento-box">
           <div class="bento-title">Shape</div>
-          <div class="flex-1 flex items-center justify-center">
+          <div class="module-content">
             <EnvelopeControls />
           </div>
         </div>
 
         <!-- LPGs -->
-        <div class="bento-box flex flex-col">
+        <div class="bento-box">
           <div class="bento-title">Gate</div>
-          <div class="flex-1 flex items-center justify-center">
+          <div class="module-content">
             <LPGControls />
           </div>
         </div>
@@ -87,17 +89,17 @@
       <!-- Bottom Row -->
       <div class="grid grid-cols-4 gap-4">
         <!-- Filter -->
-        <div class="bento-box col-span-2 flex flex-col">
+        <div class="bento-box col-span-2">
           <div class="bento-title">Tone</div>
-          <div class="flex-1 flex items-center justify-center">
+          <div class="module-content">
             <FilterControls />
           </div>
         </div>
 
         <!-- Spatializer -->
-        <div class="bento-box col-span-2 flex flex-col">
+        <div class="bento-box col-span-2">
           <div class="bento-title">Space</div>
-          <div class="flex-1 flex items-center justify-center">
+          <div class="module-content">
             <SpatialControls />
           </div>
         </div>

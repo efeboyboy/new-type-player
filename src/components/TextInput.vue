@@ -5,62 +5,86 @@
         type="text"
         v-model="text"
         @input="handleInput"
-        class="flex-1 h-10 bg-zinc-900/50 rounded-lg px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+        class="flex-1 h-10 bg-zinc-900/50 rounded-lg px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-colors"
+        :class="{ 'opacity-50 cursor-not-allowed': !isInitialized }"
         placeholder="Type something to generate music..."
+        :disabled="!isInitialized"
       />
 
       <div class="flex items-center gap-2">
         <div class="text-[10px] text-zinc-500">{{ text.length }} chars</div>
         <button
-          @click="togglePlay"
+          @click="handleButtonClick"
           class="px-3 py-2 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors flex items-center gap-2 whitespace-nowrap"
-          :class="{ 'bg-emerald-500/30': store.playing }"
+          :class="{
+            'bg-emerald-500/30': store.playing,
+            'opacity-50 cursor-not-allowed': isInitialized && !text.trim(),
+          }"
+          :disabled="isInitialized && !text.trim()"
         >
           <IconHolder class="w-3 h-3">
+            <span
+              v-if="!isInitialized"
+              class="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full"
+              :class="{ 'animate-spin': isInitializing }"
+            ></span>
             <Pause
-              v-if="store.playing"
+              v-else-if="store.playing"
               class="text-current"
               stroke-width="1.5"
             />
             <Play v-else class="text-current" stroke-width="1.5" />
           </IconHolder>
-          <span>{{ store.playing ? "Stop" : "Play" }}</span>
+          <span>{{ buttonText }}</span>
         </button>
-      </div>
-    </div>
 
-    <!-- Status indicators -->
-    <div
-      v-if="isProcessing || error"
-      class="flex items-center gap-2 text-[10px]"
-    >
-      <div v-if="isProcessing" class="text-emerald-500">
-        Generating music pattern...
-      </div>
-      <div v-if="error" class="text-red-500">
-        {{ error }}
+        <!-- Randomize Button -->
+        <button
+          @click="handleRandomize"
+          class="px-3 py-2 text-[10px] bg-indigo-500/20 text-indigo-500 rounded-lg hover:bg-indigo-500/30 transition-colors flex items-center gap-2 whitespace-nowrap"
+          :class="{
+            'opacity-50 cursor-not-allowed': !isInitialized,
+          }"
+          :disabled="!isInitialized"
+          :title="
+            currentSeed ? `Current Seed: ${currentSeed}` : 'Randomize All'
+          "
+        >
+          <IconHolder class="w-3 h-3">
+            <Shuffle class="text-current" stroke-width="1.5" />
+          </IconHolder>
+          <span>Random</span>
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-  import { ref, watch, onMounted } from "vue";
+  import { ref, watch, onMounted, computed } from "vue";
   import { store } from "../store.js";
   import * as Tone from "tone";
   import MagentaService from "../services/MagentaService.js";
   import audioEngine from "../services/AudioEngine.js";
   import { debounce } from "lodash-es";
-  import { Play, Pause } from "lucide-vue-next";
+  import { Play, Pause, Shuffle } from "lucide-vue-next";
   import IconHolder from "./IconHolder.vue";
 
   const magentaService = new MagentaService();
   const text = ref("");
   const isProcessing = ref(false);
   const error = ref(null);
+  const isInitialized = ref(false);
+  const isInitializing = ref(false);
+  const currentSeed = ref("");
   const emit = defineEmits(["update:text"]);
 
-  // Initialize with default text
+  const buttonText = computed(() => {
+    if (!isInitialized.value) return "Initialize";
+    return store.playing ? "Stop" : "Play";
+  });
+
+  // Initialize audio system
   onMounted(async () => {
     try {
       // Start audio context
@@ -69,17 +93,56 @@
 
       // Initialize Magenta
       await magentaService.initialize();
+
+      // Set initial seed but keep text input empty
+      currentSeed.value = "a3Wnb2pn"; // Default patch
+
+      // Apply the default patch parameters
+      await store.applySeed(currentSeed.value);
+
+      // Mark as initialized
+      isInitialized.value = true;
     } catch (err) {
       console.error("Failed to initialize:", err);
       error.value = "Failed to initialize audio system";
     }
   });
 
-  const togglePlay = async () => {
+  const initializeAudio = async () => {
+    if (isInitializing.value) return;
+
+    isInitializing.value = true;
+    error.value = null;
+
+    try {
+      // Start audio context
+      await Tone.start();
+      await audioEngine.initialize();
+
+      // Initialize Magenta
+      await magentaService.initialize();
+
+      // Mark as initialized
+      isInitialized.value = true;
+    } catch (err) {
+      console.error("Failed to initialize:", err);
+      error.value = "Failed to initialize audio system";
+    } finally {
+      isInitializing.value = false;
+    }
+  };
+
+  const handleButtonClick = async () => {
+    if (!isInitialized.value) {
+      await initializeAudio();
+      return;
+    }
+
+    if (!text.value.trim()) return;
+
     try {
       // Ensure audio context is running
       if (Tone.context.state !== "running") {
-        await Tone.start();
         await Tone.context.resume();
       }
 
@@ -87,9 +150,7 @@
         audioEngine.stopPlayback();
         store.playing = false;
       } else {
-        if (text.value.trim()) {
-          generatePattern(text.value);
-        }
+        generatePattern(text.value);
       }
     } catch (error) {
       console.error("Playback error:", error);
@@ -98,7 +159,7 @@
 
   // Debounced function for generating patterns
   const generatePattern = debounce(async (inputText) => {
-    if (!inputText) return;
+    if (!inputText || !isInitialized.value) return;
 
     isProcessing.value = true;
     error.value = null;
@@ -113,23 +174,38 @@
         totalTime: 4, // 4 beats
       };
 
-      // Convert the array sequence to proper note format
-      result.forEach((channel, channelIndex) => {
-        channel.forEach((step, stepIndex) => {
-          if (step !== null) {
-            formattedSequence.notes.push({
-              pitch: step.frequency
-                ? Tone.Frequency(step.frequency).toMidi()
-                : 60 + channelIndex * 12,
-              velocity: Math.round(step.velocity * 127) || 100,
-              startTime: stepIndex * 0.25, // Each step is a 16th note (0.25 beats)
-              endTime: (stepIndex + 1) * 0.25,
-              program: 0,
-              isDrum: channelIndex === 3, // Last channel is noise/drums
+      // Handle different sequence formats
+      if (Array.isArray(result)) {
+        // If result is an array of channels
+        result.forEach((channel, channelIndex) => {
+          if (Array.isArray(channel)) {
+            channel.forEach((step, stepIndex) => {
+              if (step && step !== null) {
+                formattedSequence.notes.push({
+                  pitch: step.frequency
+                    ? Tone.Frequency(step.frequency).toMidi()
+                    : 60 + channelIndex * 12,
+                  velocity: Math.round((step.velocity || 0.8) * 127),
+                  startTime: stepIndex * 0.25, // Each step is a 16th note
+                  endTime: (stepIndex + 1) * 0.25,
+                  program: 0,
+                  isDrum: channelIndex === 3, // Last channel is drums
+                });
+              }
             });
           }
         });
-      });
+      } else if (result && typeof result === "object" && result.notes) {
+        // If result is already in the correct format
+        formattedSequence.notes = result.notes.map((note) => ({
+          pitch: note.pitch,
+          velocity: note.velocity,
+          startTime: note.startTime,
+          endTime: note.endTime,
+          program: 0,
+          isDrum: false,
+        }));
+      }
 
       // Update the audio engine with the formatted sequence
       if (formattedSequence.notes.length > 0) {
@@ -145,6 +221,8 @@
   }, 500); // 500ms debounce
 
   const handleInput = async (event) => {
+    if (!isInitialized.value) return;
+
     const newText = event.target.value;
     text.value = newText;
     emit("update:text", newText);
@@ -155,6 +233,39 @@
     } else {
       audioEngine.stopPlayback();
       store.playing = false;
+    }
+  };
+
+  // Generate a random seed string
+  const generateSeed = () => {
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    return Array(8)
+      .fill(0)
+      .map(() => chars[Math.floor(Math.random() * chars.length)])
+      .join("");
+  };
+
+  // Handle randomization of all parameters
+  const handleRandomize = async () => {
+    if (!isInitialized.value) return;
+
+    try {
+      // Generate new seed
+      const newSeed = generateSeed();
+      currentSeed.value = newSeed;
+
+      // Apply new seed with text update
+      await store.applySeed(newSeed, true);
+
+      // Update local text value
+      text.value = `Patch ${newSeed}`;
+
+      // Generate pattern
+      await generatePattern(text.value);
+    } catch (err) {
+      console.error("Failed to randomize parameters:", err);
+      error.value = "Failed to randomize parameters";
     }
   };
 </script>
@@ -169,5 +280,21 @@
   .text-input input::placeholder {
     color: theme("colors.zinc.600");
     opacity: 1;
+  }
+
+  .text-input input:disabled {
+    @apply cursor-not-allowed;
+  }
+
+  .text-input button:disabled {
+    @apply cursor-not-allowed;
+  }
+
+  .text-input button.randomize {
+    @apply bg-indigo-500/20 text-indigo-500 hover:bg-indigo-500/30;
+  }
+
+  .text-input button.randomize:disabled {
+    @apply opacity-50 cursor-not-allowed;
   }
 </style>

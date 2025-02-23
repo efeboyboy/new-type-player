@@ -128,10 +128,33 @@
 
   // Lifecycle
   onMounted(() => {
+    // Register component refs with store
+    store.osc1 = osc1.value;
+    store.osc2 = osc2.value;
+    store.osc3 = osc3.value;
+    store.noiseControls = noiseControls.value;
+    store.envelopeControls = envelopeControls.value;
+    store.lpgControls = lpgControls.value;
+    store.matrixMixer = matrixMixer.value;
+    store.filterControls = filterControls.value;
+    store.spatialControls = spatialControls.value;
+
+    // Initialize audio engine
     audioEngine.initialize();
   });
 
   onUnmounted(() => {
+    // Clear component refs
+    store.osc1 = null;
+    store.osc2 = null;
+    store.osc3 = null;
+    store.noiseControls = null;
+    store.envelopeControls = null;
+    store.lpgControls = null;
+    store.matrixMixer = null;
+    store.filterControls = null;
+    store.spatialControls = null;
+
     audioEngine.dispose();
   });
 </script>

@@ -107,106 +107,7 @@ class AudioEngine {
         return director;
       });
 
-    // Create Low Pass Gates (LPGs) - Buchla style
-    this.lpgs = Array(4)
-      .fill()
-      .map(() => ({
-        // Vactrol-style response
-        vactrol: new Tone.Follower(0.1), // Slow response like a vactrol
-        filter: new Tone.Filter({
-          type: "lowpass",
-          frequency: 2000, // Start with higher frequency
-          Q: 0.5,
-          rolloff: -24,
-        }),
-        vca: new Tone.Gain(0.5), // Initialize with non-zero gain
-        // Combined response curve
-        response: new Tone.WaveShaper((x) => {
-          // More gradual response curve
-          return Math.pow(Math.max(0, x), 1.2);
-        }),
-      }));
-
-    // Create envelope generators (Buchla 284-style) with proper timing
-    this.envelopes = Array(4)
-      .fill()
-      .map(() => {
-        const env = new Tone.Envelope({
-          attack: 0.01, // Faster attack
-          decay: 0.2,
-          sustain: 0.5,
-          release: 0.5,
-          attackCurve: "exponential",
-          releaseCurve: "exponential",
-        });
-
-        // Add offset capability with initial values
-        const offset = new Tone.Add(0.2); // Small positive offset
-        const multiply = new Tone.Multiply(1);
-
-        env.chain(offset, multiply);
-
-        return {
-          envelope: env,
-          offset: offset,
-          multiply: multiply,
-          isLooping: false,
-          timeScale: 1,
-        };
-      });
-
-    // Connect envelopes to LPGs with proper gain staging
-    this.envelopes.forEach((envSystem, i) => {
-      const lpg = this.lpgs[i];
-
-      // Connect through vactrol simulation
-      envSystem.multiply.connect(lpg.vactrol);
-      lpg.vactrol.connect(lpg.response);
-
-      // Control both filter frequency and VCA gain with proper scaling
-      const freqScale = new Tone.Scale(50, 4000); // Map envelope to frequency range
-      const gainScale = new Tone.Scale(0.001, 1); // Map envelope to gain range
-
-      lpg.response.connect(freqScale);
-      lpg.response.connect(gainScale);
-
-      freqScale.connect(lpg.filter.frequency);
-      gainScale.connect(lpg.vca.gain);
-
-      // Trigger envelope once to initialize the response
-      envSystem.envelope.triggerAttackRelease(0.1, "+0.1");
-    });
-
-    // Create mixer channels (4x4 matrix mixer)
-    this.mixer = {
-      inputs: Array(4)
-        .fill()
-        .map(() => new Tone.Gain(0.5)),
-      outputs: Array(4)
-        .fill()
-        .map((_, i) => {
-          const out = new Tone.Gain(0.5);
-          // Only connect to panner initially, rest of chain connects when reverb is ready
-          out.connect(this.spatialDirectors[i].panner);
-          return out;
-        }),
-      matrix: Array(4)
-        .fill()
-        .map(() =>
-          Array(4)
-            .fill()
-            .map(() => new Tone.Gain(0))
-        ),
-    };
-
-    // Connect matrix crosspoints
-    this.mixer.inputs.forEach((input, i) => {
-      this.mixer.outputs.forEach((output, j) => {
-        input.connect(this.mixer.matrix[i][j]);
-        this.mixer.matrix[i][j].connect(output);
-      });
-    });
-
+    // Create all audio components first
     // Wave folders and shapers for each oscillator
     this.waveFolders = Array(3)
       .fill()
@@ -240,74 +141,136 @@ class AudioEngine {
       highFrequency: 2000,
     });
 
-    // Primary oscillators (first dual setup)
-    this.osc1 = new Tone.Oscillator({
-      type: "sine",
-      frequency: 440,
-    });
-    // Route through wave folder and filter before VCA
-    this.osc1.chain(
-      this.waveFolders[0],
-      this.bandpassFilters[0],
-      this.lpgs[0].filter,
-      this.lpgs[0].vca,
-      this.mixer.inputs[0]
-    );
-
-    this.osc2 = new Tone.Oscillator({
-      type: "sine",
-      frequency: 440,
-    });
-    this.osc2.chain(
-      this.waveFolders[1],
-      this.bandpassFilters[1],
-      this.lpgs[1].filter,
-      this.lpgs[1].vca,
-      this.mixer.inputs[1]
-    );
-
-    // Additional oscillator with frequency shifter
-    this.osc3 = new Tone.Oscillator({
-      type: "sine",
-      frequency: 440,
-    });
-
     // Frequency Shifter implementation (Buchla 285)
     this.freqShifter = new Tone.FrequencyShifter({
       frequency: 0,
       wet: 1,
     });
 
-    // Route osc3 through wave folder, freq shifter, filter, then VCA
-    this.osc3.chain(
-      this.waveFolders[2],
-      this.freqShifter,
-      this.bandpassFilters[2],
-      this.lpgs[2].filter,
-      this.lpgs[2].vca,
-      this.mixer.inputs[2]
-    );
+    // Primary oscillators
+    this.osc1 = new Tone.Oscillator({
+      type: "sine",
+      frequency: 440,
+    });
 
-    // Noise generator with tone shaping
+    this.osc2 = new Tone.Oscillator({
+      type: "sine",
+      frequency: 440,
+    });
+
+    this.osc3 = new Tone.Oscillator({
+      type: "sine",
+      frequency: 440,
+    });
+
+    // Noise source
     this.noise = new Tone.Noise({
       type: "white",
       volume: -10,
     });
+
+    // Create Low Pass Gates (LPGs) - Buchla style
+    this.lpgs = Array(4)
+      .fill()
+      .map(() => {
+        const lpg = {
+          vactrol: new Tone.Follower(0.1),
+          filter: new Tone.Filter({
+            type: "lowpass",
+            frequency: 2000,
+            Q: 0.5,
+            rolloff: -24,
+          }),
+          vca: new Tone.Gain(0), // Start closed
+          response: new Tone.WaveShaper((x) => {
+            return Math.pow(Math.max(0, x), 1.5); // More dramatic curve
+          }),
+          input: new Tone.Gain(1), // Input stage
+          output: new Tone.Gain(1), // Output stage
+        };
+
+        // Proper signal flow within LPG
+        lpg.input.connect(lpg.filter);
+        lpg.filter.connect(lpg.vca);
+        lpg.vca.connect(lpg.output);
+
+        return lpg;
+      });
+
+    // Create a proper 4x4 matrix mixer with direct connections
+    this.matrixMixer = {
+      inputs: Array(4)
+        .fill()
+        .map(() => new Tone.Gain(1)),
+      outputs: Array(4)
+        .fill()
+        .map(() => new Tone.Gain(1)),
+      matrix: Array(4)
+        .fill()
+        .map(() =>
+          Array(4)
+            .fill()
+            .map(() => new Tone.Gain(0))
+        ),
+    };
+
+    // Connect matrix crosspoints properly
+    this.matrixMixer.inputs.forEach((input, i) => {
+      this.matrixMixer.outputs.forEach((output, j) => {
+        // Connect input to crosspoint
+        input.connect(this.matrixMixer.matrix[i][j]);
+        // Connect crosspoint to output
+        this.matrixMixer.matrix[i][j].connect(this.matrixMixer.outputs[j]);
+      });
+    });
+
+    // Connect matrix outputs to spatial directors
+    this.matrixMixer.outputs.forEach((output, i) => {
+      output.connect(this.spatialDirectors[i].panner);
+    });
+
+    // Now connect all the signal chains
+    // Connect oscillator chains to use new LPG structure
+    this.osc1.chain(
+      this.waveFolders[0],
+      this.bandpassFilters[0],
+      this.lpgs[0].input,
+      this.lpgs[0].output,
+      this.matrixMixer.inputs[0]
+    );
+
+    this.osc2.chain(
+      this.waveFolders[1],
+      this.bandpassFilters[1],
+      this.lpgs[1].input,
+      this.lpgs[1].output,
+      this.matrixMixer.inputs[1]
+    );
+
+    this.osc3.chain(
+      this.waveFolders[2],
+      this.freqShifter,
+      this.bandpassFilters[2],
+      this.lpgs[2].input,
+      this.lpgs[2].output,
+      this.matrixMixer.inputs[2]
+    );
+
+    // Connect noise chain
     this.noise.chain(
       this.toneShaper,
-      this.lpgs[3].filter,
-      this.lpgs[3].vca,
-      this.mixer.inputs[3]
+      this.lpgs[3].input,
+      this.lpgs[3].output,
+      this.matrixMixer.inputs[3]
     );
+
+    // Set default mixer settings
+    for (let i = 0; i < 4; i++) {
+      this.setMixerPoint(i, i, 0.7); // Diagonal connections at 70%
+    }
 
     // Initialize sequences array
     this.activeSequences = [];
-
-    // Default mixer settings - diagonal connections
-    this.setMixerPoint(0, 0, 1);
-    this.setMixerPoint(1, 1, 1);
-    this.setMixerPoint(2, 2, 1);
-    this.setMixerPoint(3, 3, 1);
 
     // Random voltage source (source of uncertainty)
     this.randomSource = new Tone.Noise("pink").start();
@@ -343,6 +306,59 @@ class AudioEngine {
 
     // Initialize AFG processing
     this.initializeAFG();
+
+    // Create envelope generators (Buchla 284-style) with proper timing
+    this.envelopes = Array(4)
+      .fill()
+      .map(() => {
+        const env = new Tone.Envelope({
+          attack: 0.01, // Faster attack
+          decay: 0.2,
+          sustain: 0.5,
+          release: 0.5,
+          attackCurve: "exponential",
+          releaseCurve: "exponential",
+        });
+
+        // Add offset capability with initial values
+        const offset = new Tone.Add(0.2); // Small positive offset
+        const multiply = new Tone.Multiply(1);
+
+        env.chain(offset, multiply);
+
+        return {
+          envelope: env,
+          offset: offset,
+          multiply: multiply,
+          isLooping: false,
+          timeScale: 1,
+        };
+      });
+
+    // Connect envelopes to LPGs with proper gain staging
+    this.envelopes.forEach((envSystem, i) => {
+      const lpg = this.lpgs[i];
+
+      // Connect envelope through vactrol simulation
+      envSystem.envelope.chain(
+        envSystem.offset,
+        envSystem.multiply,
+        lpg.vactrol
+      );
+
+      // Connect vactrol to response shaper
+      lpg.vactrol.connect(lpg.response);
+
+      // Create proper scaling for filter and VCA
+      const freqScale = new Tone.Scale(20, 8000); // Wider frequency range
+      const gainScale = new Tone.Scale(0, 1);
+
+      lpg.response.connect(freqScale);
+      lpg.response.connect(gainScale);
+
+      freqScale.connect(lpg.filter.frequency);
+      gainScale.connect(lpg.vca.gain);
+    });
   }
 
   initializeClockSystem() {
@@ -699,7 +715,7 @@ class AudioEngine {
   // Set a mixer crosspoint level (0-1)
   setMixerPoint(inputIdx, outputIdx, level) {
     if (inputIdx >= 0 && inputIdx < 4 && outputIdx >= 0 && outputIdx < 4) {
-      this.mixer.matrix[inputIdx][outputIdx].gain.value = Math.max(
+      this.matrixMixer.matrix[inputIdx][outputIdx].gain.value = Math.max(
         0,
         Math.min(1, level)
       );
@@ -845,13 +861,25 @@ class AudioEngine {
     // Set initial volume
     Tone.Destination.volume.value = -12; // Start at a safe level
 
-    // Set up direct monitoring for testing
-    this.testMonitor = new Tone.Gain(0.5).toDestination();
+    // Initialize all components
+    await Promise.all(
+      this.spatialDirectors.map((director) => director.reverb.generate())
+    );
 
-    // Connect a direct path for testing
-    this.osc1.connect(this.testMonitor);
-    this.osc2.connect(this.testMonitor);
-    this.osc3.connect(this.testMonitor);
+    // Set default spatial positions
+    for (let i = 0; i < 4; i++) {
+      this.setSpatialPosition(i, i % 2 ? 0.5 : -0.5, i < 2 ? -0.5 : 0.5);
+    }
+
+    // Ensure clock system is ready
+    this.clockSystem.master.frequency.value = 2; // 120 BPM
+
+    // Initialize AFG
+    this.afg.steps.forEach((step, i) => {
+      step.cv.value = 0;
+      step.trigger.value = 0;
+      step.stepDuration = 0.25;
+    });
 
     return this;
   }
@@ -898,7 +926,7 @@ class AudioEngine {
         this.bandpassFilters[0],
         this.lpgs[0].filter,
         this.lpgs[0].vca,
-        this.mixer.inputs[0]
+        this.matrixMixer.inputs[0]
       );
 
       this.osc2.chain(
@@ -906,7 +934,7 @@ class AudioEngine {
         this.bandpassFilters[1],
         this.lpgs[1].filter,
         this.lpgs[1].vca,
-        this.mixer.inputs[1]
+        this.matrixMixer.inputs[1]
       );
 
       this.osc3.chain(
@@ -915,7 +943,7 @@ class AudioEngine {
         this.bandpassFilters[2],
         this.lpgs[2].filter,
         this.lpgs[2].vca,
-        this.mixer.inputs[2]
+        this.matrixMixer.inputs[2]
       );
 
       console.log("Direct path test complete");

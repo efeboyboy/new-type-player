@@ -69,16 +69,21 @@
 
   // Default values for each LPG
   const defaultLPG = {
-    rise: 0.1, // 100ms rise time
-    fall: 0.2, // 200ms fall time
-    level: 0.7, // 70% level
+    rise: 0.05, // 50ms rise time - faster attack for better transients
+    fall: 0.15, // 150ms fall time - natural decay
+    level: 0.85, // 85% level for good presence
     loopMode: false, // Start in envelope mode
   };
 
   const lpgs = ref(
     Array(4)
       .fill()
-      .map(() => ({ ...defaultLPG }))
+      .map((_, index) => ({
+        rise: index === 3 ? 0.08 : 0.05, // Slightly slower attack for noise
+        fall: index === 3 ? 0.2 : 0.15, // Longer decay for noise
+        level: index === 3 ? 0.7 : 0.85, // Lower level for noise
+        loopMode: false,
+      }))
   );
 
   const formatPercent = (value) => {

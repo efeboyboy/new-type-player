@@ -36,31 +36,49 @@ class AudioEngine {
     };
 
     // Create oscillators and basic components
-    this.osc1 = new Tone.Oscillator({ type: "sine", frequency: 440 });
-    this.osc2 = new Tone.Oscillator({ type: "sine", frequency: 440 });
-    this.osc3 = new Tone.Oscillator({ type: "sine", frequency: 440 });
-    this.noise = new Tone.Noise({ type: "white", volume: -20 });
+    this.osc1 = new Tone.Oscillator({
+      type: "sine",
+      frequency: 110, // A2 - bass oscillator
+      volume: -12, // Lower volume for better mixing
+    });
 
-    // Create wave folders
+    this.osc2 = new Tone.Oscillator({
+      type: "triangle",
+      frequency: 220, // A3 - mid oscillator
+      volume: -12,
+    });
+
+    this.osc3 = new Tone.Oscillator({
+      type: "sine",
+      frequency: 440, // A4 - high oscillator
+      volume: -12,
+    });
+
+    this.noise = new Tone.Noise({
+      type: "pink", // Pink noise is more musical
+      volume: -24, // Lower noise volume
+    });
+
+    // Create filters with musical default frequencies
+    this.bandpassFilters = Array(3)
+      .fill()
+      .map(
+        (_, i) =>
+          new Tone.Filter({
+            type: "bandpass",
+            frequency: [800, 1200, 2000][i], // Different frequencies for each oscillator
+            Q: 2, // Sharper resonance
+          })
+      );
+
+    // Create wave folders with moderate folding
     this.waveFolders = Array(3)
       .fill()
       .map(
         () =>
           new Tone.WaveShaper((x) => {
-            const fold = 2;
+            const fold = 2.5; // Slightly more harmonics
             return Math.sin(x * Math.PI * fold);
-          })
-      );
-
-    // Create filters
-    this.bandpassFilters = Array(3)
-      .fill()
-      .map(
-        () =>
-          new Tone.Filter({
-            type: "bandpass",
-            frequency: 1000,
-            Q: 1,
           })
       );
 
@@ -92,18 +110,18 @@ class AudioEngine {
         ),
     };
 
-    // Create spatial directors
+    // Create spatial directors with better default spread
     this.spatialDirectors = Array(4)
       .fill()
-      .map(() => ({
-        panner: new Tone.Panner(0),
+      .map((_, i) => ({
+        panner: new Tone.Panner([-0.6, 0.6, -0.3, 0.3][i]), // Wide stereo spread
         reverb: new Tone.Reverb({
-          decay: 2,
-          wet: 0.2,
+          decay: 1.5, // Moderate reverb decay
+          wet: 0.15, // Subtle reverb mix
           preDelay: 0.01,
         }),
-        frontGain: new Tone.Gain(0.7),
-        rearGain: new Tone.Gain(0.3),
+        frontGain: new Tone.Gain(0.8),
+        rearGain: new Tone.Gain(0.2),
         outputs: {
           fl: new Tone.Gain(),
           fr: new Tone.Gain(),
@@ -112,16 +130,25 @@ class AudioEngine {
         },
       }));
 
-    // Create other components
+    // Create other components with better defaults
     this.noiseFilter = new Tone.Filter({
       type: "bandpass",
-      frequency: 1000,
-      Q: 1,
+      frequency: 2000,
+      Q: 3,
     });
 
-    this.noiseVCA = new Tone.Gain(0.5);
-    this.toneShaper = new Tone.EQ3();
-    this.freqShifter = new Tone.FrequencyShifter();
+    this.noiseVCA = new Tone.Gain(0.3); // Lower noise gain
+    this.toneShaper = new Tone.EQ3({
+      low: 2, // Slight bass boost
+      mid: 0,
+      high: -3, // Tame highs
+      lowFrequency: 200,
+      highFrequency: 2000,
+    });
+    this.freqShifter = new Tone.FrequencyShifter({
+      frequency: 0,
+      wet: 0.5,
+    });
 
     // Initialize clock system with missing buses added
     this.clockSystem = {
@@ -1093,8 +1120,6 @@ class AudioEngine {
       if (params.fmAmount !== undefined && oscNumber === 3) {
         this.setFrequencyShift(params.fmAmount * 1000); // Scale to 0-1000 Hz range
       }
-
-      console.log(`Updated oscillator ${oscNumber} params:`, params);
     }
   }
 

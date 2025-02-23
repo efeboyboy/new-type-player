@@ -6,7 +6,7 @@
         v-model="text"
         @input="handleInput"
         class="flex-1 h-10 bg-zinc-900/50 rounded-lg px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-        placeholder="Beats Per Plant"
+        placeholder="Type something to generate music..."
       />
 
       <div class="flex items-center gap-2">
@@ -67,10 +67,6 @@
       await Tone.start();
       await audioEngine.initialize();
 
-      // Set default text and generate initial pattern
-      text.value = "Beats Per Plant";
-      await handleInput({ target: { value: text.value } });
-
       // Initialize Magenta
       await magentaService.initialize();
     } catch (err) {
@@ -110,9 +106,34 @@
     try {
       const result = await magentaService.generateFromText(inputText);
 
-      // Update the audio engine with the new sequence
-      if (result && result.notes && result.notes.length > 0) {
-        audioEngine.startPlayback(result);
+      // Format the sequence properly for the audio engine
+      const formattedSequence = {
+        notes: [],
+        tempos: [{ time: 0, qpm: 120 }], // Default tempo
+        totalTime: 4, // 4 beats
+      };
+
+      // Convert the array sequence to proper note format
+      result.forEach((channel, channelIndex) => {
+        channel.forEach((step, stepIndex) => {
+          if (step !== null) {
+            formattedSequence.notes.push({
+              pitch: step.frequency
+                ? Tone.Frequency(step.frequency).toMidi()
+                : 60 + channelIndex * 12,
+              velocity: Math.round(step.velocity * 127) || 100,
+              startTime: stepIndex * 0.25, // Each step is a 16th note (0.25 beats)
+              endTime: (stepIndex + 1) * 0.25,
+              program: 0,
+              isDrum: channelIndex === 3, // Last channel is noise/drums
+            });
+          }
+        });
+      });
+
+      // Update the audio engine with the formatted sequence
+      if (formattedSequence.notes.length > 0) {
+        audioEngine.startPlayback(formattedSequence);
         store.playing = true;
       }
     } catch (err) {

@@ -1,0 +1,65 @@
+---
+description: Prism Melody Patch
+globs: 
+alwaysApply: false
+---
+## Melodic-Rhythmic Reliefs (or "Prism Melody")
+
+This patch begins with a simple sequence of 16 ordered pitches. However, constant shifts in emphasis create an **aural illusion** that conceals this simplicity. The rhythmic base is established with a continuous pulse, and larger rhythmic structures emerge through:
+
+- **Timbral Emphasis**
+- **Registral Displacement**
+- **Spatial Variation**
+
+Although conceptually related to **serialism**, this technique evolved naturally from the interaction between the **Arbitrary Function Generator (AFG)** and the **Sequencer**.
+
+### AFG and Sequencer Configuration
+
+- **AFG Output 1 (Oscillator 1):**
+  - Set on **External Row A (alternate)** at **+0 range**.
+  - A **spatial rhythm** effect is achieved by routing the pulse output of the **Sequencer 246** to the **265 Stored Random Voltage Source**, then through the **Spatial Director 227**.
+  - A more structured rhythm can be applied using a **264 Sample and Hold** paired with a smaller sequencer (*see Diagram 5*).
+
+- **AFG Output 2 (Oscillator 2):**
+  - Triggered by the sequencer pulse.
+  - Driven by external control voltage from the **265 Source of Uncertainty**, causing each pulse to advance to a new AFG stage.
+  - Activating **strobe mode** frees the **"Interval Time"** output for additional functions like **waveshape modulation**.
+
+### Pitch and Rhythm Variations
+
+- All voltage sliders (except the first) are set on **External Row B**.
+- Regardless of the AFG stage triggered, the output corresponds to the next pitch in **Sequencer Row B**.
+- Individual programming of each stage allows adjustments for:
+  - **Octave Transposition**
+  - **Waveshape Modulation**
+  - **Output Pulse Variation**
+
+This setup produces a layered effect, where multiple melodic lines appear to evolve simultaneously, each with its own rhythm and continuity.
+
+---
+
+## Diagram 2: Detailed Signal Path and Stage Configuration
+
+The diagram highlights the following functions:
+
+- **Oscillator 1 & 2 Frequency Inputs:** Limited range switches to produce octave intervals.
+- **Quantization Controls:** Enable stepped voltage outputs for pitch control.
+- **Time Balance:** Allows waveshape control across all stages.
+- **Strobe & External Inputs:** Activate the random voltage source from the **265 Source of Uncertainty** for stochastic modulation.
+- **Sequencer Rows A-D:** Different rows control various pitch sequences.
+- **Random Voltage & Pulse Outputs:** Modulate probabilities and rates, introducing chance elements into the performance.
+
+---
+
+## Musical Illustration: Rhythmic and Registral Variations
+
+The musical score represents variations in both timbre and register. Two primary waveforms are used:
+
+- **Sawtooth Wave (𝅘𝅥)**
+- **Sine Wave (𝅘𝅥)**
+
+**Notational Breakdown:**
+
+- The top system presents a regular rhythmic sequence with slight variations in register and pitch.
+- Subsequent systems introduce larger leaps and spatial displacement, creating the illusion of multiple simultaneous melodies.
+- Registral shifts are combined with rhythmic gaps to enhance the feeling of layered polyphony.

@@ -1,0 +1,86 @@
+---
+description: General info about the project
+globs: 
+alwaysApply: false
+---
+# Basic Performance Patch for Buchla Series 200
+
+Following is an outline of a **Basic Performance Patch** which I designed for a **Buchla Series 200** instrument, and a brief description of some of the musical ideas that evolved as a result of working with this patch.
+
+For the sake of clarity, I give each of the musical ideas a distinct and descriptive name:
+
+- **Keyboard Rotations**
+- **Melodic-Rhythmic Reliefs**
+- **Vertical Sequencer**
+- **String Patch**
+
+The first three of these are concerned primarily with permutations of given ordered sets of pitches, accomplished either by means of the sample and hold of the polyphonic keyboard or by means of a matrixing of the sequencer rows by the **[AFG (Multiple Arbitrary Function Generator)](mdc:images/buchla_248_AFG.jpg)**. The **String Patch** illustrates a completely different use of the AFG.
+
+Also given are step-by-step examples of how to go from one of these ideas to another in a performance situation. These are only rough maps, but they illustrate the characteristic facility for musical metamorphosis that the instrument possesses. They also show the kind of playing technique that one has to develop for live performance.
+
+In the practiced performer, a kind of instinct comes into play, and making a transition from one musical idea to another becomes almost a matter of reflex—somewhat difficult to describe in detail.
+
+---
+
+## AFG and Sequencer Combination for Pitch Control
+
+The **[AFG 248](mdc:images/buchla_248_AFG.jpg)** in "external" mode and the **[246 16-stage sequencer](mdc:images/buchla_246_sequencer.jpg)** form a powerful combination for pitch control:
+
+1. **Quantization of Sequencer Voltages**  
+   The AFG allows quantization of the sequencer voltages via its "quantize" mode, making it easier to set pitches. The first stage of each sequencer row is set at the lowest note of the row (or "0" volts), serving as a tuning convenience and a stopping position, allowing the keyboard to take over as the sole pitch controller.  
+   (To utilize this, a single pulse from the subsection of the keyboard can be assigned to both stop the sequencer and select stage 1.)
+
+2. **Flexible Matrixed Access**  
+   The AFG offers flexible matrixed access to sequencer voltages—horizontally, vertically, and obliquely. The rows are designed to work in any direction and combination, whether melodically, harmonically, or contrapuntally.
+
+3. **Instant Octave Transposition**  
+   The AFG allows instant octave transposition of any row or any part of any row.
+
+---
+
+## Oscillator Routing and Frequency Shifter
+
+All oscillators are routed directly to a **[205 Matrix Mixer](mdc:images/buchla_205_matrix_mixer.jpg)**, with oscillators 1 and 2 also passing through a **[285 Frequency Shifter](mdc:images/buchla_285_frequency_shifter.jpg)**.
+
+- When oscillators 1 and 2 are tracking at a unison or an octave, the frequency shifter provides **timbral enrichment** (as in the "String Patch," described later).  
+- At other times, non-harmonic sonorities are produced and used percussively.  
+- Visual cues from the AFG can help determine whether two oscillators are on the same stage, as shifted unisons or octaves produce a dramatic difference from other intervals.
+
+---
+
+## Signal Routing, Filters, and Envelopes
+
+All signals are routed through the **[205 Matrix Mixer](mdc:images/buchla_205_matrix_mixer.jpg)** for distribution to any of three filters (or no filter). Filters are tied to gate positions, meaning selecting a filter also selects a gate.
+
+- **Envelope Control:** The gate envelope is managed by a **[284 Envelope Generator](mdc:images/buchla_284_envelope_generator.jpg)**.  
+- **Trigger Sources:** During performance, I freely choose trigger sources by having at least three banana patch cords plugged into the pulse input. Connections are made to the pulse output of the **AFG**, sequencer, or keyboard—or looped back to the envelope pulse output—depending on performance needs.  
+- **Envelope Variation:** For quick envelope variation, all control voltage inputs are bridged, and an offset voltage from the **256 Adder** is routed in. This allows shrinking or expanding any envelope during performance, with direction and amount controlled individually by four voltage input knobs.
+
+---
+
+## Spatial Routing and Amplification
+
+The signals are routed through a **[227 Spatial Director](mdc:images/buchla_227_spatial_director.jpg)** and sent out to four amplifiers and four speakers. Use of a voltage-controlled reverb is optional.
+
+I consider spatial characteristics—where a sound is placed and how it moves—to be an integral part of the music. I plan and "play" the spatial elements in each part of the performance.
+
+---
+
+### Spatial Techniques
+
+1. **Continuous Curved Space**  
+   A slow, continuous curved space is used for the **"String Patch"**, with the arc related to the "bowing" envelope.
+
+2. **Discrete Spatial Rhythm**  
+   (See graphic description.) In this space type, sound is emitted from one speaker at a time with precisely controlled durations.  
+   - Continuous tones can gain rhythmic impulse solely from spatial placement (used with sequencer Row A alternate, where melodic rhythm is minimal).  
+   - No masking effect occurs for the audience since sound is present in only one speaker at a time.
+
+3. **Random Discrete Location**  
+   In percussive passages, trigger pulses are routed to a **[266 Source of Uncertainty](mdc:images/buchla_266_source_of_uncertainty.jpg)**. The X and Y control voltage inputs of the **227 Spatial Director** are driven by the resulting control voltages.
+
+4. **Continuous Random Space**  
+   Uses the **[266 Source of Uncertainty](mdc:images/buchla_266_source_of_uncertainty.jpg)** continuous random voltage source.
+
+5. **Combination of the Above**  
+   I think of these configurations as spatial phrases or sentences. The **257 Dual Control Voltage Processor** proves very useful for this purpose.

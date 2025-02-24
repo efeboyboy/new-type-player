@@ -1,0 +1,77 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Keyboard Rotations Patch for Buchla Series 200
+
+## Patch Description
+
+This `.mdc` document presents the **Keyboard Rotations** patch for the **Buchla Series 200** modular synthesizer. This patch explores the illusion of polyphony through a **sample and hold circuit** applied to the **Black and White Keyboard**. Rather than using the keyboard to play traditional chords, this patch turns it into a **contrapuntal device** that gates three oscillators simultaneously, creating shifting melodic patterns.
+
+---
+
+## Concept and Functionality
+
+**(Musical Illustration 4)**
+
+The illusion of polyphony—up to three voices—is achieved by gating three oscillators together, producing a rich, melodic interplay. This creates evolving melodic figures that simulate multiple simultaneous voices.
+
+### Basic Technique
+
+The main concept involves playing an **ostinato figure** on the keyboard while controlling three simultaneously gated oscillators. The number of active "voices" can be adjusted to 1, 2, or 3 oscillators, creating different melodic textures.
+
+---
+
+### AFG-Sequencer-Keyboard Interaction
+
+In the basic **Keyboard-AFG-Sequencer Patch**:
+
+- If the sequencer is stopped on **stage one** (where all rows are conveniently set at **0 volts**), and the AFG is in **external mode**, the **keyboard alone** can control the frequency of the oscillators.
+  
+- By taking advantage of the AFG-Sequencer combination for controlling **Oscillators 1 and 2** (through adjustments in waveshape and transposition), more advanced patterns and melodic shifts can be introduced in a performance.
+
+---
+
+## Polyphonic Illusion and Voice Manipulation
+
+This patch produces shifting melodic textures through varying the number of active voices:
+
+1. **One Voice:** A simple melodic pattern controlled directly by the keyboard.
+2. **Two Voices:** Two distinct melodic lines with rhythmic variations.
+3. **Three Voices:** Three distinct melodic lines layered together, creating a rich, interwoven texture.
+
+---
+
+## Musical Illustration: Voice Configurations
+
+The musical score illustrates how the polyphonic illusion is constructed by adjusting the number of active voices:
+
+### 1. Keyboard Set on Unison
+- **8th-note melody** forming a basic ostinato figure.
+- Features a transposition of the first 10 pitches of the sequencer row.
+
+### 2. Keyboard Set on Two Voices
+- Two **3-bar melodic lines** with distinct rhythmic variations.
+- Creates a layered, polyrhythmic texture.
+
+### 3. Keyboard Set on Three Voices
+- A single **3-bar melodic line** imitated at a **5-beat interval**.
+- Creates a dense, interwoven polyphonic texture.
+
+---
+
+## Performance Considerations
+
+- The illusion of polyphony is achieved by manipulating the **sample and hold circuit** with multiple oscillators.
+- Dynamic control of oscillator count allows performers to shift between different melodic textures seamlessly.
+- The performer can further develop ideas by adjusting oscillator frequencies through the sequencer and AFG in **external mode**.
+
+---
+
+## Alternative Approaches
+
+The **Keyboard Rotations** concept can also be achieved using:
+
+- A **monophonic keyboard** paired with a **sample and hold** circuit.
+- A **sequencer** combined with a **sample and hold** module.

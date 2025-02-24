@@ -1,0 +1,90 @@
+---
+description: The Vertical Sequencer Patch for Buchla Series 200
+globs: 
+alwaysApply: false
+---
+# The Vertical Sequencer Patch for Buchla Series 200
+
+## Patch Description
+
+This `.mdc` document details the **Vertical Sequencer** patch for the **Buchla Series 200** modular synthesizer system. This patch explores harmonic rhythm and melodic layering by using the interaction between the **Arbitrary Function Generator (AFG)** and the **Sequencer**.
+
+In this patch, four pitches at each stage of the sequencer are arpeggiated by the AFG. As the AFG advances the sequencer through its stages, a regular harmonic rhythm and interwoven melodic texture are produced.
+
+---
+
+## The Vertical Sequencer: Concept and Functionality
+
+This concept arises from the interaction between the **AFG** and the **Sequencer**. The **four pitches** at each sequencer stage are **arpeggiated** by the AFG, advancing the sequencer to its next stage and producing a **regular harmonic rhythm** combined with a rich **melodic texture**.
+
+The external output voltage levels from the AFG are distributed across **Rows A, B, C, and D** at different octave levels.
+
+---
+
+### AFG and Sequencer Configuration
+
+- A **series 2 pulse** is programmed at stage 16 of the AFG to **advance the Sequencer 246**.
+- The **pulse "2" output** of AFG 1 is patched into the **advance input** of the sequencer.
+
+### Pulse and Voice Separation
+
+- **AFG 1** drives **AFG 2** from its **"all pulse" output**.
+- Initially, both AFG outputs track the 16 sequencer stages **in unison**.
+- Later, **AFG 2** is manually advanced to deviate from AFG 1, producing a **distinctly separate voice**.
+
+### Melodic Texture Development
+
+At each pass of the 16 stages:
+
+- A different set of four pitches from Rows **A, B, C, and D** will play at various transpositions, creating a **harp-like melodic-harmonic texture**.
+
+### User Customization
+
+- Adjust **limited range switches** and **output voltage sliders** to different external positions.
+- Manually advance the AFG 2 output to explore different melodic contours within the texture.
+
+---
+
+## Diagram 3: Detailed Sequencer Configuration
+
+The diagram outlines:
+
+- **Oscillator 1 & 2 Frequency Inputs:** Producing octaves through limited range switches.
+- **Quantization:** Stepped voltage outputs for precise pitch control.
+- **Time Balance:** Controls wave shape across all stages.
+- **External Inputs:** Modulation from the **265 Source of Uncertainty**.
+- **Sequencer Rows A-D:** Each row executes a unique melodic progression.
+- **Advance Trigger:** The pulse output from AFG advances the sequencer through each stage.
+
+---
+
+## Musical Illustration: Melodic and Harmonic Structure
+
+The musical score illustrates a complex melodic-harmonic structure with varying transpositions.
+
+### Key Components:
+
+- **Sequencer Stages (1-16):** Each stage corresponds to a specific set of pitches.
+- **Range Settings:** Determines the pitch range for each stage.
+- **Row Assignments:** Specifies the melodic line for each sequencer row.
+
+**Score Breakdown:**
+
+- The notation outlines sequential melodic layers interwoven across registers.
+- Each stage introduces new rhythmic and harmonic elements.
+- AFG output manipulation introduces evolving melodic contours.
+
+**Notational Elements:**
+
+- * refers to the number of the sequencer stage (1 → 16).
+- ** indicates the pattern obtained by advancing one output of the AFG by two stages.
+
+---
+
+## Visual Breakdown of Stages and Pitch Arrangement
+
+```plaintext
+| Stage  |  1 |  2 |  3 |  4 |  5 |  6 |  7 |  8 |  9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
+|--------|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
+| Range  |  0 |  2 |  0 |  4 |  6 |  8 |  0 |  2 |  0 |  4 |  8 |  4 |  0 |  2 |  0 |  4 |
+| Row    |  C |  C |  D |  C |  A |  D |  B |  D |  A |  C |  D |  D |  A |  B |  A |  B |

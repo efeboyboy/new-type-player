@@ -1,0 +1,19 @@
+---
+description: All modules used in Buchla rack
+globs: 
+alwaysApply: false
+---
+Modules Used in This Patch
+
+- [buchla_227_spatial_director.jpg](mdc:.cursor/images/buchla_227_spatial_director.jpg) Manages spatial distribution of sound.
+- [buchla_284_envelope_generator.jpg](mdc:.cursor/images/buchla_284_envelope_generator.jpg) Shapes volume and modulation envelopes.
+- [buchla_292_quad_LPG.jpg](mdc:.cursor/images/buchla_292_quad_LPG.jpg) Provides dynamic amplitude control.
+- [buchla_291_dual_filter.jpg](mdc:.cursor/images/buchla_291_dual_filter.jpg) Shapes the tonal and harmonic content.
+- [buchla_205_matrix_mixer.jpg](mdc:.cursor/images/buchla_205_matrix_mixer.jpg) Central routing hub.
+- [buchla_285_frequency_shifter.jpg](mdc:.cursor/images/buchla_285_frequency_shifter.jpg) Alters harmonic structure for added timbral variety.
+- [buchla_258_dual_oscillator.jpg](mdc:.cursor/images/buchla_258_dual_oscillator.jpg) Generates core sound frequencies.
+- **White Noise Source 265:** Adds stochastic modulation and random noise.
+- [buchla_248_AFG.jpg](mdc:.cursor/images/buchla_248_AFG.jpg) Provides complex voltage patterns for rhythmic and melodic variations.
+- **Keyboard (Black & White):** Manual pitch input.
+- [buchla_246_sequencer.jpg](mdc:.cursor/images/buchla_246_sequencer.jpg) Organizes pitch sequences and rhythmic patterns.
+

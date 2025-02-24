@@ -1,0 +1,77 @@
+---
+description: String patch decsription
+globs: 
+alwaysApply: false
+---
+# The String Patch for Buchla Series 200
+
+## Patch Description
+
+This `.mdc` document outlines the **String Patch** for the **Buchla Series 200** modular synthesizer system. This patch is designed to produce rich, string-like tones that convey a distinct impression of **bowing**. It serves as an example of a self-playing patch where the system generates evolving textures without constant manual intervention.
+
+---
+
+## Concept and Functionality
+
+**(Diagram 4, Tape Example 1)**
+
+This patch produces extremely rich, resonant string-like sounds, mimicking the organic motion of bowing. The result is an intricate, evolving texture that gives the impression that the patch is "playing itself."
+
+### AFG and Oscillator Interaction
+
+- Two AFG outputs work in tandem, set at either **unison** or **octave** intervals.
+- The AFGs are strobed simultaneously by a **rapid pulse** from the **Sequencer**.
+- An external control voltage shifts **very slowly** during playback, subtly altering pitch over time.
+
+### Sloped Function and Frequency Separation
+
+The **sloped** function of the AFGs operates at slightly different rates in **AFG 1** and **AFG 2**. With every movement (left or right), the two oscillators’ frequencies begin to diverge:
+
+- This gradual separation causes the **Frequency Shifter** to detect two signals that are momentarily out of integral relationship.
+- The result is a **timbral** or **bowing inflection**, generating a sound that mimics the natural movement of a bowed string instrument.
+
+---
+
+## Performance Use
+
+In performance, the overall pitch range of the "strings" can be adjusted dynamically. The patch responds well across various ranges, from **bass** to **violin**, allowing performers to explore a wide sonic spectrum.
+
+---
+
+## Diagram 4: Detailed Patch Configuration
+
+This diagram illustrates the technical structure of the patch:
+
+- **Oscillator Inputs:**
+  - **Oscillator 1 & 2 Frequency Inputs:** Produce harmonic intervals through controlled voltage inputs.
+  
+- **AFG Configuration:**
+  - **Sloped Function:** Enables gradual pitch shifts between oscillators.
+  - **Continuous and Limited Modes:** Adjust the extent of voltage changes.
+
+- **Frequency Shifter 285:** Responds to small pitch deviations to create subtle timbral shifts.
+
+- **Gate 292:** Controls the opening and closing of audio signals.
+  
+- **Combo Filter 291:** Shapes the harmonic content of the output sound.
+
+- **Random Voltage Modulation:**
+  - From the **265 Source of Uncertainty**, producing a continuous random voltage at a rate set between **0.5 Hz** and **0.05 Hz**.
+
+- **Pulse Input:** Triggered by the **Sequencer** at approximately **0.05 Hz**, activating the bowing motion effect.
+
+---
+
+## Patch Configuration Details
+
+- **Voltage Sliders:** Adjust within a limited, delicate range to retain string-like qualities.
+- **Random Voltage Source Settings:** Set between **0.5 Hz** and **0.05 Hz** to control the rate of change.
+- **Stage Advance:** Controlled by rapid sequencer pulses for synchronized strobing of oscillators.
+
+---
+
+## Technical Highlights
+
+- **Simultaneous Strobing:** The two AFGs are activated simultaneously, producing synchronized changes.
+- **Adjacent Stage Movements:** Each change moves to an adjacent stage (left or right), creating natural oscillation and frequency separation.
+- **Frequency Shifter Reactions:** When the oscillators' frequencies separate, the **Frequency Shifter** introduces non-harmonic elements, adding depth and texture.

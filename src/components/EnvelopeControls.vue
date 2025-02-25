@@ -71,7 +71,7 @@
 </template>
 
 <script setup>
-  import { ref, watch } from "vue";
+  import { ref, watch, onMounted } from "vue";
   import { RotateCcw, ArrowRight } from "lucide-vue-next";
   import Knob from "./Knob.vue";
   import IconHolder from "./IconHolder.vue";
@@ -91,7 +91,53 @@
   const amount = ref(0.89);
 
   // Behavior controls
-  const cycleStates = ref([true, false, false, false]);
+  const cycleStates = ref([false, false, true, true]);
+
+  // Check if audio engine is ready
+  const audioInitialized = ref(false);
+
+  // Initialize audio engine if needed
+  onMounted(async () => {
+    if (!audioEngine.initialized) {
+      try {
+        await audioEngine.initialize();
+        audioInitialized.value = true;
+        console.log("Audio engine initialized from EnvelopeControls");
+
+        // Load current settings from engine after initialization
+        loadCurrentSettings();
+
+        // Apply our initial settings
+        updateShape();
+        updateBehavior();
+      } catch (error) {
+        console.error("Failed to initialize audio engine:", error);
+      }
+    } else {
+      audioInitialized.value = true;
+      // Load current settings from engine if already initialized
+      loadCurrentSettings();
+    }
+  });
+
+  // Load current settings from audio engine
+  const loadCurrentSettings = () => {
+    if (!audioInitialized.value) return;
+
+    // Load envelope cycling state
+    for (let i = 0; i < 4; i++) {
+      if (audioEngine.envelopes && audioEngine.envelopes[i]) {
+        cycleStates.value[i] = !!audioEngine.envelopes[i].isLooping;
+      }
+    }
+
+    // Load envelope shape parameters
+    if (audioEngine.globalEnvelope) {
+      attack.value = Math.round(audioEngine.globalEnvelope.rise * 1000);
+      release.value = Math.round(audioEngine.globalEnvelope.fall * 1000);
+      amount.value = audioEngine.globalEnvelope.level;
+    }
+  };
 
   const toggleCycle = (index) => {
     cycleStates.value[index] = !cycleStates.value[index];
@@ -107,15 +153,28 @@
   };
 
   const updateShape = () => {
+    if (!audioInitialized.value) return;
+
+    // Convert milliseconds to seconds for the audio engine
+    const attackSec = attack.value / 1000;
+    const releaseSec = release.value / 1000;
+
+    console.log(
+      `Setting envelope: attack=${attackSec}s, release=${releaseSec}s, amount=${amount.value}`
+    );
+
     audioEngine.setEnvelope(0, {
-      rise: attack.value / 1000,
-      fall: release.value / 1000,
+      rise: attackSec,
+      fall: releaseSec,
       level: amount.value,
     });
   };
 
   const updateBehavior = () => {
+    if (!audioInitialized.value) return;
+
     cycleStates.value.forEach((isLooping, index) => {
+      console.log(`Setting envelope ${index} cycling: ${isLooping}`);
       audioEngine.setEnvelopeLFO(index, isLooping);
     });
   };
@@ -123,12 +182,14 @@
   // Reset function
   const reset = () => {
     if (props.mode === "shape") {
-      attack.value = 120;
-      release.value = 461;
-      amount.value = 0.89;
+      // Default envelope parameters from the signal path documentation
+      attack.value = 100; // 100ms (0.1s) matches the 0.1s rise time in globalEnvelope
+      release.value = 200; // 200ms (0.2s) matches the 0.2s fall time in globalEnvelope
+      amount.value = 0.8; // 80% matches the 0.8 level in globalEnvelope
       updateShape();
     } else {
-      cycleStates.value = [true, false, false, false];
+      // Envelope C & D should be cycling by default (indices 2 & 3)
+      cycleStates.value = [false, false, true, true];
       updateBehavior();
     }
   };
@@ -147,7 +208,8 @@
   };
 
   // Watch for changes and update the audio engine
-  watch([attack, release, amount], updateShape, { immediate: true });
+  watch([attack, release, amount], updateShape);
+  watch(cycleStates, updateBehavior, { deep: true });
 
   defineExpose({
     reset,

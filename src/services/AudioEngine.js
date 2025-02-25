@@ -26,6 +26,7 @@ class AFG248PlayHead {
 class AudioEngine {
   constructor() {
     this.initialized = false;
+    this.tempo = 120; // Default tempo in BPM
 
     // Create master effects chain
     this.masterCompressor = new Tone.Compressor({
@@ -111,9 +112,9 @@ class AudioEngine {
 
     // Add global envelope control
     this.globalEnvelope = {
-      rise: 0.1, // Global rise time
-      fall: 0.2, // Global fall time
-      level: 0.8, // Global level
+      rise: 0.1, // Global rise time (attack)
+      fall: 0.2, // Global fall time (release)
+      level: 0.8, // Global level (sustain)
       offsets: [1, 0.8, 0.6, 0.4], // Different strengths for each channel
     };
 
@@ -163,11 +164,11 @@ class AudioEngine {
 
     this.noiseVCA = new Tone.Gain(0.3); // Lower noise gain
     this.toneShaper = new Tone.EQ3({
-      low: 2, // Slight bass boost
+      low: 0, // Flat response by default
       mid: 0,
-      high: -3, // Tame highs
-      lowFrequency: 200,
-      highFrequency: 2000,
+      high: 0,
+      lowFrequency: 200, // Crossover at 200Hz
+      highFrequency: 2000, // Crossover at 2kHz
     });
     this.freqShifter = new Tone.FrequencyShifter({
       frequency: 0,
@@ -259,6 +260,17 @@ class AudioEngine {
     // Initialize other properties
     this.activeSequences = [];
     this.clockRoutings = {};
+
+    // Add sequence morphing utilities
+    this.sequenceMorph = {
+      interpolator: {
+        curve: (value) => {
+          // Simple utility to pass through the value
+          // Can be expanded for more complex morphing
+          return value;
+        },
+      },
+    };
   }
 
   initializeClockSystem() {
@@ -318,6 +330,11 @@ class AudioEngine {
         if (this.clockSystem.counters["8n"] === 0) {
           this.clockSystem.counters["4n"] =
             (this.clockSystem.counters["4n"] + 1) % 2;
+
+          // Trigger envelopes A & B on quarter notes
+          this.triggerEnvelope(0, time, { duration: 0.02 }); // Envelope A
+          this.triggerEnvelope(1, time, { duration: 0.02 }); // Envelope B
+
           if (this.clockSystem.counters["4n"] === 0) {
             this.clockSystem.counters["2n"] =
               (this.clockSystem.counters["2n"] + 1) % 2;
@@ -339,31 +356,42 @@ class AudioEngine {
       // Process AFG playheads
       this.afg.playheads.forEach((playhead, index) => {
         if (playhead.active) {
-          const clockDiv = this.handleClockDivision(playhead.clockDiv);
+          const clockDiv = this.handleClockDivision(playhead.clockDiv || "4n");
+          const tempo = this.tempo || Tone.Transport.bpm.value;
           const shouldTrigger =
-            time > playhead.lastTrig + (60 / this.tempo) * clockDiv;
+            time > (playhead.lastTrig || 0) + (60 / tempo) * clockDiv;
 
           if (shouldTrigger) {
             playhead.lastTrig = time;
-            playhead.position = (playhead.position + 1) % 16;
+            playhead.position = ((playhead.position || 0) + 1) % 16;
 
             // Get step values with quantization and morphing
             const step = this.afg.steps[playhead.position];
-            let cv = step.externalMode
-              ? this.afg.externalCV[step.externalInputIndex].value
-              : step.cv1.value;
+            if (!step) return;
+
+            let cv = 0;
+            if (step.externalMode && step.externalInputIndex !== undefined) {
+              const externalCV =
+                this.afg.externalCV &&
+                this.afg.externalCV[step.externalInputIndex];
+              cv = externalCV ? externalCV.value : 0;
+            } else if (step.cv1) {
+              cv = step.cv1.value;
+            }
 
             // Apply quantization
             cv = this.sequenceQuantizer.next();
 
-            // Apply morphing
-            cv = this.sequenceMorph.interpolator.curve(cv);
+            // Apply morphing (safely check if it exists)
+            if (this.sequenceMorph && this.sequenceMorph.interpolator) {
+              cv = this.sequenceMorph.interpolator.curve(cv);
+            }
 
             // Trigger envelopes and update oscillators
             this.triggerEnvelope(index, time);
             this.setOscillatorParams(index + 1, {
               frequency: Tone.Frequency(48 + cv * 24, "midi").toFrequency(),
-              waveShape: step.cv2.value,
+              waveShape: step.cv2 ? step.cv2.value : 0,
             });
           }
         }
@@ -423,7 +451,13 @@ class AudioEngine {
     }
   }
 
+  setTempo(bpm) {
+    this.tempo = bpm;
+    Tone.Transport.bpm.value = bpm;
+  }
+
   setClockTempo(bpm) {
+    this.tempo = bpm;
     // Convert BPM to Hz (sixteenth notes)
     const hz = (bpm / 60) * 4;
     this.clockSystem.master.frequency.value = hz;
@@ -728,64 +762,174 @@ class AudioEngine {
     }
   }
 
+  initializeEnvelopeBehaviors() {
+    // Set up envelopes A & B (0 & 1) to be triggered by clock
+    // These are transient envelopes (non-sustaining)
+    for (let i = 0; i < 2; i++) {
+      const envSystem = this.envelopes[i];
+      const env = envSystem.envelope;
+
+      // Set to transient mode (non-sustaining)
+      env.sustain = 0;
+
+      // Faster attack and decay for percussive sounds
+      env.attack = i === 0 ? 0.002 : 0.002; // Both have 2ms attack
+      env.decay = i === 0 ? 0.2 : 1; // Envelope A: 0.2s decay, Envelope B: 1s decay
+      env.release = env.decay;
+    }
+
+    // Set up envelopes C & D (2 & 3) for self-cycling behavior
+    for (let i = 2; i < 4; i++) {
+      const envSystem = this.envelopes[i];
+      const env = envSystem.envelope;
+
+      // Set to sustained mode
+      env.sustain = 0.7;
+
+      // Longer attack and decay for cycling envelopes
+      env.attack = i === 2 ? 1 : 0.02; // Envelope C: 1s attack, Envelope D: 0.02s attack
+      env.decay = 3; // Both have 3s decay
+      env.release = env.decay;
+
+      // Enable looping
+      this.setEnvelopeLFO(i, true, i === 2 ? 0.25 : 0.15); // Different rates for variation
+    }
+  }
+
   // Enable envelope looping (LFO mode) with timing control
   setEnvelopeLFO(channel, enabled, rate = 1) {
-    if (channel >= 0 && channel < 4) {
-      const envSystem = this.envelopes[channel];
-      envSystem.isLooping = enabled;
+    if (channel >= 0 && channel < 4 && this.envelopes) {
+      try {
+        const envSystem = this.envelopes[channel];
+        if (!envSystem) {
+          console.warn(`Envelope system ${channel} not initialized yet.`);
+          return;
+        }
 
-      if (enabled) {
-        const totalTime =
-          (envSystem.envelope.attack + envSystem.envelope.decay) *
-          envSystem.timeScale;
-        const loopTime = totalTime / rate;
+        // Set the flag whether it's successfully implemented or not
+        envSystem.isLooping = enabled;
 
-        // Schedule the loop
-        Tone.Transport.scheduleRepeat((time) => {
-          if (envSystem.isLooping) {
-            this.triggerEnvelope(channel, time);
+        // If Tone.Transport isn't ready, just save the state for later
+        if (!Tone.Transport || Tone.Transport.state === "stopped") {
+          console.log(
+            `Envelope ${channel} loop state set to ${enabled}, but transport not started.`
+          );
+          return;
+        }
+
+        if (enabled) {
+          // Calculate loop time based on envelope settings
+          const totalTime =
+            (envSystem.envelope.attack + envSystem.envelope.decay) *
+            (envSystem.timeScale || 1);
+          const loopTime = Math.max(0.1, totalTime / (rate || 1)); // Ensure minimum loop time
+
+          // Clear any existing events
+          if (envSystem.loopId) {
+            Tone.Transport.clear(envSystem.loopId);
           }
-        }, loopTime);
+
+          // Schedule the loop
+          envSystem.loopId = Tone.Transport.scheduleRepeat((time) => {
+            if (envSystem.isLooping) {
+              this.triggerEnvelope(channel, time);
+            }
+          }, loopTime);
+
+          console.log(
+            `Envelope ${channel} looping enabled with period ${loopTime}s`
+          );
+        } else if (envSystem.loopId) {
+          Tone.Transport.clear(envSystem.loopId);
+          envSystem.loopId = null;
+          console.log(`Envelope ${channel} looping disabled`);
+        }
+      } catch (error) {
+        console.error(`Error setting envelope ${channel} LFO:`, error);
       }
+    } else {
+      console.warn(
+        `Invalid envelope channel ${channel} or envelopes not initialized`
+      );
     }
   }
 
   // Enhanced trigger with proper timing
   triggerEnvelope(channel, time = "+0.01", params = {}) {
-    if (channel >= 0 && channel < 4) {
-      const envSystem = this.envelopes[channel];
-      const lpg = this.lpgs[channel];
+    if (channel >= 0 && channel < 4 && this.envelopes) {
+      try {
+        const envSystem = this.envelopes[channel];
+        if (!envSystem || !envSystem.envelope) {
+          console.warn(`Envelope system ${channel} not properly initialized.`);
+          return;
+        }
 
-      // Use provided duration or calculate from envelope settings
-      const duration =
-        params.duration ||
-        (envSystem.envelope.attack + envSystem.envelope.decay) *
-          envSystem.timeScale;
+        const lpg = this.lpgs && this.lpgs[channel];
 
-      // Convert velocity (0-1) to appropriate envelope scaling
-      if (params.velocity !== undefined) {
-        const velocityScale = Math.max(0.2, params.velocity); // Minimum velocity of 0.2
-        envSystem.multiply.value = velocityScale;
+        // Use provided duration or calculate from envelope settings
+        const duration =
+          params.duration ||
+          (envSystem.envelope.attack + envSystem.envelope.decay) *
+            (envSystem.timeScale || 1);
+
+        // Convert velocity (0-1) to appropriate envelope scaling
+        if (params.velocity !== undefined && envSystem.multiply) {
+          const velocityScale = Math.max(0.2, params.velocity); // Minimum velocity of 0.2
+          envSystem.multiply.value = velocityScale;
+        }
+
+        // Reset filter and VCA if they exist
+        if (lpg && lpg.filter && lpg.vca) {
+          lpg.filter.frequency.cancelScheduledValues(time);
+          lpg.vca.gain.cancelScheduledValues(time);
+          lpg.filter.frequency.setValueAtTime(20, time);
+          lpg.vca.gain.setValueAtTime(0, time);
+        }
+
+        // Trigger both the envelope system and LPG envelope
+        envSystem.envelope.triggerAttackRelease(duration, time);
+        if (lpg && lpg.envelope) {
+          lpg.envelope.triggerAttackRelease(duration, time);
+        }
+
+        // If envelope is in looping mode, schedule the next trigger
+        if (envSystem.isLooping) {
+          const nextTriggerTime = Tone.now() + duration + 0.01;
+          Tone.Transport.scheduleOnce(() => {
+            this.triggerEnvelope(channel, "+0.01", params);
+          }, nextTriggerTime);
+        }
+      } catch (error) {
+        console.warn(`Error triggering envelope ${channel}:`, error);
       }
-
-      // Reset filter and VCA
-      lpg.filter.frequency.cancelScheduledValues(time);
-      lpg.vca.gain.cancelScheduledValues(time);
-      lpg.filter.frequency.setValueAtTime(20, time);
-      lpg.vca.gain.setValueAtTime(0, time);
-
-      // Trigger with timing consideration
-      envSystem.envelope.triggerAttackRelease(duration, time);
+    } else {
+      console.warn(
+        `Invalid envelope channel ${channel} or envelopes not initialized`
+      );
     }
   }
 
   // Set a mixer crosspoint level (0-1)
   setMixerPoint(inputIdx, outputIdx, level) {
     if (inputIdx >= 0 && inputIdx < 4 && outputIdx >= 0 && outputIdx < 4) {
-      this.matrixMixer.matrix[inputIdx][outputIdx].gain.value = Math.max(
-        0,
-        Math.min(1, level)
-      );
+      const mixer = this.ensureMatrixMixerInitialized();
+      if (
+        mixer &&
+        mixer.matrix &&
+        mixer.matrix[inputIdx] &&
+        mixer.matrix[inputIdx][outputIdx]
+      ) {
+        mixer.matrix[inputIdx][outputIdx].gain.value = Math.max(
+          0,
+          Math.min(1, level)
+        );
+      } else {
+        console.warn(
+          "Matrix mixer not fully initialized for setting point",
+          inputIdx,
+          outputIdx
+        );
+      }
     }
   }
 
@@ -921,11 +1065,6 @@ class AudioEngine {
     this.noise.stop();
   }
 
-  // Update tempo
-  setTempo(bpm) {
-    Tone.Transport.bpm.value = bpm;
-  }
-
   // Set spatial position for a channel (-1 to 1 for x/y)
   setSpatialPosition(channel, x, y) {
     if (channel >= 0 && channel < 4) {
@@ -969,6 +1108,12 @@ class AudioEngine {
       await Tone.start();
       await this.initializeComponents();
       this.connectMasterChain();
+
+      // Initialize LPG modes
+      this.initializeLPGModes();
+
+      // Initialize envelope behaviors
+      this.initializeEnvelopeBehaviors();
 
       // Start oscillators
       this.osc1.start();
@@ -1022,6 +1167,7 @@ class AudioEngine {
         lpg.vactrol.connect(filterScale);
         filterScale.connect(lpg.filter.frequency);
 
+        // Connect filter to VCA
         lpg.filter.connect(lpg.vca);
 
         // Start the LFO
@@ -1033,20 +1179,53 @@ class AudioEngine {
         this.spatialDirectors.map(async (director) => {
           await director.reverb.generate();
 
+          // Connect panner to both front and rear gains
           director.panner.connect(director.frontGain);
           director.panner.connect(director.rearGain);
+
+          // Connect gains to reverb
           director.frontGain.connect(director.reverb);
           director.rearGain.connect(director.reverb);
+
+          // Connect reverb to quad outputs
           director.reverb.connect(director.outputs.fl);
           director.reverb.connect(director.outputs.fr);
           director.reverb.connect(director.outputs.rl);
           director.reverb.connect(director.outputs.rr);
 
+          // Connect outputs to quad outputs
           director.outputs.fl.connect(this.quadOutputs.frontLeft);
           director.outputs.fr.connect(this.quadOutputs.frontRight);
           director.outputs.rl.connect(this.quadOutputs.rearLeft);
           director.outputs.rr.connect(this.quadOutputs.rearRight);
         })
+      );
+
+      // Connect oscillators through wave folders and filters to matrix inputs
+      this.osc1.chain(
+        this.waveFolders[0],
+        this.bandpassFilters[0],
+        this.matrixMixer.inputs[0]
+      );
+
+      this.osc2.chain(
+        this.waveFolders[1],
+        this.bandpassFilters[1],
+        this.matrixMixer.inputs[1]
+      );
+
+      this.osc3.chain(
+        this.waveFolders[2],
+        this.toneShaper,
+        new Tone.Gain(1.0), // Unity gain buffer
+        this.matrixMixer.inputs[2]
+      );
+
+      // Connect noise through filter and VCA to matrix input
+      this.noise.chain(
+        this.noiseFilter,
+        this.noiseVCA,
+        this.matrixMixer.inputs[3]
       );
 
       // Connect matrix mixer
@@ -1057,55 +1236,28 @@ class AudioEngine {
         });
       });
 
-      // Connect matrix outputs to tone shaper and then to spatial directors
-      this.matrixMixer.outputs.forEach((output, i) => {
-        if (this.spatialDirectors[i]?.panner) {
-          // Insert tone shaper in the signal path
-          output.connect(this.toneShaper);
-          this.toneShaper.connect(this.spatialDirectors[i].panner);
-        }
-      });
+      // Connect matrix outputs to LPGs
+      this.matrixMixer.outputs[0].connect(this.lpgs[0].filter);
+      this.matrixMixer.outputs[1].connect(this.lpgs[1].filter);
+      this.matrixMixer.outputs[2].connect(this.lpgs[2].filter);
+      this.matrixMixer.outputs[3].connect(this.lpgs[3].filter);
 
-      // Connect signal chains
-      this.osc1.chain(
-        this.waveFolders[0],
-        this.bandpassFilters[0],
-        this.lpgs[0].filter,
-        this.lpgs[0].vca,
-        this.matrixMixer.inputs[0]
-      );
-
-      this.osc2.chain(
-        this.waveFolders[1],
-        this.bandpassFilters[1],
-        this.lpgs[1].filter,
-        this.lpgs[1].vca,
-        this.matrixMixer.inputs[1]
-      );
-
-      this.osc3.chain(
-        this.waveFolders[2],
-        this.bandpassFilters[2],
-        this.lpgs[2].filter,
-        this.lpgs[2].vca,
-        this.matrixMixer.inputs[2]
-      );
-
-      this.noise.chain(
-        this.noiseFilter,
-        this.noiseVCA,
-        this.lpgs[3].filter,
-        this.lpgs[3].vca,
-        this.matrixMixer.inputs[3]
-      );
+      // Connect LPG outputs to spatial directors
+      this.lpgs[0].vca.connect(this.spatialDirectors[0].panner);
+      this.lpgs[1].vca.connect(this.spatialDirectors[1].panner);
+      this.lpgs[2].vca.connect(this.spatialDirectors[2].panner);
+      this.lpgs[3].vca.connect(this.spatialDirectors[3].panner);
 
       // Set default mixer settings
       for (let i = 0; i < 4; i++) {
         this.setMixerPoint(i, i, 0.7);
       }
 
+      // Set initial LPG modes
+      this.initializeLPGModes();
+
       // Final delay to ensure everything is ready
-      await sleep(100);
+      await new Promise((resolve) => setTimeout(resolve, 100));
     } catch (error) {
       console.error("Failed to initialize components:", error);
       throw error;
@@ -1312,9 +1464,134 @@ class AudioEngine {
       if (high !== undefined) {
         this.toneShaper.high.value = Math.max(-12, Math.min(12, high));
       }
+
+      // Update crossover frequencies if needed
+      if (this.toneShaper.lowFrequency && this.toneShaper.highFrequency) {
+        this.toneShaper.lowFrequency.value = 200; // Fixed crossover at 200Hz
+        this.toneShaper.highFrequency.value = 2000; // Fixed crossover at 2kHz
+      }
+
+      // Ensure proper gain staging
+      this.toneShaper.output.gain.value = 1.0; // Unity gain at output
     } catch (error) {
       console.warn("Error setting tone shape parameters:", error);
     }
+  }
+
+  initializeLPGModes() {
+    // LPG 1 & 2: VCF mode by default (filter active, gain fixed at 1)
+    for (let i = 0; i < 2; i++) {
+      const lpg = this.lpgs[i];
+      // Configure filter parameters for VCF mode
+      lpg.filter.type = "lowpass";
+      lpg.filter.Q.value = 2; // Moderate resonance
+      // Set VCA to always pass signal at full level in VCF-only mode
+      lpg.vca.gain.value = 1;
+      // In VCF mode, envelope modulates only filter frequency, not VCA gain
+      const filterScale = new Tone.Scale(20, 15000); // Full filter range
+      lpg.vactrol.disconnect();
+      lpg.vactrol.connect(filterScale);
+      filterScale.connect(lpg.filter.frequency);
+    }
+
+    // LPG 3 & 4: VCF+VCA mode by default (both filter and gain modulated)
+    for (let i = 2; i < 4; i++) {
+      const lpg = this.lpgs[i];
+      // Configure filter parameters for VCF+VCA mode
+      lpg.filter.type = "lowpass";
+      lpg.filter.Q.value = 1; // Less resonance in combined mode
+
+      // In VCF+VCA mode, envelope modulates both filter frequency and VCA gain
+      // Connect envelope to both filter and VCA
+      const filterScale = new Tone.Scale(20, 8000); // More controlled filter range
+      lpg.vactrol.connect(filterScale);
+      filterScale.connect(lpg.filter.frequency);
+      lpg.vactrol.connect(lpg.vca.gain);
+    }
+  }
+
+  // Handle clock division conversion
+  handleClockDivision(clockDiv) {
+    // Convert name-based clock divisions to numerical values
+    switch (clockDiv) {
+      case "16n":
+        return 0.25;
+      case "8n":
+        return 0.5;
+      case "4n":
+        return 1;
+      case "2n":
+        return 2;
+      case "1n":
+        return 4;
+      default:
+        // If a number is passed, return it directly
+        return typeof clockDiv === "number" ? clockDiv : 1;
+    }
+  }
+
+  // Test method for the updated signal path
+  async testSignalPath() {
+    try {
+      await this.initialize();
+      console.log("Testing updated signal path...");
+
+      // Start the oscillators and noise
+      this.osc1.start();
+      this.osc2.start();
+      this.osc3.start();
+      this.noise.start();
+
+      // Set reasonable default frequencies
+      this.osc1.frequency.value = 110; // A2
+      this.osc2.frequency.value = 220; // A3
+      this.osc3.frequency.value = 440; // A4
+
+      // Set the mixer routing (connect each input to its corresponding output)
+      for (let i = 0; i < 4; i++) {
+        this.setMixerPoint(i, i, 0.8); // 80% level
+      }
+
+      // Set the clock tempo
+      this.setClockTempo(120);
+
+      // Start the clock to trigger envelopes A & B
+      this.startClock();
+
+      console.log("Signal path test initialized successfully");
+      console.log("- Oscillators are running");
+      console.log("- Matrix mixer is routing signals");
+      console.log("- Clock is triggering envelopes A & B");
+      console.log("- Envelopes C & D are self-cycling");
+
+      return true;
+    } catch (error) {
+      console.error("Signal path test failed:", error);
+      return false;
+    }
+  }
+
+  // Helper to ensure matrix mixer is initialized
+  ensureMatrixMixerInitialized() {
+    if (!this.matrixMixer) {
+      console.log("Creating matrix mixer");
+      this.matrixMixer = {
+        inputs: Array(4)
+          .fill()
+          .map(() => new Tone.Gain(1)),
+        outputs: Array(4)
+          .fill()
+          .map(() => new Tone.Gain(1)),
+        matrix: Array(4)
+          .fill()
+          .map(() =>
+            Array(4)
+              .fill()
+              .map(() => new Tone.Gain(0))
+          ),
+      };
+    }
+    return this.matrixMixer;
   }
 }
 

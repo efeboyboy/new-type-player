@@ -657,19 +657,41 @@ class AudioEngine {
           return;
         }
 
-        // Update frequency if provided
+        // Update frequency if provided, default to A4 (440Hz)
         if (params.frequency !== undefined) {
           osc.frequency.value = Math.max(20, Math.min(20000, params.frequency));
+        } else {
+          osc.frequency.value = 440; // Default to A4
         }
 
-        // Update wave type if provided
-        if (params.waveType !== undefined) {
-          osc.type = params.waveType;
-        }
-
-        // Update wave shape (folding) if provided
+        // Handle wave morphing based on waveShape value (0-1)
         if (params.waveShape !== undefined) {
-          this.setWaveFold(oscNumber, params.waveShape);
+          const waveShape = params.waveShape;
+
+          // Set basic waveform type
+          if (waveShape === 0) {
+            osc.type = "sawtooth";
+          } else if (waveShape === 0.5) {
+            osc.type = "square"; // Using square for pulse wave
+          } else if (waveShape === 1) {
+            osc.type = "triangle";
+          } else {
+            // For in-between values, use the closest waveform and apply wave shaping
+            if (waveShape < 0.5) {
+              osc.type = "sawtooth";
+              // Apply wave shaping to morph towards pulse
+              const morphAmount = waveShape * 2; // 0->1 for saw->pulse
+              this.setWaveShaping(oscNumber, "sawtooth-to-pulse", morphAmount);
+            } else {
+              osc.type = "square";
+              // Apply wave shaping to morph towards triangle
+              const morphAmount = (waveShape - 0.5) * 2; // 0->1 for pulse->triangle
+              this.setWaveShaping(oscNumber, "pulse-to-triangle", morphAmount);
+            }
+          }
+
+          // Apply wave folding for additional timbral shaping
+          this.setWaveFold(oscNumber, waveShape);
         }
 
         // Update FM amount if provided (only for osc3 which has the frequency shifter)
@@ -689,35 +711,97 @@ class AudioEngine {
     try {
       if (oscNumber >= 1 && oscNumber <= 3) {
         // Map 0-1 to different wave shaping functions for more timbral variety
-        const normalizedAmount = amount * 10; // Reduced from 15 to 10 for less extreme folding
+        const normalizedAmount = amount * 10; // Scale to 0-10 range
         let shapeFunc;
 
         if (normalizedAmount < 5) {
           // Gentle sine folding for subtle harmonics
-          const fold = 1 + normalizedAmount * 0.5; // Reduced from 0.8 to 0.5
+          const fold = 1 + normalizedAmount * 0.5;
           shapeFunc = (x) => Math.sin(x * Math.PI * fold);
         } else if (normalizedAmount < 8) {
           // Asymmetric folding for richer harmonics
-          const fold = 1 + (normalizedAmount - 5) * 0.8; // Reduced from 1.2 to 0.8
+          const fold = 1 + (normalizedAmount - 5) * 0.8;
           shapeFunc = (x) => {
             const folded = Math.sin(x * Math.PI * fold);
-            return folded * Math.cos(x * Math.PI * 0.5) * 0.9; // Reduced from 0.7/1.2 to 0.5/0.9
+            return folded * Math.cos(x * Math.PI * 0.5) * 0.9;
           };
         } else {
           // Hard folding for aggressive timbres
-          const fold = 1 + (normalizedAmount - 8) * 1.0; // Reduced from 1.5 to 1.0
+          const fold = 1 + (normalizedAmount - 8);
           shapeFunc = (x) => {
             const folded = Math.sin(x * Math.PI * fold);
-            const shaped = Math.sign(folded) * Math.pow(Math.abs(folded), 0.7); // Increased from 0.6 to 0.7 for smoother shape
-            return shaped * 0.9; // Reduced from 1.5 to 0.9
+            const shaped = Math.sign(folded) * Math.pow(Math.abs(folded), 0.7);
+            return shaped * 0.9;
           };
         }
 
-        this.waveFolders[oscNumber - 1].setMap(shapeFunc);
+        // Schedule the wave folder update
+        const now = Tone.now();
+        const folder = this.waveFolders[oscNumber - 1];
+        if (folder) {
+          folder.curve = new Float32Array(1024).map((_, i) => {
+            const x = i / 512 - 1;
+            return shapeFunc(x);
+          });
+        }
       }
     } catch (error) {
       console.warn(
         `Error setting wave fold for oscillator ${oscNumber}:`,
+        error
+      );
+    }
+  }
+
+  // New method to handle wave shaping for morphing
+  setWaveShaping(oscNumber, morphType, amount) {
+    if (!this.initialized) return;
+
+    try {
+      const folder = this.waveFolders[oscNumber - 1];
+      if (!folder) return;
+
+      let shapeFunc;
+      const PI = Math.PI;
+
+      switch (morphType) {
+        case "sawtooth-to-pulse":
+          // Morph from sawtooth to pulse by gradually squaring the waveform
+          shapeFunc = (x) => {
+            // Start with a sawtooth shape
+            const saw = x;
+            // Gradually transform towards pulse with smoother transition
+            const shaped = Math.tanh(Math.sin(x * PI) * (1 + amount * 3));
+            // Interpolate between sawtooth and shaped wave
+            return saw * (1 - amount) + shaped * amount;
+          };
+          break;
+
+        case "pulse-to-triangle":
+          // Morph from pulse to triangle by smoothing the edges
+          shapeFunc = (x) => {
+            // Start with a pulse shape
+            const pulse = Math.tanh(Math.sin(x * PI) * 5); // Smoother pulse
+            // Create a triangle shape
+            const tri = Math.asin(Math.sin(x * PI)) / (PI / 2);
+            // Interpolate between pulse and triangle with smoothing
+            return pulse * (1 - amount) + tri * amount;
+          };
+          break;
+
+        default:
+          // Default to identity function
+          shapeFunc = (x) => x;
+      }
+
+      // Create lookup table for the wave shaping function
+      folder.curve = new Float32Array(1024).map((_, i) => {
+        const x = i / 512 - 1;
+        return shapeFunc(x);
+      });
+    } catch (error) {
+      console.warn(
+        `Error setting wave shaping for oscillator ${oscNumber}:`,
         error
       );
     }
@@ -1198,47 +1282,51 @@ class AudioEngine {
 
   async initializeComponents() {
     try {
-      // Initialize LPGs
+      // Initialize LPGs with more stable filter settings
       for (let i = 0; i < 4; i++) {
         const lpg = this.lpgs[i];
         const offset = this.globalEnvelope.offsets[i];
 
-        lpg.vactrol = new Tone.Follower(0.01); // Faster response time
-        lpg.vca = new Tone.Gain(0); // Start closed
-        lpg.filter = new Tone.Filter({
-          frequency: 20, // Start fully closed
-          type: "lowpass",
-          rolloff: -24, // Steeper slope
+        lpg.vactrol = new Tone.Follower({
+          smoothing: 0.1, // Slower response time for stability
+          minValue: 0,
+          maxValue: 1,
         });
+
+        lpg.vca = new Tone.Gain(0); // Start closed
+
+        lpg.filter = new Tone.Filter({
+          frequency: 200, // Start at a safe frequency
+          type: "lowpass",
+          rolloff: -12, // Less steep slope for stability
+          Q: 0.5, // Lower Q for stability
+        });
+
         lpg.envelope = new Tone.Envelope({
-          attack: this.globalEnvelope.rise * offset,
-          decay: this.globalEnvelope.fall * offset,
+          attack: Math.max(0.01, this.globalEnvelope.rise * offset),
+          decay: Math.max(0.01, this.globalEnvelope.fall * offset),
           sustain: this.globalEnvelope.level * offset,
-          release: this.globalEnvelope.fall * offset,
+          release: Math.max(0.01, this.globalEnvelope.fall * offset),
           attackCurve: "exponential",
           releaseCurve: "exponential",
         });
-        lpg.lfo = new Tone.LFO({
-          frequency: 1,
-          min: 0, // Full modulation range
-          max: 1,
-          type: "sine",
+
+        // Initialize wave folders with safe settings
+        this.waveFolders[i] = new Tone.WaveShaper({
+          curve: new Float32Array(1024).fill(0),
+          oversample: "2x",
         });
 
-        // Connect LPG components with envelope integration
+        // Connect components with smoother parameter changes
         lpg.envelope.connect(lpg.vactrol);
-        lpg.lfo.connect(lpg.vactrol);
         lpg.vactrol.connect(lpg.vca.gain);
 
-        // Scale envelope to filter frequency (20Hz - 20kHz)
-        const filterScale = new Tone.Scale(20, 20000);
+        // Scale envelope to filter frequency (200Hz - 8kHz for stability)
+        const filterScale = new Tone.Scale(200, 8000);
         lpg.vactrol.connect(filterScale);
         filterScale.connect(lpg.filter.frequency);
 
         lpg.filter.connect(lpg.vca);
-
-        // Start the LFO
-        lpg.lfo.start();
       }
 
       // Initialize spatial routing

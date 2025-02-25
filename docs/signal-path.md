@@ -30,6 +30,8 @@ Each oscillator receives pitch control from the step sequencer and routes its ou
 **Inputs:**
 
 - V/OCT (from Step Sequencer)
+- Fine Tune (-12 to +12 semitones)
+- Octave (-3 to +3 octaves)
 
 **Outputs:**
 
@@ -39,8 +41,20 @@ Each oscillator receives pitch control from the step sequencer and routes its ou
 
 **Controls:**
 
-- Tune Knob (for pitch adjustment)
-- Wave Shape Knob (to morph between waveforms)
+- Tune Knob: Offsets V/OCT input by ±12 semitones
+- Oct Knob: Offsets V/OCT input by ±3 octaves
+- Wave Knob: Morphs between waveforms:
+  - Saw (0.0): Pure sawtooth wave
+  - Pulse (0.5): Square/pulse wave
+  - Triangle (1.0): Pure triangle wave
+  - Intermediate values smoothly morph between adjacent waveforms
+
+**Default Settings:**
+
+- Base frequency: A4 (440 Hz) when no V/OCT input
+- Fine Tune: 0 semitones
+- Octave: 0
+- Wave: 0.5 (pulse wave)
 
 ### Noise Generator
 
@@ -267,14 +281,15 @@ _EG 4:_
 
 Bleak is a virtual analog oscillator with zero aliasing that provides simple but effective waveform control. It features classic analog waveforms with continuous morphing capabilities.
 
-#### Controls and Inputs:
+**Controls and Inputs:**
 
-- **Detune**: Adjusts the pitch of the oscillator (± 100 cents)
+- **V/OCT**: Main input that defines the pitch (1V per octave convention). Zero volts corresponds to A4 (440 Hz)
+- **Fine Tune**: Adjusts the pitch by ±12 semitones
+- **Octave**: Shifts the pitch by ±3 octaves
 - **Wave**: Morphs continuously between waveforms:
-  - Saw: Full left
-  - Pulse: Center
-  - Triangle: Full right
-- **V/OCT**: Main input that defines the pitch (1V per octave convention). Zero volts corresponds to a C3 note
+  - Saw: Full left (0.0)
+  - Pulse: Center (0.5)
+  - Triangle: Full right (1.0)
 - **Out**: Main oscillator output
 
 ### Noise

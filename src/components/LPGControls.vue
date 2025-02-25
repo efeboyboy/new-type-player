@@ -48,8 +48,9 @@
           <label class="module-label">Mod</label>
         </div>
 
-        <!-- Loop Toggle -->
+        <!-- Loop Toggle (Only visible for LPG C & D) -->
         <button
+          v-if="n > 2"
           @click="toggleMode(n - 1)"
           :class="[
             lpgs[n - 1].loopMode
@@ -60,6 +61,19 @@
         >
           <span>{{ lpgs[n - 1].loopMode ? "↻" : "→" }}</span>
         </button>
+
+        <!-- Rate Control (Only for LPG C & D when looping) -->
+        <div v-if="n > 2 && lpgs[n - 1].loopMode" class="control-group">
+          <Knob
+            v-model="lpgs[n - 1].rate"
+            :min="0.1"
+            :max="10"
+            :step="0.1"
+            class="w-10 h-10"
+          />
+          <div class="module-value">{{ lpgs[n - 1].rate.toFixed(1) }}Hz</div>
+          <label class="module-label">Rate</label>
+        </div>
       </div>
     </div>
   </div>
@@ -75,9 +89,10 @@
   // Refined default values based on signal path documentation
   const defaultLPG = (index) => ({
     mode: index < 2 ? "vcf" : "both", // VCF for 1&2, VCF+VCA for 3&4
-    level: 0.7, // Reduced from 0.85 for better headroom
-    modAmount: 0.5, // Reduced from 0.75 for more subtle modulation
-    loopMode: false,
+    level: 0.7,
+    modAmount: 0.5,
+    loopMode: false, // Only applicable for LPG C & D (indices 2 & 3)
+    rate: 1.0, // Default rate for LPG C & D looping
   });
 
   const lpgs = ref(
@@ -90,9 +105,19 @@
     return `${(value * 100).toFixed(0)}%`;
   };
 
-  const toggleMode = (index) => {
+  const toggleMode = async (index) => {
+    // Only allow toggling for LPG C & D (index 2 & 3)
+    if (index < 2) return;
+
     lpgs.value[index].loopMode = !lpgs.value[index].loopMode;
-    updateLPG(index);
+    await updateLPG(index);
+
+    // Start/stop the LFO based on loop mode
+    audioEngine.setLPGLFO(
+      index,
+      lpgs.value[index].loopMode,
+      lpgs.value[index].rate
+    );
   };
 
   const updateLPG = async (index) => {
@@ -110,13 +135,17 @@
       // Add value smoothing and clamping
       const smoothedValues = {
         mode: lpg.mode,
-        level: Math.max(0.1, Math.min(0.9, lpg.level)), // Clamp between 0.1 and 0.9
-        modAmount: Math.max(0.1, Math.min(0.9, lpg.modAmount)), // Clamp between 0.1 and 0.9
-        loopMode: lpg.loopMode,
+        level: Math.max(0.1, Math.min(0.9, lpg.level)),
+        modAmount: Math.max(0.1, Math.min(0.9, lpg.modAmount)),
       };
 
       // Update LPG parameters with smoothed values
       audioEngine.setLPGParams(index, smoothedValues);
+
+      // Update LFO rate if looping (for LPG C & D)
+      if (index >= 2 && lpg.loopMode) {
+        audioEngine.setLPGLFO(index, true, lpg.rate);
+      }
     } catch (error) {
       console.warn(`Error updating LPG ${index}:`, error);
     }
@@ -124,12 +153,28 @@
 
   // Randomize with more musical values
   const randomize = async () => {
-    const newValues = lpgs.value.map(() => ({
-      mode: ["vcf", "vca", "both"][Math.floor(Math.random() * 3)],
-      level: Math.random() * 0.3 + 0.4, // 0.4 to 0.7 range
-      modAmount: Math.random() * 0.4 + 0.3, // 0.3 to 0.7 range
-      loopMode: Math.random() > 0.5,
-    }));
+    const newValues = lpgs.value.map((lpg, index) => {
+      // Different randomization for LPG A&B vs C&D
+      if (index < 2) {
+        // LPG A & B: No looping, just mode, level, and modAmount
+        return {
+          mode: ["vcf", "vca", "both"][Math.floor(Math.random() * 3)],
+          level: Math.random() * 0.3 + 0.4, // 0.4 to 0.7 range
+          modAmount: Math.random() * 0.4 + 0.3, // 0.3 to 0.7 range
+          loopMode: false,
+          rate: 1.0,
+        };
+      } else {
+        // LPG C & D: Can have looping
+        return {
+          mode: ["vcf", "vca", "both"][Math.floor(Math.random() * 3)],
+          level: Math.random() * 0.3 + 0.4, // 0.4 to 0.7 range
+          modAmount: Math.random() * 0.4 + 0.3, // 0.3 to 0.7 range
+          loopMode: Math.random() > 0.5, // 50% chance of looping
+          rate: Math.random() * 9 + 1, // 1.0 to 10.0 Hz range
+        };
+      }
+    });
 
     lpgs.value = newValues;
     await nextTick();
@@ -137,6 +182,11 @@
     for (let i = 0; i < lpgs.value.length; i++) {
       await new Promise((resolve) => setTimeout(resolve, 50)); // Increased delay for smoother transitions
       await updateLPG(i);
+
+      // For LPG C & D, update looping state
+      if (i >= 2) {
+        audioEngine.setLPGLFO(i, lpgs.value[i].loopMode, lpgs.value[i].rate);
+      }
     }
   };
 
@@ -155,6 +205,13 @@
         ToneService.setAudioEngineInitialized(true);
       }
 
+      // Initialize LPG C & D with their independent looping mechanism
+      for (let i = 2; i < 4; i++) {
+        if (lpgs.value[i].loopMode) {
+          audioEngine.setLPGLFO(i, true, lpgs.value[i].rate);
+        }
+      }
+
       await new Promise((resolve) => setTimeout(resolve, 100));
       await updateAllLPGs();
     } catch (error) {
@@ -165,6 +222,12 @@
   const updateAllLPGs = async () => {
     for (let i = 0; i < lpgs.value.length; i++) {
       await updateLPG(i);
+
+      // For LPG C & D, update looping state
+      if (i >= 2) {
+        audioEngine.setLPGLFO(i, lpgs.value[i].loopMode, lpgs.value[i].rate);
+      }
+
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
   };
@@ -200,6 +263,11 @@
       for (let i = 0; i < lpgs.value.length; i++) {
         await new Promise((resolve) => setTimeout(resolve, 20));
         await updateLPG(i);
+
+        // For LPG C & D, ensure looping is off
+        if (i >= 2) {
+          audioEngine.setLPGLFO(i, false);
+        }
       }
     },
     randomize,

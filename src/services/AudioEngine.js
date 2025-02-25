@@ -1311,6 +1311,19 @@ class AudioEngine {
           releaseCurve: "exponential",
         });
 
+        // Initialize LFOs for LPG C & D (indices 2 and 3)
+        if (i >= 2) {
+          lpg.lfo = new Tone.LFO({
+            frequency: 1,
+            min: 0,
+            max: 1,
+            type: "sine",
+          });
+
+          // Connect LFO to vactrol for independent looping
+          // But don't start it yet - it will be controlled by setLPGLFO
+        }
+
         // Initialize wave folders with safe settings
         this.waveFolders[i] = new Tone.WaveShaper({
           curve: new Float32Array(1024).fill(0),
@@ -1647,7 +1660,7 @@ class AudioEngine {
   }
 
   // Set LPG parameters with improved error handling
-  async setLPGParams(index, { response, level, resonance } = {}) {
+  async setLPGParams(index, { mode, level, modAmount } = {}) {
     // Validate index and initialization
     if (index === undefined || index < 0 || index >= 4) {
       console.warn(`Invalid LPG index: ${index}`);
@@ -1676,13 +1689,45 @@ class AudioEngine {
       // Batch parameter updates to minimize audio glitches
       const now = Tone.now();
 
-      // Set vactrol response time (smoothing) with ramp to avoid clicks
-      if (response !== undefined) {
+      // Set LPG mode (vcf, vca, or both)
+      if (mode !== undefined) {
         try {
-          const smoothingValue = Math.max(0.01, Math.min(1, response));
-          lpg.vactrol.smoothing = smoothingValue;
+          // Disconnect existing connections
+          lpg.vactrol.disconnect();
+
+          // Reconnect based on mode
+          switch (mode) {
+            case "vcf":
+              // In VCF mode, envelope modulates only filter frequency, not VCA gain
+              const filterScale = new Tone.Scale(20, 15000); // Full filter range
+              lpg.vactrol.connect(filterScale);
+              filterScale.connect(lpg.filter.frequency);
+
+              // Set VCA to always pass signal at full level in VCF-only mode
+              lpg.vca.gain.cancelScheduledValues(now);
+              lpg.vca.gain.linearRampToValueAtTime(1, now + 0.02);
+              break;
+
+            case "vca":
+              // In VCA mode, envelope modulates only VCA gain, not filter frequency
+              lpg.vactrol.connect(lpg.vca.gain);
+
+              // Set filter to always pass signal with high cutoff in VCA-only mode
+              lpg.filter.frequency.cancelScheduledValues(now);
+              lpg.filter.frequency.linearRampToValueAtTime(20000, now + 0.02);
+              break;
+
+            case "both":
+            default:
+              // In VCF+VCA mode, envelope modulates both filter frequency and VCA gain
+              const combinedFilterScale = new Tone.Scale(20, 8000); // More controlled filter range
+              lpg.vactrol.connect(combinedFilterScale);
+              combinedFilterScale.connect(lpg.filter.frequency);
+              lpg.vactrol.connect(lpg.vca.gain);
+              break;
+          }
         } catch (error) {
-          console.warn(`Error setting LPG ${index} response:`, error);
+          console.warn(`Error setting LPG ${index} mode:`, error);
         }
       }
 
@@ -1697,27 +1742,18 @@ class AudioEngine {
         }
       }
 
-      // Set filter resonance with ramp
-      if (resonance !== undefined && lpg.filter && lpg.filter.Q) {
+      // Set modulation amount (affects filter resonance and envelope sensitivity)
+      if (modAmount !== undefined) {
         try {
-          const qValue = Math.max(0.1, Math.min(20, resonance));
+          // Adjust filter resonance based on modAmount
+          const qValue = Math.max(0.1, Math.min(20, modAmount * 10));
           lpg.filter.Q.cancelScheduledValues(now);
           lpg.filter.Q.linearRampToValueAtTime(qValue, now + 0.02);
-        } catch (error) {
-          console.warn(`Error setting LPG ${index} resonance:`, error);
-        }
-      }
 
-      // Adjust filter frequency based on level with ramp
-      if (level !== undefined && lpg.filter && lpg.filter.frequency) {
-        try {
-          const minFreq = 20;
-          const maxFreq = 20000;
-          const freqValue = minFreq + (maxFreq - minFreq) * level;
-          lpg.filter.frequency.cancelScheduledValues(now);
-          lpg.filter.frequency.linearRampToValueAtTime(freqValue, now + 0.02);
+          // Adjust envelope sensitivity
+          lpg.vactrol.smoothing = Math.max(0.01, 0.2 - modAmount * 0.15);
         } catch (error) {
-          console.warn(`Error setting LPG ${index} frequency:`, error);
+          console.warn(`Error setting LPG ${index} modulation amount:`, error);
         }
       }
 
@@ -1734,6 +1770,16 @@ class AudioEngine {
 
     try {
       const lpg = this.lpgs[index];
+
+      // For LPG A & B (indices 0 & 1), always trigger the envelope
+      // For LPG C & D (indices 2 & 3), only trigger if not in looping mode
+
+      // Check if this is LPG C or D and if it's in looping mode
+      if (index >= 2 && lpg.lfo && lpg.lfo.state === "started") {
+        // Skip triggering if LPG is already in looping mode
+        return;
+      }
+
       if (lpg.envelope) {
         lpg.envelope.triggerAttackRelease(duration);
       }
@@ -1825,9 +1871,24 @@ class AudioEngine {
       // In VCF+VCA mode, envelope modulates both filter frequency and VCA gain
       // Connect envelope to both filter and VCA
       const filterScale = new Tone.Scale(20, 8000); // More controlled filter range
+      lpg.vactrol.disconnect();
       lpg.vactrol.connect(filterScale);
       filterScale.connect(lpg.filter.frequency);
       lpg.vactrol.connect(lpg.vca.gain);
+
+      // Initialize LFO for independent looping (but don't start it yet)
+      if (lpg.lfo) {
+        // Ensure LFO is stopped initially
+        if (lpg.lfo.state === "started") {
+          lpg.lfo.stop();
+        }
+
+        // Configure LFO for smooth modulation
+        lpg.lfo.type = "sine";
+        lpg.lfo.min = 0;
+        lpg.lfo.max = 1;
+        lpg.lfo.frequency.value = 1; // Default 1Hz
+      }
     }
   }
 
@@ -1958,6 +2019,14 @@ class AudioEngine {
       return false;
     }
 
+    // Only LPG C & D (indices 2 & 3) can use independent looping
+    if (index < 2) {
+      console.warn(
+        `LPG ${index} (A or B) does not support independent looping`
+      );
+      return false;
+    }
+
     if (!this.initialized) {
       console.warn("Audio engine not initialized");
       return false;
@@ -1977,6 +2046,9 @@ class AudioEngine {
         return false;
       }
 
+      // Disconnect any existing connections to ensure clean state
+      lpg.lfo.disconnect();
+
       if (enabled) {
         // Clamp rate to reasonable values (0.1 to 20 Hz)
         const safeRate = Math.max(0.1, Math.min(20, rate || 1));
@@ -1985,6 +2057,9 @@ class AudioEngine {
           // Set frequency with ramp to avoid clicks
           lpg.lfo.frequency.cancelScheduledValues(Tone.now());
           lpg.lfo.frequency.linearRampToValueAtTime(safeRate, Tone.now() + 0.1);
+
+          // Connect LFO to vactrol for independent triggering
+          lpg.lfo.connect(lpg.vactrol);
 
           // Start LFO if not already running
           if (lpg.lfo.state !== "started") {
@@ -1999,6 +2074,9 @@ class AudioEngine {
           if (lpg.lfo.state === "started") {
             lpg.lfo.stop();
           }
+
+          // Disconnect LFO from vactrol
+          lpg.lfo.disconnect(lpg.vactrol);
         } catch (lfoError) {
           console.warn(`Error stopping LPG ${index} LFO:`, lfoError);
         }

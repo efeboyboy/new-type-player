@@ -1,0 +1,95 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+ # Buchla Series 200 Web Application Tasks
+
+## Project Overview
+This project aims to recreate specific Buchla Series 200 patches in a web application, making complex modular synthesis accessible to non-musicians. Instead of providing a fully modular environment, we'll offer carefully designed templates based on documented patches.
+
+## Core Objectives
+- Create an intuitive, user-friendly interface for non-musicians
+- Maintain the sonic character and complexity of the original patches
+- Provide meaningful visual feedback and interaction
+- Focus on musical exploration rather than technical complexity
+
+## Task List
+
+### 1. User Interface Design [  ]
+- [ ] Design patch selection interface
+- [ ] Create animated visualizations for each patch type
+- [ ] Design intuitive controls for key parameters
+- [ ] Implement responsive layout for different screen sizes
+- [ ] Add visual tutorials and help system
+
+### 2. Audio Engine Development [  ]
+- [ ] Implement core Tone.js infrastructure
+- [ ] Create base oscillator system with multiple waveforms
+- [ ] Develop envelope generator system
+- [ ] Implement spatial audio routing
+- [ ] Add frequency shifting capabilities
+- [ ] Create quantization system for pitch control
+
+### 3. Patch Templates [  ]
+#### String Patch [  ]
+- [ ] Implement dual oscillator system with frequency shifting
+- [ ] Create "bowing" simulation using envelope control
+- [ ] Add spatial movement controls
+- [ ] Design string-specific UI controls
+
+#### Vertical Sequencer [  ]
+- [ ] Create 16-stage sequencer system
+- [ ] Implement four-voice arpeggiator
+- [ ] Add harmonic rhythm controls
+- [ ] Design sequencer-specific visualization
+
+#### Prism Melody [  ]
+- [ ] Implement 16-pitch sequence system
+- [ ] Add timbral emphasis controls
+- [ ] Create spatial variation system
+- [ ] Design melody-specific visualization
+
+#### Basic Performance Patch [  ]
+- [ ] Implement basic voice architecture
+- [ ] Add simple modulation controls
+- [ ] Create performance-oriented interface
+- [ ] Design beginner-friendly parameter controls
+
+### 4. Visual Feedback System [  ]
+- [ ] Create animated signal flow visualization
+- [ ] Implement real-time parameter display
+- [ ] Add spatial position visualization
+- [ ] Design patch-specific animations
+
+### 5. Preset System [  ]
+- [ ] Create preset management system
+- [ ] Design preset browser interface
+- [ ] Implement preset save/load functionality
+- [ ] Add preset sharing capabilities
+
+### 6. Documentation [  ]
+- [ ] Write user guide for each patch
+- [ ] Create interactive tutorials
+- [ ] Add context-sensitive help
+- [ ] Include musical examples and suggestions
+
+### 7. Testing and Optimization [  ]
+- [ ] Perform cross-browser testing
+- [ ] Optimize audio processing
+- [ ] Test on different devices
+- [ ] Gather user feedback
+- [ ] Implement performance improvements
+
+## Progress Tracking
+- 🔲 Not Started
+- 🔵 In Progress
+- ✅ Completed
+- ❌ Blocked
+
+## Notes
+- Each patch should be self-contained and focused
+- Prioritize user experience over technical complexity
+- Keep interface consistent across different patches
+- Ensure smooth transitions between patches
+- Focus on making complex synthesis accessible

@@ -1,0 +1,98 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Revised Implementation Steps
+
+## Phase 1: Codebase Restructuring
+1. **Audio Engine Modularization**
+   - [ ] Create base PatchTemplate class
+   - [ ] Refactor AudioEngine.js into modular components
+   - [ ] Implement patch-specific audio processing classes
+   - [ ] Move current implementation into Basic Performance Patch
+
+2. **State Management Updates**
+   - [ ] Create patch-specific state stores
+   - [ ] Implement patch switching logic
+   - [ ] Add preset management system
+   - [ ] Refactor current store.js
+
+3. **UI Component Organization**
+   - [ ] Create patch selection interface
+   - [ ] Organize components into patch-specific groups
+   - [ ] Update existing components for template system
+   - [ ] Implement patch-specific visualizations
+
+## Phase 2: Template Implementation
+1. **String Patch**
+   - [ ] Create StringPatch class extending PatchTemplate
+   - [ ] Implement dual oscillator with frequency shifting
+   - [ ] Add bowing envelope system
+   - [ ] Design string-specific UI components
+
+2. **Vertical Sequencer**
+   - [ ] Create VerticalSequencerPatch class
+   - [ ] Implement 16-stage sequencer system
+   - [ ] Add four-voice arpeggiator
+   - [ ] Design sequencer-specific UI
+
+3. **Prism Melody**
+   - [ ] Create PrismMelodyPatch class
+   - [ ] Implement timbral emphasis system
+   - [ ] Add spatial variation
+   - [ ] Design melody-specific UI
+
+## Phase 3: Enhanced Features
+1. **Spatial Audio System**
+   - [ ] Enhance current SpatialControls
+   - [ ] Add more movement patterns
+   - [ ] Implement visualization
+
+2. **Visualization System**
+   - [ ] Add real-time parameter visualization
+   - [ ] Create patch-specific animations
+   - [ ] Implement signal flow display
+
+## Phase 4: Polish and Documentation
+1. **User Interface**
+   - [ ] Refine patch switching
+   - [ ] Add help system
+   - [ ] Implement tutorials
+
+2. **Testing and Optimization**
+   - [ ] Performance testing
+   - [ ] Browser compatibility
+   - [ ] Mobile responsiveness
+
+## Current Focus
+1. Create PatchTemplate base class
+2. Refactor AudioEngine.js
+3. Implement patch switching system
+
+## Directory Structure
+```
+src/
+├── patches/
+│   ├── PatchTemplate.js
+│   ├── StringPatch.js
+│   ├── VerticalSequencerPatch.js
+│   └── PrismMelodyPatch.js
+├── components/
+│   ├── common/
+│   ├── string-patch/
+│   ├── vertical-sequencer/
+│   └── prism-melody/
+├── store/
+│   ├── index.js
+│   └── patches/
+└── services/
+    ├── AudioEngine.js
+    └── PatchManager.js
+```
+
+## Technical Notes
+- Keep existing Vue.js structure
+- Maintain current component architecture
+- Add patch-specific implementations
+- Enhance spatial audio system

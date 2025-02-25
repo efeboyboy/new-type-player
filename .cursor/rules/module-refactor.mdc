@@ -1,0 +1,166 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Revised Module System
+
+## 1. Sound Generation Core
+
+### Triple Oscillator + Noise System
+- Create unified `SoundGenerator` class
+- Implement:
+  ```
+  - 3 Oscillators
+    ├── Independent frequency control
+    ├── Multiple waveforms per oscillator
+    ├── Cross-modulation between oscillators
+    └── Sync options
+  
+  - Noise Generator
+    ├── White/Pink/Red noise
+    ├── Filtered noise options
+    └── Random voltage generation
+  ```
+
+### Components:
+```
+src/components/sound-generator/
+├── OscillatorBank.vue        # Contains all 3 oscillators
+├── NoiseGenerator.vue        # Noise source
+├── WaveformControl.vue       # Shared waveform selector
+└── ModulationMatrix.vue      # Cross-modulation control
+```
+
+## 2. Signal Processing
+
+### Enhanced Frequency Shifter
+- Single module handling all oscillators
+- Features:
+  - Individual or grouped shifting
+  - Timbral enrichment presets
+  - Real-time spectral display
+
+### Unified Matrix System
+- Implement:
+  - 8x8 routing matrix (4 inputs → 4 outputs)
+  - Visual signal flow
+  - Quick routing presets
+  - Level control per connection
+
+### Components:
+```
+src/components/processing/
+├── FrequencyShifter.vue
+├── RoutingMatrix.vue
+├── SignalFlow.vue
+└── LevelControls.vue
+```
+
+## 3. Control & Modulation
+
+### Advanced Function Generator (AFG)
+- Unified control center for:
+  - All oscillator parameters
+  - Sequencer patterns
+  - Modulation paths
+  - Quantization
+
+### Quad Spatial System
+- Four-channel spatial control
+- Features:
+  - Individual or grouped movement
+  - Pattern sequencing
+  - Envelope following
+  - Position visualization
+
+### Components:
+```
+src/components/control/
+├── AFGControl.vue
+├── SequenceEditor.vue
+├── SpatialControl.vue
+└── EnvelopeSystem.vue
+```
+
+## 4. User Interface
+
+### Main Interface
+```
+src/components/interface/
+├── PatchSelector.vue       # Template selection
+├── MainDisplay.vue        # Central visualization
+├── ControlPanel.vue       # Global controls
+└── PresetManager.vue      # Save/load system
+```
+
+### Visualization System
+```
+src/components/viz/
+├── WaveformDisplay.vue
+├── SpectrumAnalyzer.vue
+├── SpatialVisualizer.vue
+└── ModulationDisplay.vue
+```
+
+## Implementation Priority
+
+1. **Sound Generation**
+   - Triple oscillator system
+   - Noise generator
+   - Basic modulation
+
+2. **Signal Flow**
+   - Unified matrix
+   - Basic spatial control
+   - Level management
+
+3. **Control System**
+   - AFG implementation
+   - Pattern generation
+   - Modulation routing
+
+4. **User Experience**
+   - Template system
+   - Visualization
+   - Preset management
+
+## Technical Architecture
+
+### Audio Engine
+```javascript
+class AudioEngine {
+  constructor() {
+    this.oscillators = [Osc1, Osc2, Osc3];
+    this.noise = NoiseGen;
+    this.matrix = new RoutingMatrix(8, 8);
+    this.spatial = new QuadSpatial();
+    this.afg = new AdvancedFunctionGen();
+  }
+}
+```
+
+### State Management
+```javascript
+const store = {
+  soundGen: {
+    oscillators: [...],
+    noise: {...}
+  },
+  routing: {
+    matrix: [...],
+    spatial: {...}
+  },
+  control: {
+    afg: {...},
+    patterns: [...]
+  }
+}
+```
+
+## Development Notes
+- Focus on modular architecture
+- Prioritize real-time performance
+- Keep UI responsive and intuitive
+- Implement proper parameter automation
+- Add visual feedback for all operations

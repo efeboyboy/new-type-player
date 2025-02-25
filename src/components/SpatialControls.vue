@@ -272,7 +272,7 @@
 
   // Randomize function
   const randomize = () => {
-    // Stop all animations
+    // Stop all animations first
     isAnimating.value.forEach((_, index) => {
       if (isAnimating.value[index]) {
         stopAnimation(index);
@@ -295,6 +295,16 @@
 
     // Update all channels
     channels.value.forEach((_, index) => updateSpatialPosition(index));
+
+    // Randomize animation states with 30% chance of being active
+    isAnimating.value = isAnimating.value.map(() => Math.random() < 0.3);
+
+    // Start animations for channels that were randomized to be active
+    isAnimating.value.forEach((isActive, index) => {
+      if (isActive) {
+        startAnimation(index);
+      }
+    });
   };
 
   const formatPercent = (value) => {

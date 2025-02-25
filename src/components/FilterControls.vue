@@ -215,6 +215,23 @@
       presence: 1.2 + Math.random() * 1.6,
     };
 
+    // Randomize matrix bandpass filters
+    // Matrix Bandpass Filter A (index 0)
+    const matrixFilterAFreq = 200 + Math.random() * 1800; // 200Hz to 2000Hz
+    const matrixFilterAQ = 0.5 + Math.random() * 2.5; // 0.5 to 3.0
+    audioEngine.setMatrixBandpassFilterParams(0, {
+      frequency: matrixFilterAFreq,
+      Q: matrixFilterAQ,
+    });
+
+    // Matrix Bandpass Filter B (index 1)
+    const matrixFilterBFreq = 200 + Math.random() * 1800; // 200Hz to 2000Hz
+    const matrixFilterBQ = 0.5 + Math.random() * 2.5; // 0.5 to 3.0
+    audioEngine.setMatrixBandpassFilterParams(1, {
+      frequency: matrixFilterBFreq,
+      Q: matrixFilterBQ,
+    });
+
     updateFilters();
     updateToneShape();
   };

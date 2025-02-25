@@ -21,7 +21,8 @@ export const store = reactive({
   osc2: null,
   osc3: null,
   noiseControls: null,
-  envelopeControls: null,
+  envelopeShapeControls: null,
+  envelopeBehaviorControls: null,
   lpgControls: null,
   matrixMixer: null,
   filterControls: null,
@@ -170,8 +171,10 @@ export const store = reactive({
       if (this.osc3) updatePromises.push(this.osc3.randomize());
       if (this.noiseControls)
         updatePromises.push(this.noiseControls.randomize());
-      if (this.envelopeControls)
-        updatePromises.push(this.envelopeControls.randomize());
+      if (this.envelopeShapeControls)
+        updatePromises.push(this.envelopeShapeControls.randomize());
+      if (this.envelopeBehaviorControls)
+        updatePromises.push(this.envelopeBehaviorControls.randomize());
       if (this.lpgControls) updatePromises.push(this.lpgControls.randomize());
       if (this.matrixMixer) updatePromises.push(this.matrixMixer.randomize());
       if (this.filterControls)

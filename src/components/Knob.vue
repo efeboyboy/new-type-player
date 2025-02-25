@@ -61,8 +61,10 @@
   // Internal state
   const internalValue = ref(props.modelValue);
   const isDragging = ref(false);
-  const dragStart = ref({ y: 0, value: 0 });
+  const dragStart = ref({ x: 0, y: 0, value: 0 });
   const lastEmittedValue = ref(props.modelValue);
+  const gestureMode = ref(null); // 'rotate', 'vertical', or 'horizontal'
+  const gestureThreshold = 10; // Pixels to move before determining gesture mode
 
   // Watch for external value changes
   watch(
@@ -102,13 +104,82 @@
     return normalized * 270 - 135; // -135 to 135 degrees
   });
 
+  // Gesture detection functions
+  const determineGestureMode = (event) => {
+    const pageX = event.touches ? event.touches[0].pageX : event.pageX;
+    const pageY = event.touches ? event.touches[0].pageY : event.pageY;
+
+    const deltaX = Math.abs(pageX - dragStart.value.x);
+    const deltaY = Math.abs(pageY - dragStart.value.y);
+
+    // If we've moved past the threshold, determine the gesture type
+    if (deltaX > gestureThreshold || deltaY > gestureThreshold) {
+      if (deltaY > deltaX) {
+        // Vertical movement is dominant
+        gestureMode.value = "vertical";
+      } else {
+        // Either rotate or horizontal depending on implementation preference
+        // For Apple-style knobs, we typically use vertical slide rather than horizontal
+        gestureMode.value = "rotate";
+      }
+    }
+  };
+
+  // Calculate value based on rotation
+  const calculateRotationValue = (event) => {
+    const pageX = event.touches ? event.touches[0].pageX : event.pageX;
+    const pageY = event.touches ? event.touches[0].pageY : event.pageY;
+
+    // Calculate the center of the knob
+    const knobElement = event.currentTarget;
+    const rect = knobElement.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    // Calculate the angle
+    const startAngle = Math.atan2(
+      dragStart.value.y - centerY,
+      dragStart.value.x - centerX
+    );
+    const currentAngle = Math.atan2(pageY - centerY, pageX - centerX);
+
+    // Convert angle to degrees and calculate delta
+    let angleDelta = (currentAngle - startAngle) * (180 / Math.PI);
+
+    // Normalize delta to be between -180 and 180 degrees
+    if (angleDelta > 180) angleDelta -= 360;
+    if (angleDelta < -180) angleDelta += 360;
+
+    // Scale angleDelta to value range
+    const range = props.max - props.min;
+    const valueDelta = (angleDelta / 270) * range;
+
+    return dragStart.value.value + valueDelta;
+  };
+
+  // Calculate value based on vertical slide
+  const calculateVerticalValue = (event) => {
+    const pageY = event.touches ? event.touches[0].pageY : event.pageY;
+    const deltaY = dragStart.value.y - pageY;
+
+    // Calculate vertical sensitivity based on range
+    const range = props.max - props.min;
+    const sensitivity = (range / 200) * props.sensitivity; // Adjust based on range and sensitivity prop
+
+    return dragStart.value.value + deltaY * sensitivity;
+  };
+
   // Event handlers
   const startDrag = (event) => {
     event.preventDefault();
+    const pageX = event.touches ? event.touches[0].pageX : event.pageX;
     const pageY = event.touches ? event.touches[0].pageY : event.pageY;
 
     isDragging.value = true;
+    gestureMode.value = null; // Reset gesture mode
+
     dragStart.value = {
+      x: pageX,
       y: pageY,
       value: internalValue.value,
     };
@@ -128,19 +199,22 @@
     if (!isDragging.value) return;
     event.preventDefault();
 
-    const pageY = event.touches ? event.touches[0].pageY : event.pageY;
-    const deltaY = dragStart.value.y - pageY;
+    // Determine gesture mode if not already set
+    if (!gestureMode.value) {
+      determineGestureMode(event);
+    }
 
-    // Simplified sensitivity calculation
-    const range = props.max - props.min;
-    const sensitivity = range / 200; // Fixed ratio for more predictable movement
-
-    // Calculate new value
-    const delta = deltaY * sensitivity;
-    const rawValue = dragStart.value.value + delta;
+    let newValue;
+    if (gestureMode.value === "vertical") {
+      // Vertical slide mode
+      newValue = calculateVerticalValue(event);
+    } else {
+      // Default to rotation mode
+      newValue = calculateRotationValue(event);
+    }
 
     // Quantize and clamp the value
-    const newValue = quantizeValue(clampValue(rawValue));
+    newValue = quantizeValue(clampValue(newValue));
 
     // Only emit if value actually changed
     if (newValue !== lastEmittedValue.value) {
@@ -154,8 +228,8 @@
     event.preventDefault();
 
     const range = props.max - props.min;
-    const sensitivity = range / 400; // Fixed ratio for wheel movement
-    const delta = -event.deltaY * sensitivity;
+    const sensitivity = (range / 400) * props.sensitivity; // Adjust sensitivity based on range
+    const delta = -event.deltaY * sensitivity * 0.01; // Scale down for smoother wheel control
 
     const rawValue = internalValue.value + delta;
     const newValue = quantizeValue(clampValue(rawValue));
@@ -169,6 +243,7 @@
 
   const stopDrag = () => {
     isDragging.value = false;
+    gestureMode.value = null;
 
     // Remove all event listeners
     document.removeEventListener("mousemove", handleDrag);

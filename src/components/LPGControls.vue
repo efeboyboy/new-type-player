@@ -24,8 +24,8 @@
         <div class="control-group">
           <Knob
             v-model="lpgs[n - 1].level"
-            :min="0"
-            :max="1"
+            :min="0.1"
+            :max="0.9"
             :step="0.01"
             class="w-10 h-10"
           />
@@ -37,8 +37,8 @@
         <div class="control-group">
           <Knob
             v-model="lpgs[n - 1].modAmount"
-            :min="0"
-            :max="1"
+            :min="0.1"
+            :max="0.9"
             :step="0.01"
             class="w-10 h-10"
           />
@@ -75,8 +75,8 @@
   // Refined default values based on signal path documentation
   const defaultLPG = (index) => ({
     mode: index < 2 ? "vcf" : "both", // VCF for 1&2, VCF+VCA for 3&4
-    level: 0.85,
-    modAmount: 0.75,
+    level: 0.7, // Reduced from 0.85 for better headroom
+    modAmount: 0.5, // Reduced from 0.75 for more subtle modulation
     loopMode: false,
   });
 
@@ -107,24 +107,27 @@
       const lpg = lpgs.value[index];
       if (!lpg) return;
 
-      // Update LPG parameters based on mode
-      audioEngine.setLPGParams(index, {
+      // Add value smoothing and clamping
+      const smoothedValues = {
         mode: lpg.mode,
-        level: lpg.level,
-        modAmount: lpg.modAmount,
+        level: Math.max(0.1, Math.min(0.9, lpg.level)), // Clamp between 0.1 and 0.9
+        modAmount: Math.max(0.1, Math.min(0.9, lpg.modAmount)), // Clamp between 0.1 and 0.9
         loopMode: lpg.loopMode,
-      });
+      };
+
+      // Update LPG parameters with smoothed values
+      audioEngine.setLPGParams(index, smoothedValues);
     } catch (error) {
       console.warn(`Error updating LPG ${index}:`, error);
     }
   };
 
-  // Randomize values
+  // Randomize with more musical values
   const randomize = async () => {
     const newValues = lpgs.value.map(() => ({
       mode: ["vcf", "vca", "both"][Math.floor(Math.random() * 3)],
-      level: Math.random() * 0.5 + 0.5, // 0.5 to 1
-      modAmount: Math.random() * 0.8 + 0.2, // 0.2 to 1
+      level: Math.random() * 0.3 + 0.4, // 0.4 to 0.7 range
+      modAmount: Math.random() * 0.4 + 0.3, // 0.3 to 0.7 range
       loopMode: Math.random() > 0.5,
     }));
 
@@ -132,7 +135,7 @@
     await nextTick();
 
     for (let i = 0; i < lpgs.value.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 50)); // Increased delay for smoother transitions
       await updateLPG(i);
     }
   };

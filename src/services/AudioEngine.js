@@ -1320,8 +1320,15 @@ class AudioEngine {
             type: "sine",
           });
 
-          // Connect LFO to vactrol for independent looping
-          // But don't start it yet - it will be controlled by setLPGLFO
+          // Ensure LFO is properly initialized but not started
+          // This will prevent the InvalidAccessError when disconnecting
+          try {
+            // Start and immediately stop to initialize internal state
+            lpg.lfo.start();
+            lpg.lfo.stop();
+          } catch (error) {
+            console.debug("LFO initialization sequence:", error);
+          }
         }
 
         // Initialize wave folders with safe settings
@@ -1775,9 +1782,17 @@ class AudioEngine {
       // For LPG C & D (indices 2 & 3), only trigger if not in looping mode
 
       // Check if this is LPG C or D and if it's in looping mode
-      if (index >= 2 && lpg.lfo && lpg.lfo.state === "started") {
-        // Skip triggering if LPG is already in looping mode
-        return;
+      if (index >= 2 && lpg.lfo) {
+        try {
+          // Check if LFO is running - if so, skip triggering
+          if (lpg.lfo.state === "started") {
+            // Skip triggering if LPG is already in looping mode
+            return;
+          }
+        } catch (error) {
+          console.debug(`Error checking LPG ${index} LFO state:`, error);
+          // Continue with triggering if we can't check LFO state
+        }
       }
 
       if (lpg.envelope) {
@@ -1878,16 +1893,23 @@ class AudioEngine {
 
       // Initialize LFO for independent looping (but don't start it yet)
       if (lpg.lfo) {
-        // Ensure LFO is stopped initially
-        if (lpg.lfo.state === "started") {
-          lpg.lfo.stop();
-        }
+        try {
+          // Ensure LFO is stopped initially
+          if (lpg.lfo.state === "started") {
+            lpg.lfo.stop();
+          }
 
-        // Configure LFO for smooth modulation
-        lpg.lfo.type = "sine";
-        lpg.lfo.min = 0;
-        lpg.lfo.max = 1;
-        lpg.lfo.frequency.value = 1; // Default 1Hz
+          // Configure LFO for smooth modulation
+          lpg.lfo.type = "sine";
+          lpg.lfo.min = 0;
+          lpg.lfo.max = 1;
+          lpg.lfo.frequency.value = 1; // Default 1Hz
+
+          // Ensure LFO is not connected to anything initially
+          lpg.lfo.disconnect();
+        } catch (error) {
+          console.debug(`LPG ${i} LFO initialization:`, error);
+        }
       }
     }
   }
@@ -2046,8 +2068,17 @@ class AudioEngine {
         return false;
       }
 
-      // Disconnect any existing connections to ensure clean state
-      lpg.lfo.disconnect();
+      // Safely handle disconnection - don't try to disconnect if not connected
+      try {
+        // Instead of disconnecting everything, only disconnect from vactrol if connected
+        // This avoids the InvalidAccessError
+        if (lpg.lfo.state === "started") {
+          lpg.lfo.disconnect(lpg.vactrol);
+        }
+      } catch (disconnectError) {
+        // Silently handle disconnect errors - the LFO might not be connected yet
+        console.debug(`Note: LPG ${index} LFO was not connected to disconnect`);
+      }
 
       if (enabled) {
         // Clamp rate to reasonable values (0.1 to 20 Hz)
@@ -2075,8 +2106,7 @@ class AudioEngine {
             lpg.lfo.stop();
           }
 
-          // Disconnect LFO from vactrol
-          lpg.lfo.disconnect(lpg.vactrol);
+          // We already safely disconnected above, no need to do it again
         } catch (lfoError) {
           console.warn(`Error stopping LPG ${index} LFO:`, lfoError);
         }

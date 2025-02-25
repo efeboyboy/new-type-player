@@ -109,15 +109,25 @@
     // Only allow toggling for LPG C & D (index 2 & 3)
     if (index < 2) return;
 
+    // Toggle the loop mode
     lpgs.value[index].loopMode = !lpgs.value[index].loopMode;
+
+    // First update the LPG parameters
     await updateLPG(index);
 
-    // Start/stop the LFO based on loop mode
-    audioEngine.setLPGLFO(
-      index,
-      lpgs.value[index].loopMode,
-      lpgs.value[index].rate
-    );
+    // Then handle the LFO state with a small delay to ensure parameters are applied
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    try {
+      // Start/stop the LFO based on loop mode
+      audioEngine.setLPGLFO(
+        index,
+        lpgs.value[index].loopMode,
+        lpgs.value[index].rate
+      );
+    } catch (error) {
+      console.warn(`Error toggling LPG ${index} LFO:`, error);
+    }
   };
 
   const updateLPG = async (index) => {
@@ -144,7 +154,12 @@
 
       // Update LFO rate if looping (for LPG C & D)
       if (index >= 2 && lpg.loopMode) {
-        audioEngine.setLPGLFO(index, true, lpg.rate);
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          audioEngine.setLPGLFO(index, true, lpg.rate);
+        } catch (error) {
+          console.warn(`Error updating LPG ${index} LFO:`, error);
+        }
       }
     } catch (error) {
       console.warn(`Error updating LPG ${index}:`, error);
@@ -179,13 +194,34 @@
     lpgs.value = newValues;
     await nextTick();
 
+    // Apply changes with proper error handling and delays
     for (let i = 0; i < lpgs.value.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 50)); // Increased delay for smoother transitions
-      await updateLPG(i);
+      try {
+        // Add delay between updates for smoother transitions
+        await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // For LPG C & D, update looping state
-      if (i >= 2) {
-        audioEngine.setLPGLFO(i, lpgs.value[i].loopMode, lpgs.value[i].rate);
+        // Update LPG parameters
+        await updateLPG(i);
+
+        // For LPG C & D, update looping state with additional delay
+        if (i >= 2) {
+          try {
+            // Add a small delay before setting LFO state
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            audioEngine.setLPGLFO(
+              i,
+              lpgs.value[i].loopMode,
+              lpgs.value[i].rate
+            );
+          } catch (lfoError) {
+            console.warn(
+              `Error setting LPG ${i} LFO during randomize:`,
+              lfoError
+            );
+          }
+        }
+      } catch (error) {
+        console.warn(`Error randomizing LPG ${i}:`, error);
       }
     }
   };
@@ -223,12 +259,17 @@
     for (let i = 0; i < lpgs.value.length; i++) {
       await updateLPG(i);
 
-      // For LPG C & D, update looping state
+      // For LPG C & D, update looping state with error handling
       if (i >= 2) {
-        audioEngine.setLPGLFO(i, lpgs.value[i].loopMode, lpgs.value[i].rate);
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          audioEngine.setLPGLFO(i, lpgs.value[i].loopMode, lpgs.value[i].rate);
+        } catch (error) {
+          console.warn(`Error updating LPG ${i} LFO state:`, error);
+        }
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 30));
     }
   };
 
@@ -264,9 +305,14 @@
         await new Promise((resolve) => setTimeout(resolve, 20));
         await updateLPG(i);
 
-        // For LPG C & D, ensure looping is off
+        // For LPG C & D, ensure looping is off with error handling
         if (i >= 2) {
-          audioEngine.setLPGLFO(i, false);
+          try {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            audioEngine.setLPGLFO(i, false);
+          } catch (error) {
+            console.warn(`Error resetting LPG ${i} LFO:`, error);
+          }
         }
       }
     },

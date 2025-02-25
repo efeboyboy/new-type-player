@@ -78,7 +78,7 @@
   import { debounce } from "lodash-es";
   import { Play, Pause, Shuffle, Leaf } from "lucide-vue-next";
   import IconHolder from "./IconHolder.vue";
-  import { PlantPhraseGenerator } from "../services/PlantPhraseGenerator";
+  import { PhraseGenerator } from "../services/PhraseGenerator";
 
   const magentaService = new MagentaService();
   const text = ref("");
@@ -264,29 +264,8 @@
   };
 
   const generateRandomPhrase = () => {
-    const subjects = [
-      "A cactus",
-      "The fern",
-      "A bamboo",
-      "The bonsai",
-      "An orchid",
-    ];
-
-    const actions = ["meditated", "danced", "coded", "sang", "painted"];
-
-    const reasons = [
-      "to grow",
-      "to bloom",
-      "to branch out",
-      "to leaf loose",
-      "to blossom",
-    ];
-
-    const subject = subjects[Math.floor(Math.random() * subjects.length)];
-    const action = actions[Math.floor(Math.random() * actions.length)];
-    const reason = reasons[Math.floor(Math.random() * reasons.length)];
-
-    return `${subject} ${action} ${reason}`;
+    // Use the new PhraseGenerator instead of the hardcoded phrases
+    return PhraseGenerator.generatePhrase();
   };
 
   // Handle randomization of all parameters
@@ -322,7 +301,7 @@
 
   const generatePlantPhrase = () => {
     if (!store.audioInitialized) return;
-    text.value = PlantPhraseGenerator.generatePhrase();
+    text.value = PhraseGenerator.generatePhrase();
     handleInput({ target: { value: text.value } });
   };
 </script>

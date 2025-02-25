@@ -892,8 +892,11 @@ class AudioEngine {
       env.decay = 3; // Both have 3s decay
       env.release = env.decay;
 
-      // Enable looping
-      this.setEnvelopeLFO(i, true, i === 2 ? 0.25 : 0.15); // Different rates for variation
+      // Always enable looping for LPG C & D
+      envSystem.isLooping = true;
+
+      // Enable looping with different rates for variation
+      this.setEnvelopeLFO(i, true, i === 2 ? 0.25 : 0.15);
     }
 
     // Connect envelope C to modulate Matrix Bandpass Filter A cutoff
@@ -915,6 +918,11 @@ class AudioEngine {
         if (!envSystem) {
           console.warn(`Envelope system ${channel} not initialized yet.`);
           return;
+        }
+
+        // For LPG C & D (indices 2 & 3), always force enabled to true
+        if (channel >= 2) {
+          enabled = true;
         }
 
         // Set the flag whether it's successfully implemented or not
@@ -950,20 +958,21 @@ class AudioEngine {
             }
           }, loopTime);
 
-          console.log(
-            `Envelope ${channel} looping enabled with period ${loopTime}s`
-          );
+          console
+            .log
+            // `Envelope ${channel} looping enabled with period ${loopTime}s`
+            ();
 
           // If transport is stopped, we'll apply this when transport starts
           if (Tone.Transport.state === "stopped") {
-            console.log(
-              `Envelope ${channel} loop state set to ${enabled}, will be applied when transport starts.`
-            );
+            // console.log(
+            //   `Envelope ${channel} loop state set to ${enabled}, will be applied when transport starts.`
+            // );
           }
         } else if (envSystem.loopId) {
           Tone.Transport.clear(envSystem.loopId);
           envSystem.loopId = null;
-          console.log(`Envelope ${channel} looping disabled`);
+          // console.log(`Envelope ${channel} looping disabled`);
         }
       } catch (error) {
         console.error(`Error setting envelope ${channel} LFO:`, error);
@@ -981,7 +990,7 @@ class AudioEngine {
 
     this.envelopes.forEach((envSystem, channel) => {
       if (envSystem.isLooping && envSystem.pendingLfoRate) {
-        console.log(`Applying pending LFO settings for envelope ${channel}`);
+        // console.log(`Applying pending LFO settings for envelope ${channel}`);
         // Re-apply the LFO settings now that transport is started
         this.setEnvelopeLFO(channel, true, envSystem.pendingLfoRate);
       }
@@ -1784,25 +1793,14 @@ class AudioEngine {
     if (!this.initialized || !this.lpgs[index]) return;
 
     try {
-      const lpg = this.lpgs[index];
-
       // For LPG A & B (indices 0 & 1), always trigger the envelope
-      // For LPG C & D (indices 2 & 3), only trigger if not in looping mode
-
-      // Check if this is LPG C or D and if it's in looping mode
-      if (index >= 2 && lpg.lfo) {
-        try {
-          // Check if LFO is running - if so, skip triggering
-          if (lpg.lfo.state === "started") {
-            // Skip triggering if LPG is already in looping mode
-            return;
-          }
-        } catch (error) {
-          console.debug(`Error checking LPG ${index} LFO state:`, error);
-          // Continue with triggering if we can't check LFO state
-        }
+      // For LPG C & D (indices 2 & 3), never trigger as they're always in looping mode
+      if (index >= 2) {
+        // Skip triggering for LPG C & D as they're always in looping mode
+        return;
       }
 
+      const lpg = this.lpgs[index];
       if (lpg.envelope) {
         lpg.envelope.triggerAttackRelease(duration);
       }
@@ -1902,14 +1900,9 @@ class AudioEngine {
       filterScale.connect(lpg.filter.frequency);
       lpg.vactrol.connect(lpg.vca.gain);
 
-      // Initialize LFO for independent looping (but don't start it yet)
+      // Initialize LFO for independent looping and start it by default
       if (lpg.lfo) {
         try {
-          // Ensure LFO is stopped initially
-          if (lpg.lfo.state === "started") {
-            lpg.lfo.stop();
-          }
-
           // Configure LFO for smooth modulation
           lpg.lfo.type = "sine";
           lpg.lfo.min = 0;
@@ -1918,6 +1911,14 @@ class AudioEngine {
 
           // Ensure LFO is not connected to anything initially
           lpg.lfo.disconnect();
+
+          // Connect LFO to vactrol for independent triggering
+          lpg.lfo.connect(lpg.vactrol);
+
+          // Start LFO by default for LPG C & D
+          if (lpg.lfo.state !== "started") {
+            lpg.lfo.start();
+          }
         } catch (error) {
           console.debug(`LPG ${i} LFO initialization:`, error);
         }
@@ -2079,6 +2080,9 @@ class AudioEngine {
         return false;
       }
 
+      // For LPG C & D, always force enabled to true
+      enabled = true;
+
       // Safely handle disconnection - don't try to disconnect if not connected
       try {
         // Instead of disconnecting everything, only disconnect from vactrol if connected
@@ -2091,36 +2095,23 @@ class AudioEngine {
         console.debug(`Note: LPG ${index} LFO was not connected to disconnect`);
       }
 
-      if (enabled) {
-        // Clamp rate to reasonable values (0.1 to 20 Hz)
-        const safeRate = Math.max(0.1, Math.min(20, rate || 1));
+      // Clamp rate to reasonable values (0.1 to 20 Hz)
+      const safeRate = Math.max(0.1, Math.min(20, rate || 1));
 
-        try {
-          // Set frequency with ramp to avoid clicks
-          lpg.lfo.frequency.cancelScheduledValues(Tone.now());
-          lpg.lfo.frequency.linearRampToValueAtTime(safeRate, Tone.now() + 0.1);
+      try {
+        // Set frequency with ramp to avoid clicks
+        lpg.lfo.frequency.cancelScheduledValues(Tone.now());
+        lpg.lfo.frequency.linearRampToValueAtTime(safeRate, Tone.now() + 0.1);
 
-          // Connect LFO to vactrol for independent triggering
-          lpg.lfo.connect(lpg.vactrol);
+        // Connect LFO to vactrol for independent triggering
+        lpg.lfo.connect(lpg.vactrol);
 
-          // Start LFO if not already running
-          if (lpg.lfo.state !== "started") {
-            lpg.lfo.start();
-          }
-        } catch (lfoError) {
-          console.warn(`Error starting LPG ${index} LFO:`, lfoError);
+        // Start LFO if not already running
+        if (lpg.lfo.state !== "started") {
+          lpg.lfo.start();
         }
-      } else {
-        try {
-          // Stop LFO if running
-          if (lpg.lfo.state === "started") {
-            lpg.lfo.stop();
-          }
-
-          // We already safely disconnected above, no need to do it again
-        } catch (lfoError) {
-          console.warn(`Error stopping LPG ${index} LFO:`, lfoError);
-        }
+      } catch (lfoError) {
+        console.warn(`Error starting LPG ${index} LFO:`, lfoError);
       }
 
       return true;
@@ -2141,22 +2132,22 @@ class AudioEngine {
       // Check and start each oscillator if not already running
       if (this.osc1 && this.osc1.state !== "started") {
         this.osc1.start();
-        console.log("Started oscillator 1");
+        // console.log("Started oscillator 1");
       }
 
       if (this.osc2 && this.osc2.state !== "started") {
         this.osc2.start();
-        console.log("Started oscillator 2");
+        // console.log("Started oscillator 2");
       }
 
       if (this.osc3 && this.osc3.state !== "started") {
         this.osc3.start();
-        console.log("Started oscillator 3");
+        // console.log("Started oscillator 3");
       }
 
       if (this.noise && this.noise.state !== "started") {
         this.noise.start();
-        console.log("Started noise generator");
+        // console.log("Started noise generator");
       }
 
       return true;

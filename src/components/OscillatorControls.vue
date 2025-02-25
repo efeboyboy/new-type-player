@@ -91,9 +91,9 @@
     if (!isInitialized.value) return;
 
     const frequency = calculateFrequency(midiNote);
-    console.log(
-      `Oscillator ${props.number} - Frequency: ${frequency}Hz, Tune: ${fineTune.value}st, Oct: ${octave.value}`
-    );
+    // console.log(
+    //   `Oscillator ${props.number} - Frequency: ${frequency}Hz, Tune: ${fineTune.value}st, Oct: ${octave.value}`
+    // );
 
     audioEngine.setOscillatorParams(props.number, {
       frequency,

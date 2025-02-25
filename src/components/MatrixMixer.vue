@@ -86,19 +86,18 @@
 
   // Randomize all mixer points
   const randomize = () => {
+    // First reset all values to 0
     mixerLevels.value = Array(4)
       .fill()
-      .map(
-        () =>
-          Array(4)
-            .fill()
-            .map(() => Math.random()) // 0 to 1
-      );
-    mixerLevels.value.forEach((row, i) => {
-      row.forEach((value, j) => {
-        updateMixerPoint(i, j, value);
-      });
-    });
+      .map(() => Array(4).fill(0));
+
+    // Then only randomize the diagonal elements (direct routing)
+    for (let i = 0; i < 4; i++) {
+      // Random value between 0.4 and 0.9 for more musical results
+      const randomLevel = Math.random() * 0.5 + 0.4;
+      mixerLevels.value[i][i] = randomLevel;
+      updateMixerPoint(i, i, randomLevel);
+    }
   };
 
   // Expose methods for parent component

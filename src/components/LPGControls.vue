@@ -49,21 +49,10 @@
         </div>
 
         <!-- Loop Toggle (Only visible for LPG C & D) -->
-        <button
-          v-if="n > 2"
-          @click="toggleMode(n - 1)"
-          :class="[
-            lpgs[n - 1].loopMode
-              ? 'bg-emerald-500/20 text-emerald-500'
-              : 'bg-zinc-800/50 text-zinc-400',
-            'px-2 py-1 text-[10px] rounded transition-colors flex items-center justify-center w-8 h-8',
-          ]"
-        >
-          <span>{{ lpgs[n - 1].loopMode ? "↻" : "→" }}</span>
-        </button>
+        <!-- Removed as LPG C & D are always in loop mode -->
 
-        <!-- Rate Control (Only for LPG C & D when looping) -->
-        <div v-if="n > 2 && lpgs[n - 1].loopMode" class="control-group">
+        <!-- Rate Control (Only for LPG C & D) -->
+        <div v-if="n > 2" class="control-group">
           <Knob
             v-model="lpgs[n - 1].rate"
             :min="0"
@@ -91,7 +80,7 @@
     mode: index < 2 ? "vcf" : "both", // VCF for 1&2, VCF+VCA for 3&4
     level: 0.7,
     modAmount: 0.5,
-    loopMode: false, // Only applicable for LPG C & D (indices 2 & 3)
+    loopMode: index >= 2, // Always true for LPG C & D (indices 2 & 3)
     rate: 1.0, // Default rate for LPG C & D looping
   });
 
@@ -180,12 +169,12 @@
           rate: 1.0,
         };
       } else {
-        // LPG C & D: Can have looping
+        // LPG C & D: Always looping, randomize rate
         return {
           mode: ["vcf", "vca", "both"][Math.floor(Math.random() * 3)],
           level: Math.random() * 0.3 + 0.4, // 0.4 to 0.7 range
           modAmount: Math.random() * 0.4 + 0.3, // 0.3 to 0.7 range
-          loopMode: Math.random() > 0.5, // 50% chance of looping
+          loopMode: true, // Always true for LPG C & D
           rate: Math.random() * 9 + 1, // 1.0 to 10.0 Hz range
         };
       }
@@ -203,14 +192,14 @@
         // Update LPG parameters
         await updateLPG(i);
 
-        // For LPG C & D, update looping state with additional delay
+        // For LPG C & D, update LFO rate with additional delay
         if (i >= 2) {
           try {
             // Add a small delay before setting LFO state
             await new Promise((resolve) => setTimeout(resolve, 20));
             audioEngine.setLPGLFO(
               i,
-              lpgs.value[i].loopMode,
+              true, // Always enabled for LPG C & D
               lpgs.value[i].rate
             );
           } catch (lfoError) {
@@ -248,9 +237,8 @@
 
       // Initialize LPG C & D with their independent looping mechanism
       for (let i = 2; i < 4; i++) {
-        if (lpgs.value[i].loopMode) {
-          audioEngine.setLPGLFO(i, true, lpgs.value[i].rate);
-        }
+        // Always enable LFO for LPG C & D
+        audioEngine.setLPGLFO(i, true, lpgs.value[i].rate);
       }
     } catch (error) {
       console.warn("Error during LPG initialization:", error);
@@ -261,11 +249,11 @@
     for (let i = 0; i < lpgs.value.length; i++) {
       await updateLPG(i);
 
-      // For LPG C & D, update looping state with error handling
+      // For LPG C & D, always ensure looping is enabled
       if (i >= 2) {
         try {
           await new Promise((resolve) => setTimeout(resolve, 20));
-          audioEngine.setLPGLFO(i, lpgs.value[i].loopMode, lpgs.value[i].rate);
+          audioEngine.setLPGLFO(i, true, lpgs.value[i].rate);
         } catch (error) {
           console.warn(`Error updating LPG ${i} LFO state:`, error);
         }
@@ -307,11 +295,11 @@
         await new Promise((resolve) => setTimeout(resolve, 20));
         await updateLPG(i);
 
-        // For LPG C & D, ensure looping is off with error handling
+        // For LPG C & D, ensure looping is always on
         if (i >= 2) {
           try {
             await new Promise((resolve) => setTimeout(resolve, 10));
-            audioEngine.setLPGLFO(i, false);
+            audioEngine.setLPGLFO(i, true, lpgs.value[i].rate);
           } catch (error) {
             console.warn(`Error resetting LPG ${i} LFO:`, error);
           }

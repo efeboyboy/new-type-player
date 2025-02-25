@@ -125,10 +125,10 @@
     try {
       // Check if audio is already initialized
       if (ToneService.isAudioEngineInitialized()) {
-        console.log("Audio already initialized in EnvelopeControls");
-        audioInitialized.value = true;
-        loadCurrentSettings();
-        return;
+        // console.log("Audio already initialized in EnvelopeControls");
+        // audioInitialized.value = true;
+        // loadCurrentSettings();
+        // return;
       }
 
       // First ensure audio context is started
@@ -141,7 +141,7 @@
       }
 
       audioInitialized.value = true;
-      console.log("Audio engine initialized from EnvelopeControls");
+      // console.log("Audio engine initialized from EnvelopeControls");
 
       // Load current settings from engine after initialization
       loadCurrentSettings();
@@ -163,8 +163,12 @@
     // Load envelope cycling state and parameters for each channel
     for (let i = 0; i < 4; i++) {
       if (audioEngine.envelopes && audioEngine.envelopes[i]) {
-        // Load cycling state
-        envelopes.value[i].cycleState = !!audioEngine.envelopes[i].isLooping;
+        // Load cycling state, but ensure LPG C & D always have cycling enabled
+        if (i >= 2) {
+          envelopes.value[i].cycleState = true;
+        } else {
+          envelopes.value[i].cycleState = !!audioEngine.envelopes[i].isLooping;
+        }
 
         // Load envelope parameters if available
         if (audioEngine.envelopes[i].rise !== undefined) {
@@ -187,7 +191,13 @@
   };
 
   const toggleCycle = (index) => {
-    envelopes.value[index].cycleState = !envelopes.value[index].cycleState;
+    // For envelopes 2 and 3 (LPG C & D), always keep cycling enabled
+    if (index >= 2) {
+      envelopes.value[index].cycleState = true;
+    } else {
+      // Only allow toggling for envelopes 0 and 1 (LPG A & B)
+      envelopes.value[index].cycleState = !envelopes.value[index].cycleState;
+    }
     updateEnvelope(index);
   };
 
@@ -208,6 +218,11 @@
 
       const env = envelopes.value[index];
       if (!env) return;
+
+      // Ensure LPG C & D (indices 2 & 3) always have cycling enabled
+      if (index >= 2) {
+        env.cycleState = true;
+      }
 
       // Convert milliseconds to seconds for the audio engine
       const attackSec = env.attack / 1000;
@@ -265,7 +280,7 @@
         attack: index === 3 ? 150 : 100, // Slightly longer attack for channel 4
         release: index === 3 ? 300 : 200, // Slightly longer release for channel 4
         amount: index === 3 ? 0.7 : 0.8, // Slightly lower amount for channel 4
-        cycleState: index >= 2, // Channels 3 & 4 cycling by default
+        cycleState: index >= 2, // Channels 3 & 4 cycling by default (always true)
       }));
 
     // Update values
@@ -284,11 +299,11 @@
   // Randomize function
   const randomize = async () => {
     // Create new values within the proper ranges for each parameter
-    const newValues = envelopes.value.map(() => ({
+    const newValues = envelopes.value.map((_, index) => ({
       attack: Math.floor(10 + Math.random() * 990), // 10-1000ms
       release: Math.floor(10 + Math.random() * 1990), // 10-2000ms
       amount: Math.random(), // 0-1
-      cycleState: Math.random() > 0.5, // Random cycling state
+      cycleState: index >= 2 ? true : Math.random() > 0.5, // Always true for indices 2 & 3, random for others
     }));
 
     // Update values

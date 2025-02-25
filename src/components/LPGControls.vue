@@ -66,7 +66,8 @@
   import { ref, watch, onMounted, nextTick } from "vue";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
-  import * as Tone from "tone";
+  import ToneService from "../services/ToneService";
+  const Tone = ToneService.getTone();
 
   // Refined default values based on Buchla Cookbook
   const defaultLPG = {
@@ -106,14 +107,12 @@
   const updateLPG = async (index) => {
     try {
       // Ensure audio context is running
-      if (Tone.context.state !== "running") {
-        await Tone.start();
-        await Tone.context.resume();
-      }
+      await ToneService.ensureStarted();
 
       // Wait for audio engine initialization
       if (!audioEngine.initialized) {
         await audioEngine.initialize();
+        ToneService.setAudioEngineInitialized(true);
       }
 
       const lpg = lpgs.value[index];
@@ -176,16 +175,44 @@
     };
   };
 
-  // Debounced update function to prevent too many rapid updates
-  const debouncedUpdate = debounce(async () => {
+  // Initialize on mount with default values and proper sequencing
+  onMounted(async () => {
+    try {
+      // Check if audio is already initialized
+      if (ToneService.isAudioEngineInitialized()) {
+        console.log("Audio already initialized in LPGControls");
+        return;
+      }
+
+      // First ensure audio context is started
+      await ToneService.ensureStarted();
+
+      // Then initialize audio engine if not already initialized
+      if (!audioEngine.initialized) {
+        await audioEngine.initialize();
+        ToneService.setAudioEngineInitialized(true);
+      }
+
+      // Wait a bit for everything to settle
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Initialize all LPGs at once
+      await updateAllLPGs();
+    } catch (error) {
+      console.warn("Error during LPG initialization:", error);
+    }
+  });
+
+  // New method to update all LPGs at once
+  const updateAllLPGs = async () => {
     for (let i = 0; i < lpgs.value.length; i++) {
       await updateLPG(i);
-      // Small delay between updates to prevent audio glitches
-      if (i < lpgs.value.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
-  }, 50);
+  };
+
+  // Increase debounce time to prevent rapid updates
+  const debouncedUpdate = debounce(updateAllLPGs, 100);
 
   // Watch for changes and update audio engine
   watch(
@@ -195,28 +222,6 @@
     },
     { deep: true }
   );
-
-  // Initialize on mount with default values and proper sequencing
-  onMounted(async () => {
-    try {
-      // First ensure audio context is started
-      await Tone.start();
-
-      // Then initialize audio engine
-      await audioEngine.initialize();
-
-      // Wait a bit for everything to settle
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Initialize each LPG with a delay between them
-      for (let i = 0; i < lpgs.value.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        await updateLPG(i);
-      }
-    } catch (error) {
-      console.warn("Error during LPG initialization:", error);
-    }
-  });
 
   // Expose methods for parent component
   defineExpose({

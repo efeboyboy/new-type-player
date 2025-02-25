@@ -72,7 +72,8 @@
 <script setup>
   import { ref, watch, onMounted, computed } from "vue";
   import { store } from "../store.js";
-  import * as Tone from "tone";
+  import ToneService from "../services/ToneService";
+  const Tone = ToneService.getTone();
   import MagentaService from "../services/MagentaService.js";
   import audioEngine from "../services/AudioEngine.js";
   import { debounce } from "lodash-es";

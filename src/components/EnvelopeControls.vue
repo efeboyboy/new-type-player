@@ -86,7 +86,8 @@
   import Knob from "./Knob.vue";
   import IconHolder from "./IconHolder.vue";
   import audioEngine from "../services/AudioEngine.js";
-  import * as Tone from "tone";
+  import ToneService from "../services/ToneService";
+  const Tone = ToneService.getTone();
 
   const props = defineProps({
     mode: {
@@ -122,12 +123,21 @@
   // Initialize audio engine if needed
   onMounted(async () => {
     try {
-      // First ensure audio context is started
-      await Tone.start();
+      // Check if audio is already initialized
+      if (ToneService.isAudioEngineInitialized()) {
+        console.log("Audio already initialized in EnvelopeControls");
+        audioInitialized.value = true;
+        loadCurrentSettings();
+        return;
+      }
 
-      // Then initialize audio engine
+      // First ensure audio context is started
+      await ToneService.ensureStarted();
+
+      // Then initialize audio engine if not already initialized
       if (!audioEngine.initialized) {
         await audioEngine.initialize();
+        ToneService.setAudioEngineInitialized(true);
       }
 
       audioInitialized.value = true;
@@ -139,11 +149,8 @@
       // Wait a bit for everything to settle
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Apply our initial settings with a delay between each envelope to prevent audio glitches
-      for (let i = 0; i < envelopes.value.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        await updateEnvelope(i);
-      }
+      // Apply our initial settings once
+      await updateAllEnvelopes();
     } catch (error) {
       console.error("Failed to initialize audio engine:", error);
     }
@@ -197,10 +204,7 @@
       if (!audioInitialized.value) return;
 
       // Ensure audio context is running
-      if (Tone.context.state !== "running") {
-        await Tone.start();
-        await Tone.context.resume();
-      }
+      await ToneService.ensureStarted();
 
       const env = envelopes.value[index];
       if (!env) return;
@@ -208,10 +212,6 @@
       // Convert milliseconds to seconds for the audio engine
       const attackSec = env.attack / 1000;
       const releaseSec = env.release / 1000;
-
-      console.log(
-        `Setting envelope ${index}: attack=${attackSec}s, release=${releaseSec}s, amount=${env.amount}, cycle=${env.cycleState}`
-      );
 
       // Set envelope parameters
       audioEngine.setEnvelope(index, {
@@ -227,7 +227,15 @@
     }
   };
 
-  // Add debounce utility
+  // New method to update all envelopes at once
+  const updateAllEnvelopes = async () => {
+    for (let i = 0; i < envelopes.value.length; i++) {
+      await updateEnvelope(i);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  };
+
+  // Increase debounce time to prevent rapid updates
   const debounce = (fn, delay) => {
     let timeoutId;
     return function (...args) {
@@ -237,15 +245,7 @@
   };
 
   // Debounced update function to prevent too many rapid updates
-  const debouncedUpdate = debounce(async () => {
-    for (let i = 0; i < envelopes.value.length; i++) {
-      await updateEnvelope(i);
-      // Small delay between updates to prevent audio glitches
-      if (i < envelopes.value.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-    }
-  }, 50);
+  const debouncedUpdate = debounce(updateAllEnvelopes, 100);
 
   // Watch for changes and update the audio engine
   watch(

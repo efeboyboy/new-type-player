@@ -1,4 +1,5 @@
-import * as Tone from "tone";
+import ToneService from "./ToneService";
+const Tone = ToneService.getTone();
 
 // Utility function for sleep
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -30,50 +31,49 @@ class AudioEngine {
 
     // Create master effects chain
     this.masterCompressor = new Tone.Compressor({
-      threshold: -24, // Start compressing when signal exceeds -24dB
-      ratio: 4, // For every 4dB increase in input, output increases by 1dB
-      attack: 0.003, // Fast attack to catch transients
-      release: 0.25, // Moderate release time
-      knee: 12, // Soft knee for smoother compression
+      threshold: -24, // Lower threshold for earlier compression
+      ratio: 4, // Slightly higher ratio for more control
+      attack: 0.003, // Faster attack to catch transients
+      release: 0.25, // Quicker release
+      knee: 12, // Softer knee for smoother compression
     });
 
     this.masterLimiter = new Tone.Limiter({
-      threshold: -3, // Prevent output from exceeding -3dB
-      release: 0.05, // Fast release to prevent pumping
+      threshold: -3, // Lower threshold to catch peaks
     });
 
-    this.masterVolume = new Tone.Volume(0);
+    this.masterVolume = new Tone.Volume(-6); // Start at -6dB for headroom
 
-    // Create quad outputs
+    // Create quad outputs with reduced gain
     this.quadOutputs = {
-      frontLeft: new Tone.Gain(),
-      frontRight: new Tone.Gain(),
-      rearLeft: new Tone.Gain(),
-      rearRight: new Tone.Gain(),
+      frontLeft: new Tone.Gain(0.7),
+      frontRight: new Tone.Gain(0.7),
+      rearLeft: new Tone.Gain(0.7),
+      rearRight: new Tone.Gain(0.7),
     };
 
-    // Create oscillators and basic components
+    // Create oscillators and basic components with lower initial volumes
     this.osc1 = new Tone.Oscillator({
       type: "sine",
-      frequency: 110, // A2 - bass oscillator
-      volume: -12, // Lower volume for better mixing
+      frequency: 440,
+      volume: -24, // Lower initial volume
     });
 
     this.osc2 = new Tone.Oscillator({
       type: "triangle",
-      frequency: 220, // A3 - mid oscillator
-      volume: -12,
+      frequency: 440,
+      volume: -24, // Lower initial volume
     });
 
     this.osc3 = new Tone.Oscillator({
       type: "sine",
-      frequency: 440, // A4 - high oscillator
-      volume: -12,
+      frequency: 440,
+      volume: -24, // Lower initial volume
     });
 
     this.noise = new Tone.Noise({
-      type: "pink", // Pink noise is more musical
-      volume: -24, // Lower noise volume
+      type: "pink",
+      volume: -30, // Even lower volume for noise
     });
 
     // Create filters with musical default frequencies
@@ -84,7 +84,7 @@ class AudioEngine {
           new Tone.Filter({
             type: "bandpass",
             frequency: [800, 1200, 2000][i], // Different frequencies for each oscillator
-            Q: 2, // Sharper resonance
+            Q: 1.5, // Reduced from 2 to 1.5 for less resonant peaks
           })
       );
 
@@ -96,7 +96,7 @@ class AudioEngine {
           new Tone.Filter({
             type: "bandpass",
             frequency: [1000, 1500][i], // Different frequencies for each filter
-            Q: 1.5, // Moderate resonance
+            Q: 1.0, // Reduced from 1.5 to 1.0 for gentler resonance
           })
       );
 
@@ -455,6 +455,9 @@ class AudioEngine {
     this.clockSystem.master.start();
     if (Tone.Transport.state !== "started") {
       Tone.Transport.start();
+
+      // Apply any pending envelope LFO settings now that transport is started
+      this.applyPendingEnvelopeLFOs();
     }
   }
 
@@ -686,27 +689,27 @@ class AudioEngine {
     try {
       if (oscNumber >= 1 && oscNumber <= 3) {
         // Map 0-1 to different wave shaping functions for more timbral variety
-        const normalizedAmount = amount * 15; // Scale up the input range more dramatically
+        const normalizedAmount = amount * 10; // Reduced from 15 to 10 for less extreme folding
         let shapeFunc;
 
         if (normalizedAmount < 5) {
           // Gentle sine folding for subtle harmonics
-          const fold = 1 + normalizedAmount * 0.8;
+          const fold = 1 + normalizedAmount * 0.5; // Reduced from 0.8 to 0.5
           shapeFunc = (x) => Math.sin(x * Math.PI * fold);
-        } else if (normalizedAmount < 10) {
+        } else if (normalizedAmount < 8) {
           // Asymmetric folding for richer harmonics
-          const fold = 1 + (normalizedAmount - 5) * 1.2;
+          const fold = 1 + (normalizedAmount - 5) * 0.8; // Reduced from 1.2 to 0.8
           shapeFunc = (x) => {
             const folded = Math.sin(x * Math.PI * fold);
-            return folded * Math.cos(x * Math.PI * 0.7) * 1.2;
+            return folded * Math.cos(x * Math.PI * 0.5) * 0.9; // Reduced from 0.7/1.2 to 0.5/0.9
           };
         } else {
           // Hard folding for aggressive timbres
-          const fold = 1 + (normalizedAmount - 10) * 1.5;
+          const fold = 1 + (normalizedAmount - 8) * 1.0; // Reduced from 1.5 to 1.0
           shapeFunc = (x) => {
             const folded = Math.sin(x * Math.PI * fold);
-            const shaped = Math.sign(folded) * Math.pow(Math.abs(folded), 0.6);
-            return shaped * 1.5; // Increase output gain for more presence
+            const shaped = Math.sign(folded) * Math.pow(Math.abs(folded), 0.7); // Increased from 0.6 to 0.7 for smoother shape
+            return shaped * 0.9; // Reduced from 1.5 to 0.9
           };
         }
 
@@ -833,10 +836,13 @@ class AudioEngine {
         // Set the flag whether it's successfully implemented or not
         envSystem.isLooping = enabled;
 
+        // Store the rate for later use if transport isn't started yet
+        envSystem.pendingLfoRate = rate;
+
         // If Tone.Transport isn't ready, just save the state for later
-        if (!Tone.Transport || Tone.Transport.state === "stopped") {
-          console.log(
-            `Envelope ${channel} loop state set to ${enabled}, but transport not started.`
+        if (!Tone.Transport) {
+          console.warn(
+            `Envelope ${channel} loop state set to ${enabled}, but Tone.Transport not available.`
           );
           return;
         }
@@ -863,6 +869,13 @@ class AudioEngine {
           console.log(
             `Envelope ${channel} looping enabled with period ${loopTime}s`
           );
+
+          // If transport is stopped, we'll apply this when transport starts
+          if (Tone.Transport.state === "stopped") {
+            console.log(
+              `Envelope ${channel} loop state set to ${enabled}, will be applied when transport starts.`
+            );
+          }
         } else if (envSystem.loopId) {
           Tone.Transport.clear(envSystem.loopId);
           envSystem.loopId = null;
@@ -876,6 +889,19 @@ class AudioEngine {
         `Invalid envelope channel ${channel} or envelopes not initialized`
       );
     }
+  }
+
+  // Add a method to apply pending envelope LFO settings when transport starts
+  applyPendingEnvelopeLFOs() {
+    if (!this.envelopes) return;
+
+    this.envelopes.forEach((envSystem, channel) => {
+      if (envSystem.isLooping && envSystem.pendingLfoRate) {
+        console.log(`Applying pending LFO settings for envelope ${channel}`);
+        // Re-apply the LFO settings now that transport is started
+        this.setEnvelopeLFO(channel, true, envSystem.pendingLfoRate);
+      }
+    });
   }
 
   // Enhanced trigger with proper timing
@@ -1118,9 +1144,43 @@ class AudioEngine {
     if (this.initialized) return;
 
     try {
+      // Start Tone.js
       await Tone.start();
+      console.log("Tone.js started successfully");
+
+      // Initialize components
       await this.initializeComponents();
+      console.log("Components initialized successfully");
+
+      // Reinitialize master effects to ensure they're properly created
+      this.masterLimiter = new Tone.Limiter({
+        threshold: -3,
+      });
+
+      // Ensure master volume is created
+      if (!this.masterVolume) {
+        this.masterVolume = new Tone.Volume(-6);
+        console.log("Created master volume");
+      }
+
+      // Connect master chain
       this.connectMasterChain();
+
+      // Apply limiter and compressor settings with a small delay to ensure connections are established
+      setTimeout(() => {
+        try {
+          // Apply limiter settings for better volume control
+          this.setLimiterSettings();
+
+          // Apply compressor settings
+          this.setCompressorSettings();
+
+          // Set initial master volume to a reasonable level
+          this.masterVolume.volume.value = -6; // -6dB is unity gain
+        } catch (error) {
+          console.error("Error applying audio settings:", error);
+        }
+      }, 100);
 
       // Initialize LPG modes
       this.initializeLPGModes();
@@ -1128,13 +1188,8 @@ class AudioEngine {
       // Initialize envelope behaviors
       this.initializeEnvelopeBehaviors();
 
-      // Start oscillators
-      this.osc1.start();
-      this.osc2.start();
-      this.osc3.start();
-      this.noise.start();
-
       this.initialized = true;
+      console.log("Audio engine initialization complete");
     } catch (error) {
       console.error("Failed to initialize audio engine:", error);
       throw error;
@@ -1274,15 +1329,40 @@ class AudioEngine {
   }
 
   connectMasterChain() {
-    // Connect quad outputs to master chain
-    Object.values(this.quadOutputs).forEach((output) => {
-      output.connect(this.masterCompressor);
-    });
+    try {
+      // Ensure master effects are initialized
+      if (!this.masterCompressor) {
+        console.warn("Master compressor not initialized, creating a new one");
+        this.masterCompressor = new Tone.Compressor({
+          threshold: -24,
+          ratio: 4,
+          attack: 0.003,
+          release: 0.25,
+          knee: 12,
+        });
+      }
 
-    // Connect master effects chain
-    this.masterCompressor.connect(this.masterLimiter);
-    this.masterLimiter.connect(this.masterVolume);
-    this.masterVolume.toDestination();
+      if (!this.masterLimiter) {
+        console.warn("Master limiter not initialized, creating a new one");
+        this.masterLimiter = new Tone.Limiter({
+          threshold: -3,
+        });
+      }
+
+      // Connect quad outputs to master chain
+      Object.values(this.quadOutputs).forEach((output) => {
+        output.connect(this.masterCompressor);
+      });
+
+      // Connect master effects chain
+      this.masterCompressor.connect(this.masterLimiter);
+      this.masterLimiter.connect(this.masterVolume);
+      this.masterVolume.toDestination();
+
+      console.log("Master chain connected successfully");
+    } catch (error) {
+      console.error("Failed to connect master chain:", error);
+    }
   }
 
   // ... rest of your existing methods ...
@@ -1301,6 +1381,65 @@ class AudioEngine {
     }
   }
 
+  // Add method to mute/unmute audio without stopping oscillators
+  setMuted(muted, fadeTime = 0.1) {
+    if (!this.initialized) {
+      console.warn("Cannot set muted state: Audio engine not initialized");
+      return;
+    }
+
+    try {
+      // Ensure oscillators are running
+      this.ensureOscillatorsStarted();
+
+      // Store the current volume value before muting if not already stored
+      if (muted && this._previousVolume === undefined) {
+        // If current volume is already -Infinity, store a reasonable default
+        this._previousVolume =
+          this.masterVolume.volume.value === -Infinity
+            ? 0 // 0 dB is unity gain
+            : this.masterVolume.volume.value;
+
+        console.log(`Storing previous volume: ${this._previousVolume} dB`);
+      }
+
+      if (muted) {
+        // Mute by setting volume to -Infinity (with optional fade)
+        console.log(`Muting audio with fade time: ${fadeTime}s`);
+        if (fadeTime > 0) {
+          this.masterVolume.volume.rampTo(-Infinity, fadeTime);
+        } else {
+          this.masterVolume.volume.value = -Infinity;
+        }
+      } else if (this._previousVolume !== undefined) {
+        // Restore previous volume (with optional fade)
+        console.log(
+          `Unmuting audio to ${this._previousVolume} dB with fade time: ${fadeTime}s`
+        );
+        if (fadeTime > 0) {
+          this.masterVolume.volume.rampTo(this._previousVolume, fadeTime);
+        } else {
+          this.masterVolume.volume.value = this._previousVolume;
+        }
+
+        // Clear the stored volume if we're unmuting
+        if (!muted) {
+          this._previousVolume = undefined;
+        }
+      } else {
+        // No previous volume stored, set to a reasonable default
+        console.log("No previous volume stored, setting to 0 dB");
+        if (fadeTime > 0) {
+          this.masterVolume.volume.rampTo(0, fadeTime);
+        } else {
+          this.masterVolume.volume.value = 0;
+        }
+      }
+    } catch (error) {
+      console.error("Error setting mute state:", error);
+    }
+  }
+
   // Add method to adjust compressor settings
   setCompressorSettings({
     threshold = -24,
@@ -1309,17 +1448,86 @@ class AudioEngine {
     release = 0.25,
     knee = 12,
   } = {}) {
-    this.masterCompressor.threshold.value = threshold;
-    this.masterCompressor.ratio.value = ratio;
-    this.masterCompressor.attack.value = attack;
-    this.masterCompressor.release.value = release;
-    this.masterCompressor.knee.value = knee;
+    if (!this.masterCompressor) {
+      console.warn("Master compressor not initialized");
+      return;
+    }
+
+    try {
+      // Check if the properties exist before setting them
+      if (
+        this.masterCompressor.threshold &&
+        typeof this.masterCompressor.threshold.value !== "undefined"
+      ) {
+        this.masterCompressor.threshold.value = threshold;
+      } else {
+        console.warn("Master compressor threshold property not accessible");
+      }
+
+      if (
+        this.masterCompressor.ratio &&
+        typeof this.masterCompressor.ratio.value !== "undefined"
+      ) {
+        this.masterCompressor.ratio.value = ratio;
+      } else {
+        console.warn("Master compressor ratio property not accessible");
+      }
+
+      if (
+        this.masterCompressor.attack &&
+        typeof this.masterCompressor.attack.value !== "undefined"
+      ) {
+        this.masterCompressor.attack.value = attack;
+      } else {
+        console.warn("Master compressor attack property not accessible");
+      }
+
+      if (
+        this.masterCompressor.release &&
+        typeof this.masterCompressor.release.value !== "undefined"
+      ) {
+        this.masterCompressor.release.value = release;
+      } else {
+        console.warn("Master compressor release property not accessible");
+      }
+
+      if (
+        this.masterCompressor.knee &&
+        typeof this.masterCompressor.knee.value !== "undefined"
+      ) {
+        this.masterCompressor.knee.value = knee;
+      } else {
+        console.warn("Master compressor knee property not accessible");
+      }
+    } catch (error) {
+      console.error("Error setting compressor settings:", error);
+    }
   }
 
   // Add method to adjust limiter settings
-  setLimiterSettings({ threshold = -3, release = 0.05 } = {}) {
-    this.masterLimiter.threshold.value = threshold;
-    this.masterLimiter.release.value = release;
+  setLimiterSettings({ threshold = -3 } = {}) {
+    if (!this.masterLimiter) {
+      console.warn("Master limiter not initialized");
+      return;
+    }
+
+    try {
+      // Check if the threshold property exists before setting it
+      if (
+        this.masterLimiter.threshold &&
+        typeof this.masterLimiter.threshold.value !== "undefined"
+      ) {
+        this.masterLimiter.threshold.value = threshold;
+      } else {
+        console.warn("Master limiter threshold property not accessible");
+      }
+
+      // Note: Tone.js Limiter doesn't expose a release property directly
+      // It uses a fixed fast release internally as it's a wrapper around Compressor
+      // If we need to control release, we would need to use a Compressor instead
+    } catch (error) {
+      console.error("Error setting limiter settings:", error);
+    }
   }
 
   dispose() {
@@ -1351,43 +1559,78 @@ class AudioEngine {
   }
 
   // Set LPG parameters with improved error handling
-  async setLPGParams(index, { response, level, resonance }) {
-    if (!this.initialized || !this.lpgs[index]) {
-      console.warn(`LPG ${index} not initialized`);
+  async setLPGParams(index, { response, level, resonance } = {}) {
+    // Validate index and initialization
+    if (index === undefined || index < 0 || index >= 4) {
+      console.warn(`Invalid LPG index: ${index}`);
+      return false;
+    }
+
+    if (!this.initialized) {
+      console.warn("Audio engine not initialized");
+      return false;
+    }
+
+    if (!this.lpgs || !this.lpgs[index]) {
+      console.warn(`LPG ${index} not available`);
       return false;
     }
 
     try {
       const lpg = this.lpgs[index];
 
+      // Validate lpg components
+      if (!lpg.vactrol || !lpg.vca || !lpg.filter) {
+        console.warn(`LPG ${index} components not fully initialized`);
+        return false;
+      }
+
       // Batch parameter updates to minimize audio glitches
       const now = Tone.now();
 
       // Set vactrol response time (smoothing) with ramp to avoid clicks
       if (response !== undefined) {
-        const smoothingValue = Math.max(0.01, Math.min(1, response));
-        // Use linearRampToValueAtTime for smoother transitions
-        lpg.vactrol.smoothing = smoothingValue;
+        try {
+          const smoothingValue = Math.max(0.01, Math.min(1, response));
+          lpg.vactrol.smoothing = smoothingValue;
+        } catch (error) {
+          console.warn(`Error setting LPG ${index} response:`, error);
+        }
       }
 
       // Set VCA level with ramp
-      if (level !== undefined) {
-        const gainValue = Math.max(0, Math.min(1, level));
-        lpg.vca.gain.linearRampToValueAtTime(gainValue, now + 0.02);
+      if (level !== undefined && lpg.vca && lpg.vca.gain) {
+        try {
+          const gainValue = Math.max(0, Math.min(1, level));
+          lpg.vca.gain.cancelScheduledValues(now);
+          lpg.vca.gain.linearRampToValueAtTime(gainValue, now + 0.02);
+        } catch (error) {
+          console.warn(`Error setting LPG ${index} level:`, error);
+        }
       }
 
       // Set filter resonance with ramp
-      if (resonance !== undefined && lpg.filter) {
-        const qValue = Math.max(0.1, Math.min(20, resonance));
-        lpg.filter.Q.linearRampToValueAtTime(qValue, now + 0.02);
+      if (resonance !== undefined && lpg.filter && lpg.filter.Q) {
+        try {
+          const qValue = Math.max(0.1, Math.min(20, resonance));
+          lpg.filter.Q.cancelScheduledValues(now);
+          lpg.filter.Q.linearRampToValueAtTime(qValue, now + 0.02);
+        } catch (error) {
+          console.warn(`Error setting LPG ${index} resonance:`, error);
+        }
       }
 
       // Adjust filter frequency based on level with ramp
-      if (level !== undefined && lpg.filter) {
-        const minFreq = 20;
-        const maxFreq = 20000;
-        const freqValue = minFreq + (maxFreq - minFreq) * level;
-        lpg.filter.frequency.linearRampToValueAtTime(freqValue, now + 0.02);
+      if (level !== undefined && lpg.filter && lpg.filter.frequency) {
+        try {
+          const minFreq = 20;
+          const maxFreq = 20000;
+          const freqValue = minFreq + (maxFreq - minFreq) * level;
+          lpg.filter.frequency.cancelScheduledValues(now);
+          lpg.filter.frequency.linearRampToValueAtTime(freqValue, now + 0.02);
+        } catch (error) {
+          console.warn(`Error setting LPG ${index} frequency:`, error);
+        }
       }
 
       return true;
@@ -1408,23 +1651,6 @@ class AudioEngine {
       }
     } catch (error) {
       console.warn(`Error triggering LPG ${index}:`, error);
-    }
-  }
-
-  // Add method to start/stop LPG LFO
-  setLPGLFO(index, enabled, rate = 1) {
-    if (!this.initialized || !this.lpgs[index]) return;
-
-    try {
-      const lpg = this.lpgs[index];
-      if (enabled) {
-        lpg.lfo.frequency.value = rate;
-        lpg.lfo.start();
-      } else {
-        lpg.lfo.stop();
-      }
-    } catch (error) {
-      console.warn(`Error setting LPG ${index} LFO:`, error);
     }
   }
 
@@ -1634,6 +1860,167 @@ class AudioEngine {
         error
       );
     }
+  }
+
+  // Add method to start/stop LPG LFO
+  setLPGLFO(index, enabled, rate = 1) {
+    // Validate index and initialization
+    if (index === undefined || index < 0 || index >= 4) {
+      console.warn(`Invalid LPG index: ${index}`);
+      return false;
+    }
+
+    if (!this.initialized) {
+      console.warn("Audio engine not initialized");
+      return false;
+    }
+
+    if (!this.lpgs || !this.lpgs[index]) {
+      console.warn(`LPG ${index} not available`);
+      return false;
+    }
+
+    try {
+      const lpg = this.lpgs[index];
+
+      // Validate LFO component
+      if (!lpg.lfo) {
+        console.warn(`LPG ${index} LFO not initialized`);
+        return false;
+      }
+
+      if (enabled) {
+        // Clamp rate to reasonable values (0.1 to 20 Hz)
+        const safeRate = Math.max(0.1, Math.min(20, rate || 1));
+
+        try {
+          // Set frequency with ramp to avoid clicks
+          lpg.lfo.frequency.cancelScheduledValues(Tone.now());
+          lpg.lfo.frequency.linearRampToValueAtTime(safeRate, Tone.now() + 0.1);
+
+          // Start LFO if not already running
+          if (lpg.lfo.state !== "started") {
+            lpg.lfo.start();
+          }
+        } catch (lfoError) {
+          console.warn(`Error starting LPG ${index} LFO:`, lfoError);
+        }
+      } else {
+        try {
+          // Stop LFO if running
+          if (lpg.lfo.state === "started") {
+            lpg.lfo.stop();
+          }
+        } catch (lfoError) {
+          console.warn(`Error stopping LPG ${index} LFO:`, lfoError);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.warn(`Error setting LPG ${index} LFO:`, error);
+      return false;
+    }
+  }
+
+  // Method to ensure all oscillators are started
+  ensureOscillatorsStarted() {
+    if (!this.initialized) {
+      console.warn("Audio engine not initialized, cannot start oscillators");
+      return false;
+    }
+
+    try {
+      // Check and start each oscillator if not already running
+      if (this.osc1 && this.osc1.state !== "started") {
+        this.osc1.start();
+        console.log("Started oscillator 1");
+      }
+
+      if (this.osc2 && this.osc2.state !== "started") {
+        this.osc2.start();
+        console.log("Started oscillator 2");
+      }
+
+      if (this.osc3 && this.osc3.state !== "started") {
+        this.osc3.start();
+        console.log("Started oscillator 3");
+      }
+
+      if (this.noise && this.noise.state !== "started") {
+        this.noise.start();
+        console.log("Started noise generator");
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error starting oscillators:", error);
+      return false;
+    }
+  }
+
+  // Debug method to help diagnose audio issues
+  debugAudioState() {
+    console.group("Audio Engine Debug Info");
+
+    // Check initialization state
+    console.log(`Initialized: ${this.initialized}`);
+
+    // Check Tone.js context state
+    console.log(`Tone.js context state: ${Tone.context.state}`);
+
+    // Check Transport state
+    console.log(`Transport state: ${Tone.Transport.state}`);
+
+    // Check oscillator states
+    console.log(
+      `Oscillator 1 state: ${this.osc1 ? this.osc1.state : "not created"}`
+    );
+    console.log(
+      `Oscillator 2 state: ${this.osc2 ? this.osc2.state : "not created"}`
+    );
+    console.log(
+      `Oscillator 3 state: ${this.osc3 ? this.osc3.state : "not created"}`
+    );
+    console.log(
+      `Noise state: ${this.noise ? this.noise.state : "not created"}`
+    );
+
+    // Check master volume
+    console.log(
+      `Master volume: ${
+        this.masterVolume ? this.masterVolume.volume.value : "not created"
+      } dB`
+    );
+    console.log(`Muted: ${this._previousVolume !== undefined}`);
+
+    // Check envelope states
+    if (this.envelopes) {
+      this.envelopes.forEach((env, i) => {
+        console.log(
+          `Envelope ${i} looping: ${env.isLooping}, has loopId: ${!!env.loopId}`
+        );
+      });
+    }
+
+    console.groupEnd();
+
+    return {
+      initialized: this.initialized,
+      contextState: Tone.context.state,
+      transportState: Tone.Transport.state,
+      oscillatorsRunning:
+        this.osc1 &&
+        this.osc1.state === "started" &&
+        this.osc2 &&
+        this.osc2.state === "started" &&
+        this.osc3 &&
+        this.osc3.state === "started" &&
+        this.noise &&
+        this.noise.state === "started",
+      masterVolume: this.masterVolume ? this.masterVolume.volume.value : null,
+      isMuted: this._previousVolume !== undefined,
+    };
   }
 }
 

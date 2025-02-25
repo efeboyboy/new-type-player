@@ -1,5 +1,16 @@
 // Import polyfills first
 import "./polyfills.js";
+import ToneService from "./ToneService";
+
+// Prevent Magenta from initializing its own Tone.js instance
+window.TONE_SILENCE_VERSION_LOGGING = true;
+window.TONE_SILENCE_LOGGING = true;
+
+// Use our Tone.js instance
+const Tone = ToneService.getTone();
+if (!window.Tone) {
+  window.Tone = Tone;
+}
 
 // Polyfills for Magenta.js
 if (typeof global === "undefined") {

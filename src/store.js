@@ -1,7 +1,8 @@
 import { reactive } from "vue";
 import { generateSequence } from "./services/Sequencer.js";
 import audioEngine from "./services/AudioEngine.js";
-import * as Tone from "tone";
+import ToneService from "./services/ToneService";
+const Tone = ToneService.getTone();
 
 // Default patch seed
 const DEFAULT_PATCH_SEED = "a3Wnb2pn";
@@ -29,26 +30,31 @@ export const store = reactive({
   spatialControls: null,
 
   async initializeAudio() {
-    if (!this.audioInitialized) {
-      try {
-        await Tone.start();
-        console.log("Tone.js started");
-        await audioEngine.initialize();
-        console.log("Audio engine initialized");
-        this.audioInitialized = true;
-        Tone.Transport.bpm.value = this.tempo;
-
-        // Always apply the default patch on initialization
-        await this.applySeed(DEFAULT_PATCH_SEED);
-
-        return true;
-      } catch (error) {
-        console.error("Failed to initialize audio:", error);
-        this.audioInitialized = false;
-        return false;
-      }
+    if (ToneService.isAudioEngineInitialized()) {
+      console.log("Audio already initialized");
+      this.audioInitialized = true;
+      return true;
     }
-    return true;
+
+    try {
+      // Only start Tone.js if it hasn't been started yet
+      await ToneService.ensureStarted();
+
+      await audioEngine.initialize();
+      console.log("Audio engine initialized");
+      this.audioInitialized = true;
+      ToneService.setAudioEngineInitialized(true);
+      Tone.Transport.bpm.value = this.tempo;
+
+      // Always apply the default patch on initialization
+      await this.applySeed(DEFAULT_PATCH_SEED);
+
+      return true;
+    } catch (error) {
+      console.error("Failed to initialize audio:", error);
+      this.audioInitialized = false;
+      return false;
+    }
   },
 
   updateInput(newInput) {
@@ -104,9 +110,7 @@ export const store = reactive({
     }
 
     // Ensure Tone.js context is running
-    if (Tone.context.state !== "running") {
-      await Tone.context.resume();
-    }
+    await ToneService.ensureStarted();
 
     this.playing = !this.playing;
     if (this.playing && this.sequence.length > 0) {

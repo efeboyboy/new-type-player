@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="knobElement"
     class="knob relative w-full aspect-square"
     @mousedown="startDrag"
     @touchstart="startDrag"
@@ -65,6 +66,7 @@
   const lastEmittedValue = ref(props.modelValue);
   const gestureMode = ref(null); // 'rotate', 'vertical', or 'horizontal'
   const gestureThreshold = 10; // Pixels to move before determining gesture mode
+  const knobElement = ref(null); // Add ref for knob element
 
   // Watch for external value changes
   watch(
@@ -127,12 +129,13 @@
 
   // Calculate value based on rotation
   const calculateRotationValue = (event) => {
+    if (!knobElement.value) return dragStart.value.value;
+
     const pageX = event.touches ? event.touches[0].pageX : event.pageX;
     const pageY = event.touches ? event.touches[0].pageY : event.pageY;
 
     // Calculate the center of the knob
-    const knobElement = event.currentTarget;
-    const rect = knobElement.getBoundingClientRect();
+    const rect = knobElement.value.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
 
@@ -152,7 +155,7 @@
 
     // Scale angleDelta to value range
     const range = props.max - props.min;
-    const valueDelta = (angleDelta / 270) * range;
+    const valueDelta = (angleDelta / 270) * range * props.sensitivity;
 
     return dragStart.value.value + valueDelta;
   };

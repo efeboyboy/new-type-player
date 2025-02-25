@@ -63,7 +63,7 @@
 </template>
 
 <script setup>
-  import { ref, watch, onMounted } from "vue";
+  import { ref, watch, onMounted, nextTick } from "vue";
   import Knob from "./Knob.vue";
   import audioEngine from "../services/AudioEngine.js";
   import * as Tone from "tone";
@@ -119,11 +119,8 @@
       const lpg = lpgs.value[index];
       if (!lpg) return;
 
-      // Add a small delay to ensure nodes are ready
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
       // Set envelope parameters first
-      await audioEngine.setEnvelope(index, {
+      audioEngine.setEnvelope(index, {
         attack: lpg.rise,
         release: lpg.fall,
         sustain: lpg.level,
@@ -131,55 +128,70 @@
       });
 
       // Set LPG mode (envelope or LFO)
-      await audioEngine.setEnvelopeLFO(
+      audioEngine.setEnvelopeLFO(
         index,
         lpg.loopMode,
         1 / (lpg.rise + lpg.fall)
       );
 
-      // Set the LPG parameters with retries
-      let retries = 3;
-      while (retries > 0) {
-        try {
-          await audioEngine.setLPGParams(index, {
-            response: lpg.rise,
-            level: lpg.level,
-          });
-          break;
-        } catch (error) {
-          retries--;
-          if (retries === 0) {
-            console.warn(
-              `Failed to set LPG ${index} parameters after 3 attempts`
-            );
-          } else {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
-        }
-      }
+      // Set the LPG parameters
+      audioEngine.setLPGParams(index, {
+        response: lpg.rise,
+        level: lpg.level,
+      });
     } catch (error) {
       console.warn(`Error updating LPG ${index}:`, error);
     }
   };
 
   // Randomize values
-  const randomize = () => {
-    lpgs.value = lpgs.value.map(() => ({
-      rise: Math.random() * 0.99 + 0.01, // 0.01 to 1
-      fall: Math.random() * 0.99 + 0.01, // 0.01 to 1
-      level: Math.random(), // 0 to 1
+  const randomize = async () => {
+    // Create new values within the proper ranges for each parameter
+    const newValues = lpgs.value.map(() => ({
+      rise: Math.random() * 0.099 + 0.001, // 0.001 to 0.1 (min to max from knob props)
+      fall: Math.random() * 0.45 + 0.05, // 0.05 to 0.5 (min to max from knob props)
+      level: Math.random() * 0.5 + 0.5, // 0.5 to 1 (min to max from knob props)
       loopMode: Math.random() > 0.5, // Random mode
     }));
-    lpgs.value.forEach((_, index) => updateLPG(index));
+
+    // Update values
+    lpgs.value = newValues;
+
+    // Wait for Vue to update the DOM
+    await nextTick();
+
+    // Update audio engine with a small delay between each LPG to prevent audio glitches
+    for (let i = 0; i < lpgs.value.length; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      await updateLPG(i);
+    }
   };
+
+  // Add debounce utility
+  const debounce = (fn, delay) => {
+    let timeoutId;
+    return function (...args) {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => fn.apply(this, args), delay);
+    };
+  };
+
+  // Debounced update function to prevent too many rapid updates
+  const debouncedUpdate = debounce(async () => {
+    for (let i = 0; i < lpgs.value.length; i++) {
+      await updateLPG(i);
+      // Small delay between updates to prevent audio glitches
+      if (i < lpgs.value.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    }
+  }, 50);
 
   // Watch for changes and update audio engine
   watch(
     lpgs,
-    async () => {
-      for (let i = 0; i < lpgs.value.length; i++) {
-        await updateLPG(i);
-      }
+    () => {
+      debouncedUpdate();
     },
     { deep: true }
   );
@@ -208,8 +220,9 @@
 
   // Expose methods for parent component
   defineExpose({
-    reset: () => {
-      lpgs.value = Array(4)
+    reset: async () => {
+      // Create new values with defaults
+      const newValues = Array(4)
         .fill()
         .map((_, index) => ({
           rise: index === 3 ? 0.01 : 0.005,
@@ -217,7 +230,18 @@
           level: index === 3 ? 0.7 : 0.85,
           loopMode: false,
         }));
-      lpgs.value.forEach((_, index) => updateLPG(index));
+
+      // Update values
+      lpgs.value = newValues;
+
+      // Wait for Vue to update the DOM
+      await nextTick();
+
+      // Update audio engine with a small delay between each LPG to prevent audio glitches
+      for (let i = 0; i < lpgs.value.length; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        await updateLPG(i);
+      }
     },
     randomize,
   });

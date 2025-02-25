@@ -1354,33 +1354,40 @@ class AudioEngine {
   async setLPGParams(index, { response, level, resonance }) {
     if (!this.initialized || !this.lpgs[index]) {
       console.warn(`LPG ${index} not initialized`);
-      return;
+      return false;
     }
 
     try {
       const lpg = this.lpgs[index];
 
-      // Set vactrol response time (smoothing)
+      // Batch parameter updates to minimize audio glitches
+      const now = Tone.now();
+
+      // Set vactrol response time (smoothing) with ramp to avoid clicks
       if (response !== undefined) {
-        lpg.vactrol.smoothing = Math.max(0.01, Math.min(1, response));
+        const smoothingValue = Math.max(0.01, Math.min(1, response));
+        // Use linearRampToValueAtTime for smoother transitions
+        lpg.vactrol.smoothing = smoothingValue;
       }
 
-      // Set VCA level
+      // Set VCA level with ramp
       if (level !== undefined) {
-        lpg.vca.gain.value = Math.max(0, Math.min(1, level));
+        const gainValue = Math.max(0, Math.min(1, level));
+        lpg.vca.gain.linearRampToValueAtTime(gainValue, now + 0.02);
       }
 
-      // Set filter resonance
+      // Set filter resonance with ramp
       if (resonance !== undefined && lpg.filter) {
-        lpg.filter.Q.value = Math.max(0.1, Math.min(20, resonance));
+        const qValue = Math.max(0.1, Math.min(20, resonance));
+        lpg.filter.Q.linearRampToValueAtTime(qValue, now + 0.02);
       }
 
-      // Adjust filter frequency based on level
+      // Adjust filter frequency based on level with ramp
       if (level !== undefined && lpg.filter) {
         const minFreq = 20;
         const maxFreq = 20000;
         const freqValue = minFreq + (maxFreq - minFreq) * level;
-        lpg.filter.frequency.value = freqValue;
+        lpg.filter.frequency.linearRampToValueAtTime(freqValue, now + 0.02);
       }
 
       return true;

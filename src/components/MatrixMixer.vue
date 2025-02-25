@@ -73,15 +73,36 @@
     audioEngine.setMixerPoint(i, j, value);
   };
 
-  // Reset to default values
+  // Reset to default values with subtle randomization
   const reset = () => {
+    // First reset all values to 0
     mixerLevels.value = Array(4)
       .fill()
       .map(() => Array(4).fill(0));
-    mixerLevels.value.forEach((_, i) => {
+
+    // Set diagonal elements to consistent default values (0.7)
+    for (let i = 0; i < 4; i++) {
       mixerLevels.value[i][i] = 0.7; // Set diagonal to 0.7
       updateMixerPoint(i, i, 0.7);
-    });
+    }
+
+    // Add very subtle randomization to non-diagonal elements
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        // Skip diagonal elements as they're already set
+        if (i === j) continue;
+
+        // 85% chance of keeping it at zero (more conservative than randomize)
+        if (Math.random() < 0.85) {
+          mixerLevels.value[i][j] = 0;
+        } else {
+          // For the remaining 15%, use a very small value (0.05 to 0.15)
+          const subtleRandomLevel = Math.random() * 0.1 + 0.05; // Range: 0.05 to 0.15
+          mixerLevels.value[i][j] = subtleRandomLevel;
+          updateMixerPoint(i, j, subtleRandomLevel);
+        }
+      }
+    }
   };
 
   // Randomize all mixer points
@@ -91,12 +112,30 @@
       .fill()
       .map(() => Array(4).fill(0));
 
-    // Then only randomize the diagonal elements (direct routing)
+    // Randomize the diagonal elements (direct routing) with stronger values
     for (let i = 0; i < 4; i++) {
-      // Random value between 0.4 and 0.9 for more musical results
+      // Random value between 0.4 and 0.9 for more musical results on diagonal
       const randomLevel = Math.random() * 0.5 + 0.4;
       mixerLevels.value[i][i] = randomLevel;
       updateMixerPoint(i, i, randomLevel);
+    }
+
+    // Gently randomize non-diagonal elements with a bias toward zero
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        // Skip diagonal elements as they're already set
+        if (i === j) continue;
+
+        // 75% chance of keeping it at zero
+        if (Math.random() < 0.75) {
+          mixerLevels.value[i][j] = 0;
+        } else {
+          // For the remaining 25%, use a small value (0.1 to 0.25)
+          const smallRandomLevel = Math.random() * 0.15 + 0.1; // Range: 0.1 to 0.25
+          mixerLevels.value[i][j] = smallRandomLevel;
+          updateMixerPoint(i, j, smallRandomLevel);
+        }
+      }
     }
   };
 

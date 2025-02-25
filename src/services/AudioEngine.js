@@ -1712,7 +1712,7 @@ class AudioEngine {
 
               // Set VCA to always pass signal at full level in VCF-only mode
               lpg.vca.gain.cancelScheduledValues(now);
-              lpg.vca.gain.linearRampToValueAtTime(1, now + 0.02);
+              lpg.vca.gain.linearRampToValueAtTime(level || 0.7, now + 0.02);
               break;
 
             case "vca":
@@ -1722,6 +1722,10 @@ class AudioEngine {
               // Set filter to always pass signal with high cutoff in VCA-only mode
               lpg.filter.frequency.cancelScheduledValues(now);
               lpg.filter.frequency.linearRampToValueAtTime(20000, now + 0.02);
+
+              // Ensure VCA gain is directly controlled by level parameter in VCA mode
+              lpg.vca.gain.cancelScheduledValues(now);
+              lpg.vca.gain.linearRampToValueAtTime(level || 0, now + 0.02);
               break;
 
             case "both":
@@ -1731,6 +1735,10 @@ class AudioEngine {
               lpg.vactrol.connect(combinedFilterScale);
               combinedFilterScale.connect(lpg.filter.frequency);
               lpg.vactrol.connect(lpg.vca.gain);
+
+              // Apply level parameter to VCA gain in combined mode
+              lpg.vca.gain.cancelScheduledValues(now);
+              lpg.vca.gain.linearRampToValueAtTime(level || 0.5, now + 0.02);
               break;
           }
         } catch (error) {
@@ -1868,7 +1876,7 @@ class AudioEngine {
       lpg.filter.type = "lowpass";
       lpg.filter.Q.value = 2; // Moderate resonance
       // Set VCA to always pass signal at full level in VCF-only mode
-      lpg.vca.gain.value = 1;
+      lpg.vca.gain.value = 0.7; // Default level instead of fixed 1
       // In VCF mode, envelope modulates only filter frequency, not VCA gain
       const filterScale = new Tone.Scale(20, 15000); // Full filter range
       lpg.vactrol.disconnect();
@@ -1882,6 +1890,9 @@ class AudioEngine {
       // Configure filter parameters for VCF+VCA mode
       lpg.filter.type = "lowpass";
       lpg.filter.Q.value = 1; // Less resonance in combined mode
+
+      // Set initial gain level
+      lpg.vca.gain.value = 0.7; // Default level
 
       // In VCF+VCA mode, envelope modulates both filter frequency and VCA gain
       // Connect envelope to both filter and VCA

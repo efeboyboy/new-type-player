@@ -24,7 +24,7 @@
         <div class="control-group">
           <Knob
             v-model="lpgs[n - 1].level"
-            :min="0.1"
+            :min="0"
             :max="0.9"
             :step="0.01"
             class="w-10 h-10"
@@ -37,7 +37,7 @@
         <div class="control-group">
           <Knob
             v-model="lpgs[n - 1].modAmount"
-            :min="0.1"
+            :min="0"
             :max="0.9"
             :step="0.01"
             class="w-10 h-10"
@@ -66,7 +66,7 @@
         <div v-if="n > 2 && lpgs[n - 1].loopMode" class="control-group">
           <Knob
             v-model="lpgs[n - 1].rate"
-            :min="0.1"
+            :min="0"
             :max="10"
             :step="0.1"
             class="w-10 h-10"
@@ -145,12 +145,12 @@
       // Add value smoothing and clamping
       const smoothedValues = {
         mode: lpg.mode,
-        level: Math.max(0.1, Math.min(0.9, lpg.level)),
+        level: Math.max(0, Math.min(0.9, lpg.level)),
         modAmount: Math.max(0.1, Math.min(0.9, lpg.modAmount)),
       };
 
       // Update LPG parameters with smoothed values
-      audioEngine.setLPGParams(index, smoothedValues);
+      await audioEngine.setLPGParams(index, smoothedValues);
 
       // Update LFO rate if looping (for LPG C & D)
       if (index >= 2 && lpg.loopMode) {
@@ -231,6 +231,8 @@
     try {
       if (ToneService.isAudioEngineInitialized()) {
         console.log("Audio already initialized in LPGControls");
+        // Even if audio is initialized, we should still apply our current LPG settings
+        await updateAllLPGs();
         return;
       }
 
@@ -241,15 +243,15 @@
         ToneService.setAudioEngineInitialized(true);
       }
 
+      // Apply all LPG settings immediately to ensure proper initial state
+      await updateAllLPGs();
+
       // Initialize LPG C & D with their independent looping mechanism
       for (let i = 2; i < 4; i++) {
         if (lpgs.value[i].loopMode) {
           audioEngine.setLPGLFO(i, true, lpgs.value[i].rate);
         }
       }
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      await updateAllLPGs();
     } catch (error) {
       console.warn("Error during LPG initialization:", error);
     }

@@ -113,45 +113,50 @@ Two band pass filters process outputs from the Matrix Mixer.
 
 ### Low Pass Gates (LPG 1–4)
 
-Each LPG receives input from either the filters or matrix outputs and applies envelope modulation before sending the signal to the master mixer.
+Each LPG features:
 
-**Each LPG has:**
+- Mode Selection:
 
-**Inputs:**
+  - VCF: Voltage-Controlled Filter mode (filter active, gain fixed)
+  - VCA: Voltage-Controlled Amplifier mode (amplitude modulation only)
+  - VCF+VCA: Combined mode (both filter and amplitude modulation)
 
-- Signal In (from Matrix Mixer or Band Pass Filters)
-- MOD (Envelope from corresponding EG)
+- Controls:
+  - Level: Master level control (0-100%)
+  - Mod Amount: Envelope modulation depth (0-100%)
+  - Loop Toggle: Switches between one-shot and cycling modes
 
-**Outputs:**
+Default Configurations:
 
-- Master Mixer Input
+- LPG 1: VCF mode by default (filter-focused)
+- LPG 2: VCF mode by default (filter-focused)
+- LPG 3: VCF+VCA mode by default (combined operation)
+- LPG 4: VCF+VCA mode by default (combined operation)
 
-**Controls:**
+Default Values:
 
-- Mod Attenuverter Knob (controls envelope modulation depth)
-- VCA Knob (controls signal level before going to the master mixer)
+- Level: 85% (0.85)
+- Mod Amount: 75% (0.75)
+- Loop Mode: Off (one-shot)
 
-**LPG Routing:**
+Each LPG receives modulation from its corresponding envelope:
 
-_LPG 1:_
+- LPG 1 ← Envelope A
+- LPG 2 ← Envelope B
+- LPG 3 ← Envelope C
+- LPG 4 ← Envelope D
 
-- In: Band Pass Filter A Output
-- MOD: Envelope from EG 1
+Parameter Behavior:
 
-_LPG 2:_
-
-- In: Band Pass Filter B Output
-- MOD: Envelope from EG 2
-
-_LPG 3:_
-
-- In: Matrix Mixer Output 3
-- MOD: Envelope from EG 3
-
-_LPG 4:_
-
-- In: Matrix Mixer Output 4
-- MOD: Envelope from EG 4
+- VCF Mode:
+  - Level: Sets the fixed output amplitude
+  - Mod Amount: Controls filter cutoff modulation depth
+- VCA Mode:
+  - Level: Sets the maximum amplitude
+  - Mod Amount: Controls amplitude modulation depth
+- VCF+VCA Mode:
+  - Level: Sets the maximum amplitude
+  - Mod Amount: Controls both filter and amplitude modulation depth
 
 ### Envelope Generators (EG 1–4)
 
@@ -384,32 +389,6 @@ Default Values (Envelope D):
 - Attack: 0.02s
 - Duration: 1s
 - Decay: 3s
-
-## Low Pass Gates (LPGs)
-
-Each LPG has:
-
-- Level control (manual) - Functions as gain knob for fine-tuning
-- MOD input (from corresponding envelope) - Receives envelope modulation to shape amplitude
-- EOC output (if needs to be plugged)
-- Audio input (from matrix or if goes through bypass filter)
-- Audio output (to master)
-- VACTROL FAST response by default
-- Mode selection (VCF, VCA, or VCF+VCA)
-
-Default Configurations:
-
-- LPG 1: VCF mode by default
-- LPG 2: VCF mode by default
-- LPG 3: VCF+VCA mode by default
-- LPG 4: VCF+VCA mode by default
-
-Each LPG receives modulation from its corresponding envelope:
-
-- LPG 1 ← Envelope A
-- LPG 2 ← Envelope B
-- LPG 3 ← Envelope C
-- LPG 4 ← Envelope D
 
 ## Master Section
 

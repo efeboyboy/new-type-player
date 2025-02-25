@@ -6,46 +6,49 @@
           <div class="module-label">{{ n }}</div>
         </div>
 
-        <!-- Response -->
+        <!-- Mode Selector -->
         <div class="control-group">
-          <Knob
-            v-model="lpgs[n - 1].rise"
-            :min="0.001"
-            :max="0.1"
-            :step="0.001"
-            class="w-10 h-10"
-          />
-          <div class="module-value">{{ formatTime(lpgs[n - 1].rise) }}</div>
-          <label class="module-label">Speed</label>
+          <select
+            v-model="lpgs[n - 1].mode"
+            class="bg-zinc-800/50 text-zinc-300 text-[10px] rounded px-2 py-1 border border-zinc-700/50"
+            @change="updateLPG(n - 1)"
+          >
+            <option value="vcf">VCF</option>
+            <option value="vca">VCA</option>
+            <option value="both">VCF+VCA</option>
+          </select>
+          <label class="module-label">Mode</label>
         </div>
 
-        <!-- Sustain -->
-        <div class="control-group">
-          <Knob
-            v-model="lpgs[n - 1].fall"
-            :min="0.05"
-            :max="0.5"
-            :step="0.01"
-            class="w-10 h-10"
-          />
-          <div class="module-value">{{ formatTime(lpgs[n - 1].fall) }}</div>
-          <label class="module-label">Hold</label>
-        </div>
-
-        <!-- Level -->
+        <!-- Level Control -->
         <div class="control-group">
           <Knob
             v-model="lpgs[n - 1].level"
-            :min="0.5"
+            :min="0"
             :max="1"
             :step="0.01"
             class="w-10 h-10"
           />
           <div class="module-value">{{ formatPercent(lpgs[n - 1].level) }}</div>
-          <label class="module-label">Amount</label>
+          <label class="module-label">Level</label>
         </div>
 
-        <!-- Mode Toggle -->
+        <!-- Mod Amount -->
+        <div class="control-group">
+          <Knob
+            v-model="lpgs[n - 1].modAmount"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            class="w-10 h-10"
+          />
+          <div class="module-value">
+            {{ formatPercent(lpgs[n - 1].modAmount) }}
+          </div>
+          <label class="module-label">Mod</label>
+        </div>
+
+        <!-- Loop Toggle -->
         <button
           @click="toggleMode(n - 1)"
           :class="[
@@ -69,34 +72,22 @@
   import ToneService from "../services/ToneService";
   const Tone = ToneService.getTone();
 
-  // Refined default values based on Buchla Cookbook
-  const defaultLPG = {
-    rise: 0.005, // 5ms rise time - snappy attack
-    fall: 0.15, // 150ms fall time - natural decay
-    level: 0.85, // 85% level for good presence
+  // Refined default values based on signal path documentation
+  const defaultLPG = (index) => ({
+    mode: index < 2 ? "vcf" : "both", // VCF for 1&2, VCF+VCA for 3&4
+    level: 0.85,
+    modAmount: 0.75,
     loopMode: false,
-  };
+  });
 
   const lpgs = ref(
     Array(4)
       .fill()
-      .map((_, index) => ({
-        rise: index === 3 ? 0.01 : 0.005, // Slightly slower attack for noise
-        fall: index === 3 ? 0.2 : 0.15, // Longer decay for noise
-        level: index === 3 ? 0.7 : 0.85, // Lower level for noise
-        loopMode: false,
-      }))
+      .map((_, index) => defaultLPG(index))
   );
 
   const formatPercent = (value) => {
     return `${(value * 100).toFixed(0)}%`;
-  };
-
-  const formatTime = (value) => {
-    if (value < 0.01) {
-      return `${(value * 1000).toFixed(1)}ms`;
-    }
-    return `${(value * 1000).toFixed(0)}ms`;
   };
 
   const toggleMode = (index) => {
@@ -106,10 +97,8 @@
 
   const updateLPG = async (index) => {
     try {
-      // Ensure audio context is running
       await ToneService.ensureStarted();
 
-      // Wait for audio engine initialization
       if (!audioEngine.initialized) {
         await audioEngine.initialize();
         ToneService.setAudioEngineInitialized(true);
@@ -118,25 +107,12 @@
       const lpg = lpgs.value[index];
       if (!lpg) return;
 
-      // Set envelope parameters first
-      audioEngine.setEnvelope(index, {
-        attack: lpg.rise,
-        release: lpg.fall,
-        sustain: lpg.level,
-        timeScale: 1,
-      });
-
-      // Set LPG mode (envelope or LFO)
-      audioEngine.setEnvelopeLFO(
-        index,
-        lpg.loopMode,
-        1 / (lpg.rise + lpg.fall)
-      );
-
-      // Set the LPG parameters
+      // Update LPG parameters based on mode
       audioEngine.setLPGParams(index, {
-        response: lpg.rise,
+        mode: lpg.mode,
         level: lpg.level,
+        modAmount: lpg.modAmount,
+        loopMode: lpg.loopMode,
       });
     } catch (error) {
       console.warn(`Error updating LPG ${index}:`, error);
@@ -145,24 +121,48 @@
 
   // Randomize values
   const randomize = async () => {
-    // Create new values within the proper ranges for each parameter
     const newValues = lpgs.value.map(() => ({
-      rise: Math.random() * 0.099 + 0.001, // 0.001 to 0.1 (min to max from knob props)
-      fall: Math.random() * 0.45 + 0.05, // 0.05 to 0.5 (min to max from knob props)
-      level: Math.random() * 0.5 + 0.5, // 0.5 to 1 (min to max from knob props)
-      loopMode: Math.random() > 0.5, // Random mode
+      mode: ["vcf", "vca", "both"][Math.floor(Math.random() * 3)],
+      level: Math.random() * 0.5 + 0.5, // 0.5 to 1
+      modAmount: Math.random() * 0.8 + 0.2, // 0.2 to 1
+      loopMode: Math.random() > 0.5,
     }));
 
-    // Update values
     lpgs.value = newValues;
-
-    // Wait for Vue to update the DOM
     await nextTick();
 
-    // Update audio engine with a small delay between each LPG to prevent audio glitches
     for (let i = 0; i < lpgs.value.length; i++) {
       await new Promise((resolve) => setTimeout(resolve, 20));
       await updateLPG(i);
+    }
+  };
+
+  // Initialize on mount
+  onMounted(async () => {
+    try {
+      if (ToneService.isAudioEngineInitialized()) {
+        console.log("Audio already initialized in LPGControls");
+        return;
+      }
+
+      await ToneService.ensureStarted();
+
+      if (!audioEngine.initialized) {
+        await audioEngine.initialize();
+        ToneService.setAudioEngineInitialized(true);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await updateAllLPGs();
+    } catch (error) {
+      console.warn("Error during LPG initialization:", error);
+    }
+  });
+
+  const updateAllLPGs = async () => {
+    for (let i = 0; i < lpgs.value.length; i++) {
+      await updateLPG(i);
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
   };
 
@@ -175,46 +175,8 @@
     };
   };
 
-  // Initialize on mount with default values and proper sequencing
-  onMounted(async () => {
-    try {
-      // Check if audio is already initialized
-      if (ToneService.isAudioEngineInitialized()) {
-        console.log("Audio already initialized in LPGControls");
-        return;
-      }
-
-      // First ensure audio context is started
-      await ToneService.ensureStarted();
-
-      // Then initialize audio engine if not already initialized
-      if (!audioEngine.initialized) {
-        await audioEngine.initialize();
-        ToneService.setAudioEngineInitialized(true);
-      }
-
-      // Wait a bit for everything to settle
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Initialize all LPGs at once
-      await updateAllLPGs();
-    } catch (error) {
-      console.warn("Error during LPG initialization:", error);
-    }
-  });
-
-  // New method to update all LPGs at once
-  const updateAllLPGs = async () => {
-    for (let i = 0; i < lpgs.value.length; i++) {
-      await updateLPG(i);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-  };
-
-  // Increase debounce time to prevent rapid updates
   const debouncedUpdate = debounce(updateAllLPGs, 100);
 
-  // Watch for changes and update audio engine
   watch(
     lpgs,
     () => {
@@ -226,23 +188,12 @@
   // Expose methods for parent component
   defineExpose({
     reset: async () => {
-      // Create new values with defaults
-      const newValues = Array(4)
+      lpgs.value = Array(4)
         .fill()
-        .map((_, index) => ({
-          rise: index === 3 ? 0.01 : 0.005,
-          fall: index === 3 ? 0.2 : 0.15,
-          level: index === 3 ? 0.7 : 0.85,
-          loopMode: false,
-        }));
+        .map((_, index) => defaultLPG(index));
 
-      // Update values
-      lpgs.value = newValues;
-
-      // Wait for Vue to update the DOM
       await nextTick();
 
-      // Update audio engine with a small delay between each LPG to prevent audio glitches
       for (let i = 0; i < lpgs.value.length; i++) {
         await new Promise((resolve) => setTimeout(resolve, 20));
         await updateLPG(i);
@@ -267,5 +218,13 @@
 
   .module-label {
     @apply text-[10px] font-medium text-zinc-400 text-center;
+  }
+
+  select {
+    @apply appearance-none w-16 text-center cursor-pointer hover:bg-zinc-700/50 transition-colors;
+  }
+
+  select:focus {
+    @apply outline-none ring-1 ring-emerald-500/50;
   }
 </style>

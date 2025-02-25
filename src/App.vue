@@ -330,6 +330,45 @@
               </div>
             </div>
 
+            <!-- Gate Controls -->
+            <div class="bento-box">
+              <div class="bento-title flex items-center justify-between">
+                <div class="flex items-center gap-2 shrink-0">
+                  <IconHolder class="w-3.5 h-3.5 text-emerald-500/70">
+                    <SwitchCameraIcon />
+                  </IconHolder>
+                  <span class="whitespace-nowrap">Gate Controls</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="lpgControls?.reset()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <RotateCcw
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                  <button
+                    @click="lpgControls?.randomize()"
+                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                  >
+                    <IconHolder class="w-3.5 h-3.5">
+                      <Shuffle
+                        class="text-zinc-400 group-hover:text-emerald-400"
+                        stroke-width="1.5"
+                      />
+                    </IconHolder>
+                  </button>
+                </div>
+              </div>
+              <div class="module-content">
+                <LPGControls ref="lpgControls" />
+              </div>
+            </div>
+
             <!-- Shape Controls -->
             <div class="bento-box">
               <div class="bento-title flex items-center justify-between">
@@ -442,45 +481,6 @@
 
           <!-- Bottom Row: Gate, Tone, Space -->
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <!-- Gate Controls -->
-            <div class="bento-box">
-              <div class="bento-title flex items-center justify-between">
-                <div class="flex items-center gap-2 shrink-0">
-                  <IconHolder class="w-3.5 h-3.5 text-emerald-500/70">
-                    <SwitchCameraIcon />
-                  </IconHolder>
-                  <span class="whitespace-nowrap">Gate Controls</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button
-                    @click="lpgControls?.reset()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  >
-                    <IconHolder class="w-3.5 h-3.5">
-                      <RotateCcw
-                        class="text-zinc-400 group-hover:text-emerald-400"
-                        stroke-width="1.5"
-                      />
-                    </IconHolder>
-                  </button>
-                  <button
-                    @click="lpgControls?.randomize()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
-                  >
-                    <IconHolder class="w-3.5 h-3.5">
-                      <Shuffle
-                        class="text-zinc-400 group-hover:text-emerald-400"
-                        stroke-width="1.5"
-                      />
-                    </IconHolder>
-                  </button>
-                </div>
-              </div>
-              <div class="module-content">
-                <LPGControls ref="lpgControls" />
-              </div>
-            </div>
-
             <!-- Tone Controls -->
             <div class="bento-box">
               <div class="bento-title flex items-center justify-between">

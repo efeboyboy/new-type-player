@@ -88,6 +88,18 @@ class AudioEngine {
           })
       );
 
+    // Create matrix bandpass filters (for Matrix Out 1 & 2)
+    this.matrixBandpassFilters = Array(2)
+      .fill()
+      .map(
+        (_, i) =>
+          new Tone.Filter({
+            type: "bandpass",
+            frequency: [1000, 1500][i], // Different frequencies for each filter
+            Q: 1.5, // Moderate resonance
+          })
+      );
+
     // Create wave folders with moderate folding
     this.waveFolders = Array(3)
       .fill()
@@ -164,11 +176,11 @@ class AudioEngine {
 
     this.noiseVCA = new Tone.Gain(0.3); // Lower noise gain
     this.toneShaper = new Tone.EQ3({
-      low: 0, // Flat response by default
+      low: 2, // Slight bass boost
       mid: 0,
-      high: 0,
-      lowFrequency: 200, // Crossover at 200Hz
-      highFrequency: 2000, // Crossover at 2kHz
+      high: -3, // Tame highs
+      lowFrequency: 200,
+      highFrequency: 2000,
     });
     this.freqShifter = new Tone.FrequencyShifter({
       frequency: 0,
@@ -329,11 +341,13 @@ class AudioEngine {
           (this.clockSystem.counters["8n"] + 1) % 2;
         if (this.clockSystem.counters["8n"] === 0) {
           this.clockSystem.counters["4n"] =
-            (this.clockSystem.counters["4n"] + 1) % 2;
+            (this.clockSystem.counters["4n"] + 1) % 4;
 
-          // Trigger envelopes A & B on quarter notes
-          this.triggerEnvelope(0, time, { duration: 0.02 }); // Envelope A
-          this.triggerEnvelope(1, time, { duration: 0.02 }); // Envelope B
+          // Trigger envelopes A & B on quarter notes (Clock x4)
+          if (this.clockSystem.counters["4n"] % 1 === 0) {
+            this.triggerEnvelope(0, time, { duration: 0.02 }); // Envelope A
+            this.triggerEnvelope(1, time, { duration: 0.02 }); // Envelope B
+          }
 
           if (this.clockSystem.counters["4n"] === 0) {
             this.clockSystem.counters["2n"] =
@@ -794,6 +808,16 @@ class AudioEngine {
       // Enable looping
       this.setEnvelopeLFO(i, true, i === 2 ? 0.25 : 0.15); // Different rates for variation
     }
+
+    // Connect envelope C to modulate Matrix Bandpass Filter A cutoff
+    const filterScaleA = new Tone.Scale(200, 5000); // Scale range for filter frequency
+    this.envelopes[2].envelope.connect(filterScaleA);
+    filterScaleA.connect(this.matrixBandpassFilters[0].frequency);
+
+    // Connect envelope D to modulate Matrix Bandpass Filter B cutoff
+    const filterScaleB = new Tone.Scale(200, 5000); // Scale range for filter frequency
+    this.envelopes[3].envelope.connect(filterScaleB);
+    filterScaleB.connect(this.matrixBandpassFilters[1].frequency);
   }
 
   // Enable envelope looping (LFO mode) with timing control
@@ -886,21 +910,10 @@ class AudioEngine {
           lpg.vca.gain.setValueAtTime(0, time);
         }
 
-        // Trigger both the envelope system and LPG envelope
+        // Trigger with timing consideration
         envSystem.envelope.triggerAttackRelease(duration, time);
-        if (lpg && lpg.envelope) {
-          lpg.envelope.triggerAttackRelease(duration, time);
-        }
-
-        // If envelope is in looping mode, schedule the next trigger
-        if (envSystem.isLooping) {
-          const nextTriggerTime = Tone.now() + duration + 0.01;
-          Tone.Transport.scheduleOnce(() => {
-            this.triggerEnvelope(channel, "+0.01", params);
-          }, nextTriggerTime);
-        }
       } catch (error) {
-        console.warn(`Error triggering envelope ${channel}:`, error);
+        console.error(`Error triggering envelope ${channel}:`, error);
       }
     } else {
       console.warn(
@@ -1167,7 +1180,6 @@ class AudioEngine {
         lpg.vactrol.connect(filterScale);
         filterScale.connect(lpg.filter.frequency);
 
-        // Connect filter to VCA
         lpg.filter.connect(lpg.vca);
 
         // Start the LFO
@@ -1179,21 +1191,15 @@ class AudioEngine {
         this.spatialDirectors.map(async (director) => {
           await director.reverb.generate();
 
-          // Connect panner to both front and rear gains
           director.panner.connect(director.frontGain);
           director.panner.connect(director.rearGain);
-
-          // Connect gains to reverb
           director.frontGain.connect(director.reverb);
           director.rearGain.connect(director.reverb);
-
-          // Connect reverb to quad outputs
           director.reverb.connect(director.outputs.fl);
           director.reverb.connect(director.outputs.fr);
           director.reverb.connect(director.outputs.rl);
           director.reverb.connect(director.outputs.rr);
 
-          // Connect outputs to quad outputs
           director.outputs.fl.connect(this.quadOutputs.frontLeft);
           director.outputs.fr.connect(this.quadOutputs.frontRight);
           director.outputs.rl.connect(this.quadOutputs.rearLeft);
@@ -1201,7 +1207,15 @@ class AudioEngine {
         })
       );
 
-      // Connect oscillators through wave folders and filters to matrix inputs
+      // Connect matrix mixer
+      this.matrixMixer.inputs.forEach((input, i) => {
+        this.matrixMixer.outputs.forEach((output, j) => {
+          input.connect(this.matrixMixer.matrix[i][j]);
+          this.matrixMixer.matrix[i][j].connect(output);
+        });
+      });
+
+      // Connect signal chains
       this.osc1.chain(
         this.waveFolders[0],
         this.bandpassFilters[0],
@@ -1216,48 +1230,43 @@ class AudioEngine {
 
       this.osc3.chain(
         this.waveFolders[2],
-        this.toneShaper,
-        new Tone.Gain(1.0), // Unity gain buffer
+        this.toneShaper, // Using tone shaper for OSC3 instead of bandpass filter
         this.matrixMixer.inputs[2]
       );
 
-      // Connect noise through filter and VCA to matrix input
       this.noise.chain(
         this.noiseFilter,
         this.noiseVCA,
         this.matrixMixer.inputs[3]
       );
 
-      // Connect matrix mixer
-      this.matrixMixer.inputs.forEach((input, i) => {
-        this.matrixMixer.outputs.forEach((output, j) => {
-          input.connect(this.matrixMixer.matrix[i][j]);
-          this.matrixMixer.matrix[i][j].connect(output);
-        });
-      });
+      // Connect matrix outputs to matrix bandpass filters and LPGs according to the documentation
+      // Matrix Out 1 → Matrix Bandpass Filter A → LPG 1
+      this.matrixMixer.outputs[0].connect(this.matrixBandpassFilters[0]);
+      this.matrixBandpassFilters[0].connect(this.lpgs[0].filter);
 
-      // Connect matrix outputs to LPGs
-      this.matrixMixer.outputs[0].connect(this.lpgs[0].filter);
-      this.matrixMixer.outputs[1].connect(this.lpgs[1].filter);
+      // Matrix Out 2 → Matrix Bandpass Filter B → LPG 2
+      this.matrixMixer.outputs[1].connect(this.matrixBandpassFilters[1]);
+      this.matrixBandpassFilters[1].connect(this.lpgs[1].filter);
+
+      // Matrix Out 3 → LPG 3 (Direct)
       this.matrixMixer.outputs[2].connect(this.lpgs[2].filter);
+
+      // Matrix Out 4 → LPG 4 (Direct)
       this.matrixMixer.outputs[3].connect(this.lpgs[3].filter);
 
       // Connect LPG outputs to spatial directors
-      this.lpgs[0].vca.connect(this.spatialDirectors[0].panner);
-      this.lpgs[1].vca.connect(this.spatialDirectors[1].panner);
-      this.lpgs[2].vca.connect(this.spatialDirectors[2].panner);
-      this.lpgs[3].vca.connect(this.spatialDirectors[3].panner);
+      for (let i = 0; i < 4; i++) {
+        this.lpgs[i].vca.connect(this.spatialDirectors[i].panner);
+      }
 
       // Set default mixer settings
       for (let i = 0; i < 4; i++) {
         this.setMixerPoint(i, i, 0.7);
       }
 
-      // Set initial LPG modes
-      this.initializeLPGModes();
-
       // Final delay to ensure everything is ready
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await sleep(100);
     } catch (error) {
       console.error("Failed to initialize components:", error);
       throw error;
@@ -1464,15 +1473,6 @@ class AudioEngine {
       if (high !== undefined) {
         this.toneShaper.high.value = Math.max(-12, Math.min(12, high));
       }
-
-      // Update crossover frequencies if needed
-      if (this.toneShaper.lowFrequency && this.toneShaper.highFrequency) {
-        this.toneShaper.lowFrequency.value = 200; // Fixed crossover at 200Hz
-        this.toneShaper.highFrequency.value = 2000; // Fixed crossover at 2kHz
-      }
-
-      // Ensure proper gain staging
-      this.toneShaper.output.gain.value = 1.0; // Unity gain at output
     } catch (error) {
       console.warn("Error setting tone shape parameters:", error);
     }
@@ -1592,6 +1592,41 @@ class AudioEngine {
       };
     }
     return this.matrixMixer;
+  }
+
+  // Add method to set matrix bandpass filter parameters
+  setMatrixBandpassFilterParams(filterIndex, params = {}) {
+    if (!this.initialized || filterIndex < 0 || filterIndex > 1) {
+      console.warn("Cannot set matrix bandpass filter parameters");
+      return;
+    }
+
+    try {
+      const filter = this.matrixBandpassFilters[filterIndex];
+
+      // Update frequency if provided
+      if (params.frequency !== undefined) {
+        filter.frequency.value = Math.max(
+          20,
+          Math.min(20000, params.frequency)
+        );
+      }
+
+      // Update Q if provided
+      if (params.Q !== undefined) {
+        filter.Q.value = Math.max(0.1, Math.min(20, params.Q));
+      }
+
+      // Update gain if provided
+      if (params.gain !== undefined) {
+        filter.gain.value = Math.max(-40, Math.min(40, params.gain));
+      }
+    } catch (error) {
+      console.warn(
+        `Error setting matrix bandpass filter ${filterIndex} parameters:`,
+        error
+      );
+    }
   }
 }
 

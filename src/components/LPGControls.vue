@@ -25,7 +25,7 @@
           <Knob
             v-model="lpgs[n - 1].level"
             :min="0"
-            :max="0.9"
+            :max="1.0"
             :step="0.01"
             class="w-10 h-10"
           />
@@ -38,7 +38,7 @@
           <Knob
             v-model="lpgs[n - 1].modAmount"
             :min="0"
-            :max="0.9"
+            :max="1.0"
             :step="0.01"
             class="w-10 h-10"
           />
@@ -55,7 +55,7 @@
         <div v-if="n > 2" class="control-group">
           <Knob
             v-model="lpgs[n - 1].rate"
-            :min="0"
+            :min="0.1"
             :max="10"
             :step="0.1"
             class="w-10 h-10"
@@ -78,10 +78,10 @@
   // Refined default values based on signal path documentation
   const defaultLPG = (index) => ({
     mode: index < 2 ? "vcf" : "both", // VCF for 1&2, VCF+VCA for 3&4
-    level: 0.7,
-    modAmount: 0.5,
+    level: index < 2 ? 0.7 : 0.8, // Higher level for LPG 3&4 for better audibility
+    modAmount: index < 2 ? 0.5 : 0.6, // Higher modulation for LPG 3&4 for more expressive response
     loopMode: index >= 2, // Always true for LPG C & D (indices 2 & 3)
-    rate: 1.0, // Default rate for LPG C & D looping
+    rate: index === 2 ? 0.8 : 1.2, // Different default rates for LPG C (0.8Hz) and D (1.2Hz)
   });
 
   const lpgs = ref(
@@ -134,18 +134,29 @@
       // Add value smoothing and clamping
       const smoothedValues = {
         mode: lpg.mode,
-        level: Math.max(0, Math.min(0.9, lpg.level)),
-        modAmount: Math.max(0.1, Math.min(0.9, lpg.modAmount)),
+        level: Math.max(0, Math.min(1.0, lpg.level)),
+        modAmount: Math.max(0.1, Math.min(1.0, lpg.modAmount)),
       };
 
       // Update LPG parameters with smoothed values
       await audioEngine.setLPGParams(index, smoothedValues);
 
-      // Update LFO rate if looping (for LPG C & D)
+      // Add a slightly longer delay before updating LFO to ensure parameter changes are applied
+      // This helps prevent audio glitches when multiple parameters change at once
       if (index >= 2 && lpg.loopMode) {
         try {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          audioEngine.setLPGLFO(index, true, lpg.rate);
+          // Increased delay from 10ms to 30ms for better stability
+          await new Promise((resolve) => setTimeout(resolve, 30));
+
+          // Ensure rate is within safe bounds
+          const safeRate = Math.max(0.1, Math.min(10, lpg.rate));
+
+          // Only update LFO if rate has changed significantly (to reduce unnecessary updates)
+          // This helps prevent clicks when small changes occur
+          const previousRate = audioEngine.getLPGLFORate?.(index) || safeRate;
+          if (Math.abs(previousRate - safeRate) > 0.05) {
+            audioEngine.setLPGLFO(index, true, safeRate);
+          }
         } catch (error) {
           console.warn(`Error updating LPG ${index} LFO:`, error);
         }
@@ -157,37 +168,92 @@
 
   // Randomize with more musical values
   const randomize = async () => {
+    // First, store current values to calculate gradual transitions
+    const previousValues = JSON.parse(JSON.stringify(lpgs.value));
+
     const newValues = lpgs.value.map((lpg, index) => {
       // Different randomization for LPG A&B vs C&D
       if (index < 2) {
         // LPG A & B: No looping, just mode, level, and modAmount
         return {
-          mode: ["vcf", "vca", "both"][Math.floor(Math.random() * 3)],
-          level: Math.random() * 0.3 + 0.4, // 0.4 to 0.7 range
-          modAmount: Math.random() * 0.4 + 0.3, // 0.3 to 0.7 range
-          loopMode: false,
+          // For LPG 1 & 2, bias toward VCF mode (60% chance)
+          mode:
+            Math.random() < 0.6 ? "vcf" : Math.random() < 0.5 ? "vca" : "both",
+          level: Math.random() * 0.4 + 0.5, // 0.5 to 0.9 range for stronger presence
+          modAmount: Math.random() * 0.5 + 0.3, // 0.3 to 0.8 range for more expressive modulation
+          loopMode: false, // Always false for LPG A & B
           rate: 1.0,
         };
       } else {
         // LPG C & D: Always looping, randomize rate
         return {
-          mode: ["vcf", "vca", "both"][Math.floor(Math.random() * 3)],
-          level: Math.random() * 0.3 + 0.4, // 0.4 to 0.7 range
-          modAmount: Math.random() * 0.4 + 0.3, // 0.3 to 0.7 range
+          // For LPG 3 & 4, bias toward VCF+VCA mode (60% chance)
+          mode:
+            Math.random() < 0.6 ? "both" : Math.random() < 0.5 ? "vcf" : "vca",
+          level: Math.random() * 0.3 + 0.6, // 0.6 to 0.9 range for stronger presence
+          modAmount: Math.random() * 0.4 + 0.4, // 0.4 to 0.8 range for more expressive modulation
           loopMode: true, // Always true for LPG C & D
-          rate: Math.random() * 9 + 1, // 1.0 to 10.0 Hz range
+          // More musical rate range: 0.2 to 8.0 Hz with emphasis on slower rates
+          rate:
+            Math.random() < 0.7
+              ? Math.random() * 2.8 + 0.2 // 70% chance: 0.2 to 3.0 Hz (slower, more rhythmic)
+              : Math.random() * 5 + 3, // 30% chance: 3.0 to 8.0 Hz (faster, more textural)
         };
       }
     });
 
-    lpgs.value = newValues;
-    await nextTick();
-
     // Apply changes with proper error handling and delays
-    for (let i = 0; i < lpgs.value.length; i++) {
+    // First, update only the non-mode parameters to avoid connection changes
+    for (let i = 0; i < newValues.length; i++) {
       try {
+        // Create a temporary object with just level and modAmount (no mode change yet)
+        const tempLpg = {
+          ...lpgs.value[i],
+          level: newValues[i].level,
+          modAmount: newValues[i].modAmount,
+        };
+
+        // For LPG C & D, gradually transition the rate
+        if (i >= 2) {
+          // Gradually transition rate to avoid clicks
+          const oldRate = lpgs.value[i].rate;
+          const newRate = newValues[i].rate;
+
+          // If rate change is significant, do a gradual transition
+          if (Math.abs(oldRate - newRate) > 0.5) {
+            // First move halfway to the target
+            tempLpg.rate = oldRate + (newRate - oldRate) * 0.5;
+            lpgs.value[i] = tempLpg;
+            await nextTick();
+            await updateLPG(i);
+            await new Promise((resolve) => setTimeout(resolve, 80));
+          }
+        }
+
+        // Apply the level and modAmount changes
+        lpgs.value[i] = tempLpg;
+        await nextTick();
+        await updateLPG(i);
+
+        // Add longer delay between updates for smoother transitions
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (error) {
+        console.warn(
+          `Error during first phase of randomizing LPG ${i}:`,
+          error
+        );
+      }
+    }
+
+    // Now apply the mode changes and final values
+    for (let i = 0; i < newValues.length; i++) {
+      try {
+        // Apply the final values including mode changes
+        lpgs.value[i] = newValues[i];
+        await nextTick();
+
         // Add delay between updates for smoother transitions
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 80));
 
         // Update LPG parameters
         await updateLPG(i);
@@ -195,13 +261,20 @@
         // For LPG C & D, update LFO rate with additional delay
         if (i >= 2) {
           try {
-            // Add a small delay before setting LFO state
-            await new Promise((resolve) => setTimeout(resolve, 20));
-            audioEngine.setLPGLFO(
-              i,
-              true, // Always enabled for LPG C & D
-              lpgs.value[i].rate
-            );
+            // Add a longer delay before setting LFO state
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            // Only update if rate has changed significantly
+            const previousRate = previousValues[i].rate;
+            const newRate = newValues[i].rate;
+
+            if (Math.abs(previousRate - newRate) > 0.05) {
+              audioEngine.setLPGLFO(
+                i,
+                true, // Always enabled for LPG C & D
+                newValues[i].rate
+              );
+            }
           } catch (lfoError) {
             console.warn(
               `Error setting LPG ${i} LFO during randomize:`,
@@ -246,33 +319,58 @@
   });
 
   const updateAllLPGs = async () => {
+    // First update all non-LFO parameters
     for (let i = 0; i < lpgs.value.length; i++) {
-      await updateLPG(i);
-
-      // For LPG C & D, always ensure looping is enabled
-      if (i >= 2) {
-        try {
-          await new Promise((resolve) => setTimeout(resolve, 20));
-          audioEngine.setLPGLFO(i, true, lpgs.value[i].rate);
-        } catch (error) {
-          console.warn(`Error updating LPG ${i} LFO state:`, error);
-        }
+      try {
+        await updateLPG(i);
+        // Add a longer delay between LPG updates
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      } catch (error) {
+        console.warn(`Error updating LPG ${i} parameters:`, error);
       }
+    }
 
-      await new Promise((resolve) => setTimeout(resolve, 30));
+    // Then update LFO states for LPG C & D with additional delay
+    // This separation helps prevent audio glitches from simultaneous parameter changes
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    for (let i = 2; i < 4; i++) {
+      try {
+        // Ensure rate is within safe bounds
+        const safeRate = Math.max(0.1, Math.min(10, lpgs.value[i].rate));
+
+        // Only update if the LFO state needs to change
+        const currentRate = audioEngine.getLPGLFORate?.(i) || 0;
+        if (Math.abs(currentRate - safeRate) > 0.05) {
+          audioEngine.setLPGLFO(i, true, safeRate);
+        }
+
+        // Add delay between LFO updates
+        await new Promise((resolve) => setTimeout(resolve, 80));
+      } catch (error) {
+        console.warn(`Error updating LPG ${i} LFO state:`, error);
+      }
     }
   };
 
-  // Add debounce utility
-  const debounce = (fn, delay) => {
+  // Improve debounce utility with a cancel method
+  const createDebounce = (fn, delay) => {
     let timeoutId;
-    return function (...args) {
+
+    const debounced = function (...args) {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => fn.apply(this, args), delay);
     };
+
+    debounced.cancel = () => {
+      clearTimeout(timeoutId);
+    };
+
+    return debounced;
   };
 
-  const debouncedUpdate = debounce(updateAllLPGs, 100);
+  // Increase debounce delay for smoother response
+  const debouncedUpdate = createDebounce(updateAllLPGs, 150);
 
   watch(
     lpgs,
@@ -285,24 +383,88 @@
   // Expose methods for parent component
   defineExpose({
     reset: async () => {
-      lpgs.value = Array(4)
+      // Store current values for smooth transitions
+      const previousValues = JSON.parse(JSON.stringify(lpgs.value));
+      const defaultValues = Array(4)
         .fill()
         .map((_, index) => defaultLPG(index));
 
+      // Cancel any pending updates
+      debouncedUpdate.cancel?.();
+
+      // First update non-mode parameters
+      for (let i = 0; i < lpgs.value.length; i++) {
+        try {
+          // Create a temporary object with just level and modAmount (no mode change yet)
+          const tempLpg = {
+            ...lpgs.value[i],
+            level: defaultValues[i].level,
+            modAmount: defaultValues[i].modAmount,
+          };
+
+          // For LPG C & D, gradually transition the rate
+          if (i >= 2) {
+            // Gradually transition rate to avoid clicks
+            const oldRate = lpgs.value[i].rate;
+            const newRate = defaultValues[i].rate;
+
+            // If rate change is significant, do a gradual transition
+            if (Math.abs(oldRate - newRate) > 0.5) {
+              // First move halfway to the target
+              tempLpg.rate = oldRate + (newRate - oldRate) * 0.5;
+              lpgs.value[i] = tempLpg;
+              await nextTick();
+              await updateLPG(i);
+              await new Promise((resolve) => setTimeout(resolve, 60));
+            }
+          }
+
+          // Apply the level and modAmount changes
+          lpgs.value[i] = tempLpg;
+          await nextTick();
+          await updateLPG(i);
+
+          // Add delay between updates
+          await new Promise((resolve) => setTimeout(resolve, 60));
+        } catch (error) {
+          console.warn(
+            `Error during first phase of resetting LPG ${i}:`,
+            error
+          );
+        }
+      }
+
+      // Now apply the final values including mode changes
+      lpgs.value = defaultValues;
       await nextTick();
 
+      // Update all LPGs with final values
       for (let i = 0; i < lpgs.value.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        await updateLPG(i);
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 40));
+          await updateLPG(i);
 
-        // For LPG C & D, ensure looping is always on
-        if (i >= 2) {
-          try {
-            await new Promise((resolve) => setTimeout(resolve, 10));
-            audioEngine.setLPGLFO(i, true, lpgs.value[i].rate);
-          } catch (error) {
-            console.warn(`Error resetting LPG ${i} LFO:`, error);
+          // For LPG C & D, ensure looping is always on
+          if (i >= 2) {
+            try {
+              await new Promise((resolve) => setTimeout(resolve, 40));
+
+              // Only update if rate has changed significantly
+              const previousRate = previousValues[i].rate;
+              const newRate = defaultValues[i].rate;
+
+              if (Math.abs(previousRate - newRate) > 0.05) {
+                audioEngine.setLPGLFO(i, true, defaultValues[i].rate);
+              }
+            } catch (error) {
+              console.warn(`Error resetting LPG ${i} LFO:`, error);
+            }
           }
+        } catch (error) {
+          console.warn(
+            `Error during final phase of resetting LPG ${i}:`,
+            error
+          );
         }
       }
     },

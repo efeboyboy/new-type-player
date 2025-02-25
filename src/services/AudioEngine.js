@@ -1705,11 +1705,57 @@ class AudioEngine {
       // Batch parameter updates to minimize audio glitches
       const now = Tone.now();
 
+      // Store current mode to detect changes
+      const currentMode = lpg.currentMode || "vcf";
+      const modeChanged = mode !== undefined && mode !== currentMode;
+
+      // If mode is changing, we need longer ramp times to avoid clicks
+      const baseRampTime = modeChanged ? 0.1 : 0.05;
+
+      // Calculate appropriate ramp times based on parameter change magnitude
+      let levelRampTime = baseRampTime;
+      let modRampTime = baseRampTime;
+
+      if (level !== undefined && lpg.vca && lpg.vca.gain) {
+        const currentLevel = lpg.vca.gain.value;
+        const levelDiff = Math.abs(currentLevel - level);
+        // Larger level changes need longer ramps
+        levelRampTime = Math.min(0.2, baseRampTime + levelDiff * 0.15);
+      }
+
+      if (modAmount !== undefined) {
+        const currentQ = lpg.filter.Q.value / 10; // Normalize to 0-1 range
+        const modDiff = Math.abs(currentQ - modAmount);
+        // Larger modulation changes need longer ramps
+        modRampTime = Math.min(0.2, baseRampTime + modDiff * 0.15);
+      }
+
       // Set LPG mode (vcf, vca, or both)
-      if (mode !== undefined) {
+      if (modeChanged) {
         try {
-          // Disconnect existing connections
-          lpg.vactrol.disconnect();
+          // Store the new mode
+          lpg.currentMode = mode;
+
+          // If we're changing modes, first fade down the gain to minimize clicks
+          if (lpg.vca && lpg.vca.gain) {
+            const currentGain = lpg.vca.gain.value;
+            // Quickly fade down to a low value
+            lpg.vca.gain.cancelScheduledValues(now);
+            lpg.vca.gain.linearRampToValueAtTime(currentGain * 0.3, now + 0.05);
+
+            // Wait for the fade to complete
+            await new Promise((resolve) => setTimeout(resolve, 60));
+          }
+
+          // Now disconnect existing connections
+          try {
+            lpg.vactrol.disconnect();
+          } catch (disconnectError) {
+            // Silently handle disconnect errors
+            console.debug(
+              `Note: LPG ${index} vactrol was not connected to disconnect`
+            );
+          }
 
           // Reconnect based on mode
           switch (mode) {
@@ -1720,8 +1766,8 @@ class AudioEngine {
               filterScale.connect(lpg.filter.frequency);
 
               // Set VCA to always pass signal at full level in VCF-only mode
-              lpg.vca.gain.cancelScheduledValues(now);
-              lpg.vca.gain.linearRampToValueAtTime(level || 0.7, now + 0.02);
+              lpg.vca.gain.cancelScheduledValues(now + 0.05);
+              lpg.vca.gain.linearRampToValueAtTime(level || 0.7, now + 0.15);
               break;
 
             case "vca":
@@ -1730,11 +1776,11 @@ class AudioEngine {
 
               // Set filter to always pass signal with high cutoff in VCA-only mode
               lpg.filter.frequency.cancelScheduledValues(now);
-              lpg.filter.frequency.linearRampToValueAtTime(20000, now + 0.02);
+              lpg.filter.frequency.linearRampToValueAtTime(20000, now + 0.1);
 
               // Ensure VCA gain is directly controlled by level parameter in VCA mode
-              lpg.vca.gain.cancelScheduledValues(now);
-              lpg.vca.gain.linearRampToValueAtTime(level || 0, now + 0.02);
+              lpg.vca.gain.cancelScheduledValues(now + 0.05);
+              lpg.vca.gain.linearRampToValueAtTime(level || 0, now + 0.15);
               break;
 
             case "both":
@@ -1746,21 +1792,24 @@ class AudioEngine {
               lpg.vactrol.connect(lpg.vca.gain);
 
               // Apply level parameter to VCA gain in combined mode
-              lpg.vca.gain.cancelScheduledValues(now);
-              lpg.vca.gain.linearRampToValueAtTime(level || 0.5, now + 0.02);
+              lpg.vca.gain.cancelScheduledValues(now + 0.05);
+              lpg.vca.gain.linearRampToValueAtTime(level || 0.5, now + 0.15);
               break;
           }
+
+          // Wait for mode change to settle
+          await new Promise((resolve) => setTimeout(resolve, 50));
         } catch (error) {
           console.warn(`Error setting LPG ${index} mode:`, error);
         }
       }
 
-      // Set VCA level with ramp
-      if (level !== undefined && lpg.vca && lpg.vca.gain) {
+      // Set VCA level with ramp (only if mode didn't change, otherwise already handled)
+      if (level !== undefined && lpg.vca && lpg.vca.gain && !modeChanged) {
         try {
           const gainValue = Math.max(0, Math.min(1, level));
           lpg.vca.gain.cancelScheduledValues(now);
-          lpg.vca.gain.linearRampToValueAtTime(gainValue, now + 0.02);
+          lpg.vca.gain.linearRampToValueAtTime(gainValue, now + levelRampTime);
         } catch (error) {
           console.warn(`Error setting LPG ${index} level:`, error);
         }
@@ -1772,10 +1821,16 @@ class AudioEngine {
           // Adjust filter resonance based on modAmount
           const qValue = Math.max(0.1, Math.min(20, modAmount * 10));
           lpg.filter.Q.cancelScheduledValues(now);
-          lpg.filter.Q.linearRampToValueAtTime(qValue, now + 0.02);
+          lpg.filter.Q.linearRampToValueAtTime(qValue, now + modRampTime);
 
-          // Adjust envelope sensitivity
-          lpg.vactrol.smoothing = Math.max(0.01, 0.2 - modAmount * 0.15);
+          // Adjust envelope sensitivity with smoother transition
+          // Smoothing affects how quickly the vactrol responds to changes
+          const smoothingValue = Math.max(0.01, 0.2 - modAmount * 0.15);
+
+          // Only update smoothing if it's changed significantly
+          if (Math.abs(lpg.vactrol.smoothing - smoothingValue) > 0.02) {
+            lpg.vactrol.smoothing = smoothingValue;
+          }
         } catch (error) {
           console.warn(`Error setting LPG ${index} modulation amount:`, error);
         }
@@ -2083,35 +2138,79 @@ class AudioEngine {
       // For LPG C & D, always force enabled to true
       enabled = true;
 
-      // Safely handle disconnection - don't try to disconnect if not connected
-      try {
-        // Instead of disconnecting everything, only disconnect from vactrol if connected
-        // This avoids the InvalidAccessError
-        if (lpg.lfo.state === "started") {
-          lpg.lfo.disconnect(lpg.vactrol);
-        }
-      } catch (disconnectError) {
-        // Silently handle disconnect errors - the LFO might not be connected yet
-        console.debug(`Note: LPG ${index} LFO was not connected to disconnect`);
-      }
+      // Get current time for scheduling
+      const now = Tone.now();
 
       // Clamp rate to reasonable values (0.1 to 20 Hz)
       const safeRate = Math.max(0.1, Math.min(20, rate || 1));
 
+      // Get current rate to determine transition time
+      const currentRate = lpg.lfo.frequency.value;
+
+      // Calculate appropriate ramp time based on rate change magnitude
+      // Larger changes need longer ramps to avoid clicks
+      const rateDifference = Math.abs(currentRate - safeRate);
+      const rampTime = Math.min(0.3, 0.1 + rateDifference * 0.05);
+
       try {
-        // Set frequency with ramp to avoid clicks
-        lpg.lfo.frequency.cancelScheduledValues(Tone.now());
-        lpg.lfo.frequency.linearRampToValueAtTime(safeRate, Tone.now() + 0.1);
+        // Set frequency with longer ramp to avoid clicks
+        lpg.lfo.frequency.cancelScheduledValues(now);
 
-        // Connect LFO to vactrol for independent triggering
-        lpg.lfo.connect(lpg.vactrol);
+        // Use exponentialRampToValueAtTime for smoother frequency changes
+        // But first check if we're ramping from/to very low values which can cause issues
+        if (currentRate < 0.1 || safeRate < 0.1) {
+          // For very low values, use linearRampToValueAtTime instead
+          lpg.lfo.frequency.linearRampToValueAtTime(safeRate, now + rampTime);
+        } else {
+          // For normal values, exponential ramps sound smoother for frequency changes
+          lpg.lfo.frequency.exponentialRampToValueAtTime(
+            safeRate,
+            now + rampTime
+          );
+        }
 
-        // Start LFO if not already running
-        if (lpg.lfo.state !== "started") {
+        // Only reconnect if not already connected
+        // This avoids unnecessary disconnection/reconnection which can cause clicks
+        if (lpg.lfo.state === "started") {
+          // Check if we need to reconnect
+          let needsReconnect = false;
+
+          try {
+            // This is a hacky way to check if connected, but Tone.js doesn't provide a clean API for this
+            // If this throws, it means we need to reconnect
+            lpg.lfo._gainNode.gain.value;
+          } catch (e) {
+            needsReconnect = true;
+          }
+
+          if (needsReconnect) {
+            // Connect LFO to vactrol for independent triggering
+            lpg.lfo.connect(lpg.vactrol);
+          }
+        } else {
+          // Connect and start LFO if not already running
+          lpg.lfo.connect(lpg.vactrol);
           lpg.lfo.start();
         }
       } catch (lfoError) {
-        console.warn(`Error starting LPG ${index} LFO:`, lfoError);
+        console.warn(`Error updating LPG ${index} LFO:`, lfoError);
+
+        // Fallback approach if the smooth transition fails
+        try {
+          // Direct value setting as fallback
+          lpg.lfo.frequency.value = safeRate;
+
+          // Ensure LFO is connected and started
+          if (lpg.lfo.state !== "started") {
+            lpg.lfo.connect(lpg.vactrol);
+            lpg.lfo.start();
+          }
+        } catch (fallbackError) {
+          console.warn(
+            `Fallback approach also failed for LPG ${index} LFO:`,
+            fallbackError
+          );
+        }
       }
 
       return true;
@@ -2219,6 +2318,36 @@ class AudioEngine {
       masterVolume: this.masterVolume ? this.masterVolume.volume.value : null,
       isMuted: this._previousVolume !== undefined,
     };
+  }
+
+  // Add method to get current LPG LFO rate
+  getLPGLFORate(index) {
+    // Validate index and initialization
+    if (index === undefined || index < 0 || index >= 4) {
+      console.warn(`Invalid LPG index: ${index}`);
+      return null;
+    }
+
+    // Only LPG C & D (indices 2 & 3) have LFOs
+    if (index < 2) {
+      return null;
+    }
+
+    if (
+      !this.initialized ||
+      !this.lpgs ||
+      !this.lpgs[index] ||
+      !this.lpgs[index].lfo
+    ) {
+      return null;
+    }
+
+    try {
+      return this.lpgs[index].lfo.frequency.value;
+    } catch (error) {
+      console.warn(`Error getting LPG ${index} LFO rate:`, error);
+      return null;
+    }
   }
 }
 

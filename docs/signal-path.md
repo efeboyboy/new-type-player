@@ -124,7 +124,8 @@ Each LPG features:
 - Controls:
   - Level: Master level control (0-100%)
   - Mod Amount: Envelope modulation depth (0-100%)
-  - Loop Toggle: Switches between one-shot and cycling modes
+  - Loop Toggle: Switches between one-shot and cycling modes (LPG C & D only)
+  - Rate Control: Adjusts looping frequency when in loop mode (LPG C & D only)
 
 Default Configurations:
 
@@ -135,16 +136,22 @@ Default Configurations:
 
 Default Values:
 
-- Level: 85% (0.85)
-- Mod Amount: 75% (0.75)
+- Level: 70% (0.7)
+- Mod Amount: 50% (0.5)
 - Loop Mode: Off (one-shot)
+- Loop Rate: 1.0 Hz (when looping enabled)
 
-Each LPG receives modulation from its corresponding envelope:
+Trigger Behavior:
+
+- LPG A & B (1 & 2): Triggered by the sequence clock only, no independent looping
+- LPG C & D (3 & 4): Can be triggered by the sequence clock OR set to independent looping mode
+
+Each LPG receives modulation from its corresponding envelope or internal LFO:
 
 - LPG 1 ← Envelope A
 - LPG 2 ← Envelope B
-- LPG 3 ← Envelope C
-- LPG 4 ← Envelope D
+- LPG 3 ← Envelope C or Internal LFO when in loop mode
+- LPG 4 ← Envelope D or Internal LFO when in loop mode
 
 Parameter Behavior:
 
@@ -187,13 +194,13 @@ _EG 3:_
 
 - BUTTON: Manual trigger
 - GATE: EOC self-trigger for looping
-- ENV: Routed to LPG 3 MOD
+- ENV: Routed to LPG 3 MOD (bypassed when LPG 3 is in loop mode)
 
 _EG 4:_
 
 - BUTTON: Manual trigger
 - GATE: EOC self-trigger for looping
-- ENV: Routed to LPG 4 MOD
+- ENV: Routed to LPG 4 MOD (bypassed when LPG 4 is in loop mode)
 
 ## Signal Flow Architecture (Original Design)
 
@@ -396,10 +403,11 @@ Default Values (Envelope D):
 
 ## Control Signal Flow
 
-1. Clock ticks (4 per step) → Envelopes A & B
-2. Manual triggers + EOC feedback → Envelopes C & D
-3. Envelopes → LPG MOD inputs and Filter cutoff
-4. Audio through LPGs → Master Output
+1. Clock ticks (4 per step) → Envelopes A & B → LPG 1 & 2
+2. Manual triggers + EOC feedback → Envelopes C & D → LPG 3 & 4 (when not in loop mode)
+3. Internal LFOs → LPG 3 & 4 (when in loop mode)
+4. Envelopes → LPG MOD inputs and Filter cutoff
+5. Audio through LPGs → Master Output
 
 ## Parameter Ranges
 
@@ -413,6 +421,7 @@ Default Values (Envelope D):
 
 - Level: 0-100%
 - MOD Amount: 0-100%
+- Loop Rate (LPG C & D only): 0.1-10Hz
 
 ### Filter Parameters
 

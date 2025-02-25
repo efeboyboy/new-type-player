@@ -21,6 +21,8 @@
             class="h-10 px-4 text-[10px] bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors flex items-center gap-2 whitespace-nowrap flex-1 sm:flex-none justify-center"
             :class="{
               'bg-emerald-500/30': store.playing,
+              'bg-yellow-500/20 text-yellow-500': isWaitingToGenerate,
+              'bg-emerald-500/10 text-emerald-500/50': isProcessing,
               'opacity-50 cursor-not-allowed': isInitialized && !text.trim(),
             }"
             :disabled="isInitialized && !text.trim()"
@@ -30,6 +32,10 @@
                 v-if="!isInitialized"
                 class="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full"
                 :class="{ 'animate-spin': isInitializing }"
+              ></span>
+              <span
+                v-else-if="isWaitingToGenerate"
+                class="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-pulse"
               ></span>
               <Pause
                 v-else-if="store.playing"
@@ -70,7 +76,7 @@
 </template>
 
 <script setup>
-  import { ref, watch, onMounted, computed } from "vue";
+  import { ref, watch, onMounted, computed, onUnmounted } from "vue";
   import { store } from "../store.js";
   import ToneService from "../services/ToneService";
   const Tone = ToneService.getTone();
@@ -88,10 +94,13 @@
   const isInitialized = ref(false);
   const isInitializing = ref(false);
   const currentSeed = ref("");
+  const isWaitingToGenerate = ref(false);
   const emit = defineEmits(["update:text"]);
 
   const buttonText = computed(() => {
     if (!isInitialized.value) return "Initialize";
+    if (isWaitingToGenerate.value) return "Waiting...";
+    if (isProcessing.value) return "Generating...";
     return store.playing ? "Stop" : "Play";
   });
 
@@ -150,51 +159,37 @@
     }
   };
 
-  const handleButtonClick = async () => {
-    if (!isInitialized.value) {
-      await initializeAudio();
-      return;
-    }
+  // Create a debounced handler for all text changes
+  const handleTextChange = debounce(async (newText) => {
+    isWaitingToGenerate.value = false;
 
-    if (!text.value.trim()) return;
-
-    try {
-      // Ensure audio context is running
-      if (Tone.context.state !== "running") {
-        await Tone.context.resume();
-      }
-
+    if (!newText.trim()) {
+      // Handle empty text state
       if (store.playing) {
         audioEngine.stopPlayback();
         store.playing = false;
-      } else {
-        generatePattern(text.value);
       }
-    } catch (error) {
-      console.error("Playback error:", error);
+      return;
     }
-  };
 
-  // Debounced function for generating patterns
-  const generatePattern = debounce(async (inputText) => {
-    if (!inputText || !isInitialized.value) return;
+    // Only proceed if initialized
+    if (!isInitialized.value) return;
 
     isProcessing.value = true;
     error.value = null;
 
     try {
-      const result = await magentaService.generateFromText(inputText);
+      const result = await magentaService.generateFromText(newText);
 
       // Format the sequence properly for the audio engine
       const formattedSequence = {
         notes: [],
-        tempos: [{ time: 0, qpm: 120 }], // Default tempo
-        totalTime: 4, // 4 beats
+        tempos: [{ time: 0, qpm: 120 }],
+        totalTime: 4,
       };
 
       // Handle different sequence formats
       if (Array.isArray(result)) {
-        // If result is an array of channels
         result.forEach((channel, channelIndex) => {
           if (Array.isArray(channel)) {
             channel.forEach((step, stepIndex) => {
@@ -204,17 +199,16 @@
                     ? Tone.Frequency(step.frequency).toMidi()
                     : 60 + channelIndex * 12,
                   velocity: Math.round((step.velocity || 0.8) * 127),
-                  startTime: stepIndex * 0.25, // Each step is a 16th note
+                  startTime: stepIndex * 0.25,
                   endTime: (stepIndex + 1) * 0.25,
                   program: 0,
-                  isDrum: channelIndex === 3, // Last channel is drums
+                  isDrum: channelIndex === 3,
                 });
               }
             });
           }
         });
       } else if (result && typeof result === "object" && result.notes) {
-        // If result is already in the correct format
         formattedSequence.notes = result.notes.map((note) => ({
           pitch: note.pitch,
           velocity: note.velocity,
@@ -236,23 +230,92 @@
     } finally {
       isProcessing.value = false;
     }
-  }, 500); // 500ms debounce
+  }, 1000);
 
-  const handleInput = async (event) => {
+  // Simplified input handler
+  const handleInput = (event) => {
     if (!isInitialized.value) return;
 
     const newText = event.target.value;
     text.value = newText;
     emit("update:text", newText);
 
-    // Generate new pattern if text is not empty
-    if (newText.trim()) {
-      generatePattern(newText);
-    } else {
-      audioEngine.stopPlayback();
-      store.playing = false;
+    // Set waiting state immediately
+    isWaitingToGenerate.value = true;
+
+    // Handle the text change through the debounced handler
+    handleTextChange(newText);
+  };
+
+  // Modified button click handler
+  const handleButtonClick = async () => {
+    if (!isInitialized.value) {
+      await initializeAudio();
+      return;
+    }
+
+    if (!text.value.trim()) return;
+
+    try {
+      // Ensure audio context is running
+      if (Tone.context.state !== "running") {
+        await Tone.context.resume();
+      }
+
+      if (store.playing) {
+        audioEngine.stopPlayback();
+        store.playing = false;
+      } else {
+        // Use the same handler for consistency
+        handleTextChange(text.value);
+      }
+    } catch (error) {
+      console.error("Playback error:", error);
     }
   };
+
+  // Modified randomize handler
+  const handleRandomize = async () => {
+    if (!isInitialized.value || isProcessing.value) return;
+
+    try {
+      isProcessing.value = true;
+      error.value = null;
+
+      const newSeed = generateSeed();
+      const success = await store.applySeed(newSeed, true);
+
+      if (!success) {
+        throw new Error("Failed to apply seed");
+      }
+
+      currentSeed.value = newSeed;
+      const newText = generateRandomPhrase();
+      text.value = newText;
+
+      // Use the same handler for consistency
+      handleTextChange(newText);
+    } catch (err) {
+      console.error("Failed to randomize parameters:", err);
+      error.value = "Failed to randomize parameters";
+    } finally {
+      isProcessing.value = false;
+    }
+  };
+
+  // Modified plant phrase generator
+  const generatePlantPhrase = () => {
+    if (!store.audioInitialized) return;
+    const newText = PhraseGenerator.generatePhrase();
+    text.value = newText;
+    // Use the same handler for consistency
+    handleTextChange(newText);
+  };
+
+  // Cancel debounced handlers on component unmount
+  onUnmounted(() => {
+    handleTextChange.cancel();
+  });
 
   // Generate a random seed string
   const generateSeed = () => {
@@ -267,43 +330,6 @@
   const generateRandomPhrase = () => {
     // Use the new PhraseGenerator instead of the hardcoded phrases
     return PhraseGenerator.generatePhrase();
-  };
-
-  // Handle randomization of all parameters
-  const handleRandomize = async () => {
-    if (!isInitialized.value || isProcessing.value) return;
-
-    try {
-      isProcessing.value = true;
-      error.value = null;
-
-      // Generate new seed
-      const newSeed = generateSeed();
-
-      // Apply new seed
-      const success = await store.applySeed(newSeed, true);
-      if (!success) {
-        throw new Error("Failed to apply seed");
-      }
-
-      // Update local state
-      currentSeed.value = newSeed;
-      text.value = generateRandomPhrase();
-
-      // Generate new pattern
-      await generatePattern(text.value);
-    } catch (err) {
-      console.error("Failed to randomize parameters:", err);
-      error.value = "Failed to randomize parameters";
-    } finally {
-      isProcessing.value = false;
-    }
-  };
-
-  const generatePlantPhrase = () => {
-    if (!store.audioInitialized) return;
-    text.value = PhraseGenerator.generatePhrase();
-    handleInput({ target: { value: text.value } });
   };
 </script>
 

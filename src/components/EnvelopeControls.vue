@@ -3,9 +3,17 @@
     <!-- Cycle Button (for all envelopes) -->
     <div class="control-group">
       <button
-        class="w-10 h-10 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center border border-zinc-700/50"
-        :class="{ 'border-emerald-500/50': cycleState }"
+        class="w-10 h-10 rounded bg-zinc-800/50 flex items-center justify-center border border-zinc-700/50"
+        :class="{
+          'border-emerald-500/50': cycleState,
+          'hover:bg-zinc-700/50': props.number <= 2,
+          'opacity-60 cursor-not-allowed': props.number > 2,
+        }"
         @click="toggleCycle"
+        :disabled="props.number > 2"
+        :title="
+          props.number > 2 ? 'ENV3 and ENV4 are always in cycle mode' : ''
+        "
       >
         <IconHolder class="w-4 h-4" :class="{ 'text-emerald-400': cycleState }">
           <RotateCcw v-if="cycleState" />
@@ -13,7 +21,12 @@
         </IconHolder>
       </button>
       <div class="module-value">{{ number }}</div>
-      <label class="module-label">{{ cycleState ? "Cycle" : "Once" }}</label>
+      <label class="module-label">
+        {{ cycleState ? "Cycle" : "Once" }}
+        <span v-if="props.number > 2" class="text-[9px] text-zinc-500"
+          >(fixed)</span
+        >
+      </label>
     </div>
 
     <!-- Attack (only in shape mode) -->
@@ -183,13 +196,13 @@
 
     // For envelopes 3 and 4, always keep cycling enabled
     if (index >= 2) {
-      cycleState.value = true;
+      // No-op for ENV3 and ENV4 - they're always in cycle mode
+      return;
     } else {
       // Only allow toggling for envelopes 1 and 2
       cycleState.value = !cycleState.value;
+      updateEnvelope();
     }
-
-    updateEnvelope();
   };
 
   const formatTime = (ms) => {

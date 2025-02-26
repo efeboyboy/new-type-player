@@ -76,7 +76,10 @@
   const matrixMixer = ref(null);
   const envelopeShapeControls = ref(null);
   const envelopeBehaviorControls = ref(null);
-  const lpgControls = ref(null);
+  const lpg1 = ref(null);
+  const lpg2 = ref(null);
+  const lpg3 = ref(null);
+  const lpg4 = ref(null);
   const filterControls = ref(null);
   const spatialControls = ref(null);
 
@@ -98,6 +101,22 @@
         }
       }
     );
+  };
+
+  const resetAllLPGs = () => {
+    [lpg1.value, lpg2.value, lpg3.value, lpg4.value].forEach((control) => {
+      if (control?.reset) {
+        control.reset();
+      }
+    });
+  };
+
+  const randomizeAllLPGs = () => {
+    [lpg1.value, lpg2.value, lpg3.value, lpg4.value].forEach((control) => {
+      if (control?.randomize) {
+        control.randomize();
+      }
+    });
   };
 
   const isPlaying = ref(false);
@@ -145,7 +164,10 @@
     store.noiseControls = noiseControls.value;
     store.envelopeShapeControls = envelopeShapeControls.value;
     store.envelopeBehaviorControls = envelopeBehaviorControls.value;
-    store.lpgControls = lpgControls.value;
+    store.lpg1 = lpg1.value;
+    store.lpg2 = lpg2.value;
+    store.lpg3 = lpg3.value;
+    store.lpg4 = lpg4.value;
     store.matrixMixer = matrixMixer.value;
     store.filterControls = filterControls.value;
     store.spatialControls = spatialControls.value;
@@ -162,7 +184,10 @@
     store.noiseControls = null;
     store.envelopeShapeControls = null;
     store.envelopeBehaviorControls = null;
-    store.lpgControls = null;
+    store.lpg1 = null;
+    store.lpg2 = null;
+    store.lpg3 = null;
+    store.lpg4 = null;
     store.matrixMixer = null;
     store.filterControls = null;
     store.spatialControls = null;
@@ -349,8 +374,8 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <button
-                    @click="lpgControls?.reset()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                    @click="resetAllLPGs"
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
                       <RotateCcw
@@ -360,8 +385,8 @@
                     </IconHolder>
                   </button>
                   <button
-                    @click="lpgControls?.randomize()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                    @click="randomizeAllLPGs"
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
                       <Shuffle
@@ -372,8 +397,59 @@
                   </button>
                 </div>
               </div>
-              <div class="module-content">
-                <LPGControls ref="lpgControls" />
+              <div class="grid grid-cols-2 gap-4 h-full">
+                <div class="grid grid-cols-2 gap-4 h-full">
+                  <div class="bento-box">
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">LPG1</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <LPGControls ref="lpg1" :number="1" />
+                    </div>
+                  </div>
+                  <div class="bento-box">
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">LPG2</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <LPGControls ref="lpg2" :number="2" />
+                    </div>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 h-full">
+                  <div class="bento-box">
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">LPG3</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <LPGControls ref="lpg3" :number="3" />
+                    </div>
+                  </div>
+                  <div class="bento-box">
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">LPG4</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <LPGControls ref="lpg4" :number="4" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

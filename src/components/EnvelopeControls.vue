@@ -1,87 +1,67 @@
 <template>
-  <div class="module-panel">
-    <div class="grid grid-cols-4 gap-4">
-      <div v-for="n in 4" :key="n" class="flex flex-col items-center gap-4">
-        <div class="text-center">
-          <div class="module-label">{{ n }}</div>
-        </div>
+  <div class="flex gap-6 flex-col">
+    <!-- Cycle Button (for all envelopes) -->
+    <div class="control-group">
+      <button
+        class="w-10 h-10 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center border border-zinc-700/50"
+        :class="{ 'border-emerald-500/50': cycleState }"
+        @click="toggleCycle"
+      >
+        <IconHolder class="w-4 h-4" :class="{ 'text-emerald-400': cycleState }">
+          <RotateCcw v-if="cycleState" />
+          <ArrowRight v-else />
+        </IconHolder>
+      </button>
+      <div class="module-value">{{ number }}</div>
+      <label class="module-label">{{ cycleState ? "Cycle" : "Once" }}</label>
+    </div>
 
-        <div v-if="mode === 'shape'">
-          <!-- Attack -->
-          <div class="control-group">
-            <Knob
-              v-model="envelopes[n - 1].attack"
-              :min="10"
-              :max="1000"
-              :step="1"
-              class="w-10 h-10"
-            />
-            <div class="module-value">
-              {{ formatTime(envelopes[n - 1].attack) }}
-            </div>
-            <label class="module-label">Attack</label>
-          </div>
+    <!-- Attack (only in shape mode) -->
+    <div v-if="mode === 'shape'" class="control-group">
+      <Knob
+        v-model="attack"
+        :min="10"
+        :max="1000"
+        :step="1"
+        class="w-10 h-10"
+        @update:model-value="handleParameterChange('attack')"
+      />
+      <div class="module-value">{{ formatTime(attack) }}</div>
+      <label class="module-label">Attack</label>
+    </div>
 
-          <!-- Release -->
-          <div class="control-group">
-            <Knob
-              v-model="envelopes[n - 1].release"
-              :min="10"
-              :max="2000"
-              :step="1"
-              class="w-10 h-10"
-            />
-            <div class="module-value">
-              {{ formatTime(envelopes[n - 1].release) }}
-            </div>
-            <label class="module-label">Release</label>
-          </div>
+    <!-- Release (only in shape mode) -->
+    <div v-if="mode === 'shape'" class="control-group">
+      <Knob
+        v-model="release"
+        :min="10"
+        :max="2000"
+        :step="1"
+        class="w-10 h-10"
+        @update:model-value="handleParameterChange('release')"
+      />
+      <div class="module-value">{{ formatTime(release) }}</div>
+      <label class="module-label">Release</label>
+    </div>
 
-          <!-- Amount -->
-          <div class="control-group">
-            <Knob
-              v-model="envelopes[n - 1].amount"
-              :min="0"
-              :max="1"
-              :step="0.01"
-              class="w-10 h-10"
-            />
-            <div class="module-value">
-              {{ formatPercent(envelopes[n - 1].amount) }}
-            </div>
-            <label class="module-label">Amount</label>
-          </div>
-        </div>
-
-        <div v-else>
-          <!-- Cycle Button -->
-          <div class="control-group">
-            <button
-              class="w-10 h-10 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center border border-zinc-700/50"
-              :class="{ 'border-emerald-500/50': envelopes[n - 1].cycleState }"
-              @click="toggleCycle(n - 1)"
-            >
-              <IconHolder
-                class="w-4 h-4"
-                :class="{ 'text-emerald-400': envelopes[n - 1].cycleState }"
-              >
-                <RotateCcw v-if="envelopes[n - 1].cycleState" />
-                <ArrowRight v-else />
-              </IconHolder>
-            </button>
-            <div class="module-value">{{ n }}</div>
-            <label class="module-label">{{
-              envelopes[n - 1].cycleState ? "Cycle" : "Once"
-            }}</label>
-          </div>
-        </div>
-      </div>
+    <!-- Amount (only in shape mode) -->
+    <div v-if="mode === 'shape'" class="control-group">
+      <Knob
+        v-model="amount"
+        :min="0"
+        :max="1"
+        :step="0.01"
+        class="w-10 h-10"
+        @update:model-value="handleParameterChange('amount')"
+      />
+      <div class="module-value">{{ formatPercent(amount) }}</div>
+      <label class="module-label">Amount</label>
     </div>
   </div>
 </template>
 
 <script setup>
-  import { ref, watch, onMounted, nextTick } from "vue";
+  import { ref, watch, onMounted, nextTick, onBeforeUnmount } from "vue";
   import { RotateCcw, ArrowRight } from "lucide-vue-next";
   import Knob from "./Knob.vue";
   import IconHolder from "./IconHolder.vue";
@@ -95,27 +75,49 @@
       required: true,
       validator: (value) => ["shape", "behavior"].includes(value),
     },
+    number: {
+      type: Number,
+      required: true,
+      validator: (value) => value >= 1 && value <= 4,
+    },
   });
 
-  // Default envelope settings
-  const defaultEnvelope = {
-    attack: 100, // 100ms
-    release: 200, // 200ms
-    amount: 0.8, // 80%
-    cycleState: false,
+  // Store timeouts for cleanup
+  const timeoutIds = ref([]);
+
+  // Helper to safely add timeouts that will be cleaned up
+  const safeTimeout = (callback, delay) => {
+    const id = setTimeout(callback, delay);
+    timeoutIds.value.push(id);
+    return id;
   };
 
-  // Create 4 envelope configurations with slightly different defaults for each channel
-  const envelopes = ref(
-    Array(4)
-      .fill()
-      .map((_, index) => ({
-        attack: index === 3 ? 150 : 100, // Slightly longer attack for channel 4
-        release: index === 3 ? 300 : 200, // Slightly longer release for channel 4
-        amount: index === 3 ? 0.7 : 0.8, // Slightly lower amount for channel 4
-        cycleState: index >= 2, // Channels 3 & 4 cycling by default
-      }))
-  );
+  // Clean up all timeouts on component unmount
+  onBeforeUnmount(() => {
+    timeoutIds.value.forEach((id) => clearTimeout(id));
+    timeoutIds.value = [];
+
+    // Cancel any pending debounced updates
+    if (debouncedUpdate.cancel) {
+      debouncedUpdate.cancel();
+    }
+  });
+
+  // Get default values based on envelope number
+  const getDefaultValues = (number) => ({
+    attack: number === 4 ? 150 : number === 3 ? 728 : number === 2 ? 243 : 39, // Different attack times for each envelope
+    release:
+      number === 4 ? 300 : number === 3 ? 1190 : number === 2 ? 1919 : 59, // Different release times for each envelope
+    amount:
+      number === 4 ? 0.7 : number === 3 ? 0.24 : number === 2 ? 0.04 : 0.76, // Different amounts for each envelope
+    cycleState: number >= 3, // Envelopes 3 & 4 cycling by default
+  });
+
+  const defaults = getDefaultValues(props.number);
+  const attack = ref(defaults.attack);
+  const release = ref(defaults.release);
+  const amount = ref(defaults.amount);
+  const cycleState = ref(defaults.cycleState);
 
   // Check if audio engine is ready
   const audioInitialized = ref(false);
@@ -123,14 +125,6 @@
   // Initialize audio engine if needed
   onMounted(async () => {
     try {
-      // Check if audio is already initialized
-      if (ToneService.isAudioEngineInitialized()) {
-        // console.log("Audio already initialized in EnvelopeControls");
-        // audioInitialized.value = true;
-        // loadCurrentSettings();
-        // return;
-      }
-
       // First ensure audio context is started
       await ToneService.ensureStarted();
 
@@ -141,7 +135,6 @@
       }
 
       audioInitialized.value = true;
-      // console.log("Audio engine initialized from EnvelopeControls");
 
       // Load current settings from engine after initialization
       loadCurrentSettings();
@@ -150,7 +143,7 @@
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Apply our initial settings once
-      await updateAllEnvelopes();
+      await updateEnvelope();
     } catch (error) {
       console.error("Failed to initialize audio engine:", error);
     }
@@ -160,45 +153,43 @@
   const loadCurrentSettings = () => {
     if (!audioInitialized.value) return;
 
-    // Load envelope cycling state and parameters for each channel
-    for (let i = 0; i < 4; i++) {
-      if (audioEngine.envelopes && audioEngine.envelopes[i]) {
-        // Load cycling state, but ensure LPG C & D always have cycling enabled
-        if (i >= 2) {
-          envelopes.value[i].cycleState = true;
-        } else {
-          envelopes.value[i].cycleState = !!audioEngine.envelopes[i].isLooping;
-        }
+    const index = props.number - 1;
 
-        // Load envelope parameters if available
-        if (audioEngine.envelopes[i].rise !== undefined) {
-          envelopes.value[i].attack = Math.round(
-            audioEngine.envelopes[i].rise * 1000
-          );
-        }
+    // Load envelope parameters if available
+    if (audioEngine.envelopes && audioEngine.envelopes[index]) {
+      // Load cycling state, but ensure envelopes 3 & 4 always have cycling enabled
+      if (index >= 2) {
+        cycleState.value = true;
+      } else {
+        cycleState.value = !!audioEngine.envelopes[index].isLooping;
+      }
 
-        if (audioEngine.envelopes[i].fall !== undefined) {
-          envelopes.value[i].release = Math.round(
-            audioEngine.envelopes[i].fall * 1000
-          );
-        }
+      if (audioEngine.envelopes[index].rise !== undefined) {
+        attack.value = Math.round(audioEngine.envelopes[index].rise * 1000);
+      }
 
-        if (audioEngine.envelopes[i].level !== undefined) {
-          envelopes.value[i].amount = audioEngine.envelopes[i].level;
-        }
+      if (audioEngine.envelopes[index].fall !== undefined) {
+        release.value = Math.round(audioEngine.envelopes[index].fall * 1000);
+      }
+
+      if (audioEngine.envelopes[index].level !== undefined) {
+        amount.value = audioEngine.envelopes[index].level;
       }
     }
   };
 
-  const toggleCycle = (index) => {
-    // For envelopes 2 and 3 (LPG C & D), always keep cycling enabled
+  const toggleCycle = () => {
+    const index = props.number - 1;
+
+    // For envelopes 3 and 4, always keep cycling enabled
     if (index >= 2) {
-      envelopes.value[index].cycleState = true;
+      cycleState.value = true;
     } else {
-      // Only allow toggling for envelopes 0 and 1 (LPG A & B)
-      envelopes.value[index].cycleState = !envelopes.value[index].cycleState;
+      // Only allow toggling for envelopes 1 and 2
+      cycleState.value = !cycleState.value;
     }
-    updateEnvelope(index);
+
+    updateEnvelope();
   };
 
   const formatTime = (ms) => {
@@ -209,114 +200,102 @@
     return `${Math.round(value * 100)}%`;
   };
 
-  const updateEnvelope = async (index) => {
+  // Parameter change handler
+  const handleParameterChange = (paramType) => {
+    // Use debounced update to prevent too many rapid updates
+    debouncedUpdate();
+  };
+
+  const updateEnvelope = async () => {
     try {
       if (!audioInitialized.value) return;
 
       // Ensure audio context is running
       await ToneService.ensureStarted();
 
-      const env = envelopes.value[index];
-      if (!env) return;
+      const index = props.number - 1;
 
-      // Ensure LPG C & D (indices 2 & 3) always have cycling enabled
+      // Ensure envelopes 3 & 4 (indices 2 & 3) always have cycling enabled
       if (index >= 2) {
-        env.cycleState = true;
+        cycleState.value = true;
       }
 
       // Convert milliseconds to seconds for the audio engine
-      const attackSec = env.attack / 1000;
-      const releaseSec = env.release / 1000;
+      const attackSec = attack.value / 1000;
+      const releaseSec = release.value / 1000;
 
       // Set envelope parameters
       audioEngine.setEnvelope(index, {
         rise: attackSec,
         fall: releaseSec,
-        level: env.amount,
+        level: amount.value,
       });
 
       // Set envelope cycling state
-      audioEngine.setEnvelopeLFO(index, env.cycleState);
+      audioEngine.setEnvelopeLFO(index, cycleState.value);
     } catch (error) {
-      console.warn(`Error updating envelope ${index}:`, error);
-    }
-  };
-
-  // New method to update all envelopes at once
-  const updateAllEnvelopes = async () => {
-    for (let i = 0; i < envelopes.value.length; i++) {
-      await updateEnvelope(i);
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      console.warn(`Error updating envelope ${props.number}:`, error);
     }
   };
 
   // Increase debounce time to prevent rapid updates
   const debounce = (fn, delay) => {
     let timeoutId;
-    return function (...args) {
+    const debounced = function (...args) {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => fn.apply(this, args), delay);
     };
+
+    debounced.cancel = () => {
+      clearTimeout(timeoutId);
+    };
+
+    return debounced;
   };
 
   // Debounced update function to prevent too many rapid updates
-  const debouncedUpdate = debounce(updateAllEnvelopes, 100);
+  const debouncedUpdate = debounce(updateEnvelope, 100);
 
   // Watch for changes and update the audio engine
-  watch(
-    envelopes,
-    () => {
-      debouncedUpdate();
-    },
-    { deep: true }
-  );
+  watch([attack, release, amount, cycleState], () => {
+    debouncedUpdate();
+  });
 
   // Reset function
   const reset = async () => {
-    // Create new values with defaults
-    const newValues = Array(4)
-      .fill()
-      .map((_, index) => ({
-        attack: index === 3 ? 150 : 100, // Slightly longer attack for channel 4
-        release: index === 3 ? 300 : 200, // Slightly longer release for channel 4
-        amount: index === 3 ? 0.7 : 0.8, // Slightly lower amount for channel 4
-        cycleState: index >= 2, // Channels 3 & 4 cycling by default (always true)
-      }));
+    const newDefaults = getDefaultValues(props.number);
 
     // Update values
-    envelopes.value = newValues;
+    attack.value = newDefaults.attack;
+    release.value = newDefaults.release;
+    amount.value = newDefaults.amount;
+    cycleState.value = newDefaults.cycleState;
 
     // Wait for Vue to update the DOM
     await nextTick();
 
-    // Update audio engine with a small delay between each envelope to prevent audio glitches
-    for (let i = 0; i < envelopes.value.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      await updateEnvelope(i);
-    }
+    // Update audio engine with a small delay to prevent audio glitches
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await updateEnvelope();
   };
 
   // Randomize function
   const randomize = async () => {
     // Create new values within the proper ranges for each parameter
-    const newValues = envelopes.value.map((_, index) => ({
-      attack: Math.floor(10 + Math.random() * 990), // 10-1000ms
-      release: Math.floor(10 + Math.random() * 1990), // 10-2000ms
-      amount: Math.random(), // 0-1
-      cycleState: index >= 2 ? true : Math.random() > 0.5, // Always true for indices 2 & 3, random for others
-    }));
+    attack.value = Math.floor(10 + Math.random() * 990); // 10-1000ms
+    release.value = Math.floor(10 + Math.random() * 1990); // 10-2000ms
+    amount.value = Math.random(); // 0-1
 
-    // Update values
-    envelopes.value = newValues;
+    const index = props.number - 1;
+    // Always true for indices 2 & 3, random for others
+    cycleState.value = index >= 2 ? true : Math.random() > 0.5;
 
     // Wait for Vue to update the DOM
     await nextTick();
 
-    // Update audio engine with a small delay between each envelope to prevent audio glitches
-    for (let i = 0; i < envelopes.value.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      await updateEnvelope(i);
-    }
+    // Update audio engine with a small delay to prevent audio glitches
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await updateEnvelope();
   };
 
   // Expose methods for parent component
@@ -327,10 +306,6 @@
 </script>
 
 <style scoped>
-  .module-panel {
-    @apply bg-zinc-900/30 rounded-lg p-6;
-  }
-
   .control-group {
     @apply flex flex-col items-center gap-1;
   }

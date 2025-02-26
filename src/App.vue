@@ -74,8 +74,13 @@
   const osc3 = ref(null);
   const noiseControls = ref(null);
   const matrixMixer = ref(null);
-  const envelopeShapeControls = ref(null);
-  const envelopeBehaviorControls = ref(null);
+
+  // Update envelope refs to individual components
+  const env1 = ref(null);
+  const env2 = ref(null);
+  const env3 = ref(null);
+  const env4 = ref(null);
+
   const lpg1 = ref(null);
   const lpg2 = ref(null);
   const lpg3 = ref(null);
@@ -113,6 +118,23 @@
 
   const randomizeAllLPGs = () => {
     [lpg1.value, lpg2.value, lpg3.value, lpg4.value].forEach((control) => {
+      if (control?.randomize) {
+        control.randomize();
+      }
+    });
+  };
+
+  // Add functions to reset and randomize all envelopes
+  const resetAllEnvelopes = () => {
+    [env1.value, env2.value, env3.value, env4.value].forEach((control) => {
+      if (control?.reset) {
+        control.reset();
+      }
+    });
+  };
+
+  const randomizeAllEnvelopes = () => {
+    [env1.value, env2.value, env3.value, env4.value].forEach((control) => {
       if (control?.randomize) {
         control.randomize();
       }
@@ -162,8 +184,13 @@
     store.osc2 = osc2.value;
     store.osc3 = osc3.value;
     store.noiseControls = noiseControls.value;
-    store.envelopeShapeControls = envelopeShapeControls.value;
-    store.envelopeBehaviorControls = envelopeBehaviorControls.value;
+
+    // Update envelope refs in store
+    store.env1 = env1.value;
+    store.env2 = env2.value;
+    store.env3 = env3.value;
+    store.env4 = env4.value;
+
     store.lpg1 = lpg1.value;
     store.lpg2 = lpg2.value;
     store.lpg3 = lpg3.value;
@@ -182,8 +209,13 @@
     store.osc2 = null;
     store.osc3 = null;
     store.noiseControls = null;
-    store.envelopeShapeControls = null;
-    store.envelopeBehaviorControls = null;
+
+    // Clear envelope refs
+    store.env1 = null;
+    store.env2 = null;
+    store.env3 = null;
+    store.env4 = null;
+
     store.lpg1 = null;
     store.lpg2 = null;
     store.lpg3 = null;
@@ -464,12 +496,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <button
-                    @click="
-                      () => {
-                        envelopeShapeControls?.reset();
-                        envelopeBehaviorControls?.reset();
-                      }
-                    "
+                    @click="resetAllEnvelopes()"
                     class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
@@ -480,12 +507,7 @@
                     </IconHolder>
                   </button>
                   <button
-                    @click="
-                      () => {
-                        envelopeShapeControls?.randomize();
-                        envelopeBehaviorControls?.randomize();
-                      }
-                    "
+                    @click="randomizeAllEnvelopes()"
                     class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
@@ -497,27 +519,57 @@
                   </button>
                 </div>
               </div>
-              <div class="grid grid-rows-2 gap-4 h-full">
-                <div class="bento-box">
-                  <div class="bento-title flex items-center justify-between">
-                    <div class="module-title">Shape</div>
+              <div class="grid grid-cols-2 gap-4 h-full">
+                <div class="grid grid-cols-2 gap-4 h-full">
+                  <div class="bento-box">
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">ENV1</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <EnvelopeControls ref="env1" mode="shape" :number="1" />
+                    </div>
                   </div>
-                  <div class="module-content flex items-center justify-center">
-                    <EnvelopeControls
-                      ref="envelopeShapeControls"
-                      mode="shape"
-                    />
+                  <div class="bento-box">
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">ENV2</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <EnvelopeControls mode="shape" :number="2" ref="env2" />
+                    </div>
                   </div>
                 </div>
-                <div class="bento-box">
-                  <div class="bento-title flex items-center justify-between">
-                    <div class="module-title">Behavior</div>
+                <div class="grid grid-cols-2 gap-4 h-full">
+                  <div class="bento-box">
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">ENV3</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <EnvelopeControls mode="shape" :number="3" ref="env3" />
+                    </div>
                   </div>
-                  <div class="module-content flex items-center justify-center">
-                    <EnvelopeControls
-                      ref="envelopeBehaviorControls"
-                      mode="behavior"
-                    />
+                  <div class="bento-box">
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">ENV4</div>
+                    </div>
+                    <div
+                      class="module-content flex items-center justify-center"
+                    >
+                      <EnvelopeControls ref="env4" mode="shape" :number="4" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -535,7 +587,7 @@
                 <div class="flex items-center gap-2">
                   <button
                     @click="matrixMixer?.reset()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
                       <RotateCcw
@@ -546,7 +598,7 @@
                   </button>
                   <button
                     @click="matrixMixer?.randomize()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
                       <Shuffle
@@ -577,7 +629,7 @@
                 <div class="flex items-center gap-2">
                   <button
                     @click="filterControls?.reset()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
                       <RotateCcw
@@ -588,7 +640,7 @@
                   </button>
                   <button
                     @click="filterControls?.randomize()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
                       <Shuffle
@@ -616,7 +668,7 @@
                 <div class="flex items-center gap-2">
                   <button
                     @click="spatialControls?.reset()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
                       <RotateCcw
@@ -627,7 +679,7 @@
                   </button>
                   <button
                     @click="spatialControls?.randomize()"
-                    class="w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center group"
+                    class="w-6 h-6 rounded bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center group border border-zinc-700/50"
                   >
                     <IconHolder class="w-3.5 h-3.5">
                       <Shuffle

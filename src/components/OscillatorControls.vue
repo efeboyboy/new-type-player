@@ -1,5 +1,5 @@
 <template>
-  <div class="flex gap-6">
+  <div class="flex gap-6 flex-col">
     <!-- Fine Tune Control -->
     <div class="control-group">
       <Knob

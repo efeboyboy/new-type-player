@@ -257,7 +257,7 @@
                   <IconHolder class="w-3.5 h-3.5 text-emerald-500/70">
                     <ActivityIcon />
                   </IconHolder>
-                  <span class="whitespace-nowrap">Sound Sources</span>
+                  <span class="whitespace-nowrap">3 x Oscillators + Noise</span>
                 </div>
                 <div class="flex items-center gap-2">
                   <button
@@ -282,11 +282,13 @@
                   </button>
                 </div>
               </div>
-              <div class="grid grid-rows-2 gap-4 h-full">
+              <div class="grid grid-cols-2 gap-4 h-full">
                 <div class="grid grid-cols-2 gap-4 h-full">
                   <div class="bento-box">
-                    <div class="bento-title flex items-center justify-between">
-                      <div class="module-title">Sound 1</div>
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">OSC1</div>
                     </div>
                     <div
                       class="module-content flex items-center justify-center"
@@ -295,8 +297,10 @@
                     </div>
                   </div>
                   <div class="bento-box">
-                    <div class="bento-title flex items-center justify-between">
-                      <div class="module-title">Sound 2</div>
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">OSC2</div>
                     </div>
                     <div
                       class="module-content flex items-center justify-center"
@@ -307,8 +311,10 @@
                 </div>
                 <div class="grid grid-cols-2 gap-4 h-full">
                   <div class="bento-box">
-                    <div class="bento-title flex items-center justify-between">
-                      <div class="module-title">Sound 3</div>
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">OSC3</div>
                     </div>
                     <div
                       class="module-content flex items-center justify-center"
@@ -317,8 +323,10 @@
                     </div>
                   </div>
                   <div class="bento-box">
-                    <div class="bento-title flex items-center justify-between">
-                      <div class="module-title">Noise</div>
+                    <div
+                      class="bento-title flex flex-col items-center justify-between"
+                    >
+                      <div class="module-title">NOISE</div>
                     </div>
                     <div
                       class="module-content flex items-center justify-center"

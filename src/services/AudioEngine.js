@@ -1702,6 +1702,15 @@ class AudioEngine {
         return false;
       }
 
+      // Skip update if no parameters are provided
+      if (
+        mode === undefined &&
+        level === undefined &&
+        modAmount === undefined
+      ) {
+        return true;
+      }
+
       // Batch parameter updates to minimize audio glitches
       const now = Tone.now();
 
@@ -1710,7 +1719,7 @@ class AudioEngine {
       const modeChanged = mode !== undefined && mode !== currentMode;
 
       // If mode is changing, we need longer ramp times to avoid clicks
-      const baseRampTime = modeChanged ? 0.1 : 0.05;
+      const baseRampTime = modeChanged ? 0.15 : 0.05;
 
       // Calculate appropriate ramp times based on parameter change magnitude
       let levelRampTime = baseRampTime;
@@ -1720,14 +1729,33 @@ class AudioEngine {
         const currentLevel = lpg.vca.gain.value;
         const levelDiff = Math.abs(currentLevel - level);
         // Larger level changes need longer ramps
-        levelRampTime = Math.min(0.2, baseRampTime + levelDiff * 0.15);
+        levelRampTime = Math.min(0.25, baseRampTime + levelDiff * 0.2);
+
+        // Skip update if level change is negligible
+        if (levelDiff < 0.01 && !modeChanged) {
+          level = undefined;
+        }
       }
 
       if (modAmount !== undefined) {
         const currentQ = lpg.filter.Q.value / 10; // Normalize to 0-1 range
         const modDiff = Math.abs(currentQ - modAmount);
         // Larger modulation changes need longer ramps
-        modRampTime = Math.min(0.2, baseRampTime + modDiff * 0.15);
+        modRampTime = Math.min(0.25, baseRampTime + modDiff * 0.2);
+
+        // Skip update if modAmount change is negligible
+        if (modDiff < 0.01 && !modeChanged) {
+          modAmount = undefined;
+        }
+      }
+
+      // Skip update if all parameters were deemed negligible
+      if (
+        mode === undefined &&
+        level === undefined &&
+        modAmount === undefined
+      ) {
+        return true;
       }
 
       // Set LPG mode (vcf, vca, or both)
@@ -1808,8 +1836,35 @@ class AudioEngine {
       if (level !== undefined && lpg.vca && lpg.vca.gain && !modeChanged) {
         try {
           const gainValue = Math.max(0, Math.min(1, level));
-          lpg.vca.gain.cancelScheduledValues(now);
-          lpg.vca.gain.linearRampToValueAtTime(gainValue, now + levelRampTime);
+
+          // Get current gain to determine if we need a fade-in approach
+          const currentGain = lpg.vca.gain.value;
+          const gainDiff = Math.abs(currentGain - gainValue);
+
+          // For large increases in gain, use a two-stage approach to avoid pops
+          if (gainValue > currentGain && gainDiff > 0.3) {
+            // First stage: quick ramp to an intermediate value
+            const intermediateGain =
+              currentGain + (gainValue - currentGain) * 0.5;
+            lpg.vca.gain.cancelScheduledValues(now);
+            lpg.vca.gain.linearRampToValueAtTime(
+              intermediateGain,
+              now + levelRampTime * 0.5
+            );
+
+            // Second stage: complete the ramp to target value
+            lpg.vca.gain.linearRampToValueAtTime(
+              gainValue,
+              now + levelRampTime
+            );
+          } else {
+            // For decreases or small increases, a single ramp is fine
+            lpg.vca.gain.cancelScheduledValues(now);
+            lpg.vca.gain.linearRampToValueAtTime(
+              gainValue,
+              now + levelRampTime
+            );
+          }
         } catch (error) {
           console.warn(`Error setting LPG ${index} level:`, error);
         }
@@ -1820,8 +1875,28 @@ class AudioEngine {
         try {
           // Adjust filter resonance based on modAmount
           const qValue = Math.max(0.1, Math.min(20, modAmount * 10));
-          lpg.filter.Q.cancelScheduledValues(now);
-          lpg.filter.Q.linearRampToValueAtTime(qValue, now + modRampTime);
+
+          // Get current Q to determine appropriate ramp approach
+          const currentQ = lpg.filter.Q.value;
+          const qDiff = Math.abs(currentQ - qValue);
+
+          // For large Q changes, use a two-stage approach
+          if (qDiff > 5) {
+            // First stage: move halfway
+            const intermediateQ = currentQ + (qValue - currentQ) * 0.5;
+            lpg.filter.Q.cancelScheduledValues(now);
+            lpg.filter.Q.linearRampToValueAtTime(
+              intermediateQ,
+              now + modRampTime * 0.5
+            );
+
+            // Second stage: complete the change
+            lpg.filter.Q.linearRampToValueAtTime(qValue, now + modRampTime);
+          } else {
+            // For smaller changes, a single ramp is sufficient
+            lpg.filter.Q.cancelScheduledValues(now);
+            lpg.filter.Q.linearRampToValueAtTime(qValue, now + modRampTime);
+          }
 
           // Adjust envelope sensitivity with smoother transition
           // Smoothing affects how quickly the vactrol responds to changes
@@ -2101,7 +2176,7 @@ class AudioEngine {
   }
 
   // Add method to start/stop LPG LFO
-  setLPGLFO(index, enabled, rate = 1) {
+  async setLPGLFO(index, enabled, rate = 1) {
     // Validate index and initialization
     if (index === undefined || index < 0 || index >= 4) {
       console.warn(`Invalid LPG index: ${index}`);
@@ -2147,12 +2222,39 @@ class AudioEngine {
       // Get current rate to determine transition time
       const currentRate = lpg.lfo.frequency.value;
 
+      // Skip update if the rate hasn't changed significantly
+      // This prevents unnecessary parameter changes that can cause clicks
+      if (Math.abs(currentRate - safeRate) < 0.08) {
+        return true;
+      }
+
       // Calculate appropriate ramp time based on rate change magnitude
       // Larger changes need longer ramps to avoid clicks
       const rateDifference = Math.abs(currentRate - safeRate);
       const rampTime = Math.min(0.3, 0.1 + rateDifference * 0.05);
 
       try {
+        // Before changing frequency, slightly reduce LFO amplitude to minimize clicks
+        // This creates a smoother transition when frequency changes
+        if (lpg.lfo._gainNode && rateDifference > 0.5) {
+          try {
+            const currentGain = lpg.lfo._gainNode.gain.value;
+            lpg.lfo._gainNode.gain.cancelScheduledValues(now);
+            lpg.lfo._gainNode.gain.linearRampToValueAtTime(
+              currentGain * 0.8,
+              now + 0.05
+            );
+
+            // Small delay to allow gain reduction to take effect
+            await new Promise((resolve) => setTimeout(resolve, 30));
+          } catch (gainError) {
+            // Silently handle gain adjustment errors
+            console.debug(
+              `Note: Could not adjust LFO gain for smoother transition: ${gainError.message}`
+            );
+          }
+        }
+
         // Set frequency with longer ramp to avoid clicks
         lpg.lfo.frequency.cancelScheduledValues(now);
 
@@ -2191,6 +2293,32 @@ class AudioEngine {
           // Connect and start LFO if not already running
           lpg.lfo.connect(lpg.vactrol);
           lpg.lfo.start();
+        }
+
+        // Restore full gain after frequency change (if we reduced it earlier)
+        if (lpg.lfo._gainNode && rateDifference > 0.5) {
+          try {
+            // Wait for frequency change to complete
+            setTimeout(() => {
+              try {
+                lpg.lfo._gainNode.gain.cancelScheduledValues(now + rampTime);
+                lpg.lfo._gainNode.gain.linearRampToValueAtTime(
+                  1.0,
+                  now + rampTime + 0.1
+                );
+              } catch (error) {
+                // Silently handle gain restoration errors
+                console.debug(
+                  `Note: Could not restore LFO gain: ${error.message}`
+                );
+              }
+            }, rampTime * 1000);
+          } catch (gainError) {
+            // Silently handle gain scheduling errors
+            console.debug(
+              `Note: Could not schedule gain restoration: ${gainError.message}`
+            );
+          }
         }
       } catch (lfoError) {
         console.warn(`Error updating LPG ${index} LFO:`, lfoError);
